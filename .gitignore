@@ -1,9 +1,23 @@
+# Node modules
 node_modules/
+
+# Build folders
 build/
 dist/
+
+# Test coverage
 coverage/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
 .DS_Store
 *.log
 .env*
 !.env
-backend/uploads/
