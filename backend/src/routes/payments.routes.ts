@@ -10,7 +10,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
     const { customer_id, invoice_id, amount, method, note } = req.body;
     const userId = req.user!.id;
 
-    const payment = await prisma.$transaction(async (tx) => {
+    const payment = await prisma.$transaction(async (tx: any) => {
       const p = await tx.payment.create({
         data: {
           customerId: Number(customer_id),

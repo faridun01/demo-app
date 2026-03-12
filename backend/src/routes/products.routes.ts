@@ -226,7 +226,7 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Товар не найден' });
     }
 
-    const remainingStock = product.batches.reduce((sum, batch) => sum + Number(batch.remainingQuantity || 0), 0);
+    const remainingStock = product.batches.reduce((sum: number, batch: any) => sum + Number(batch.remainingQuantity || 0), 0);
     if (remainingStock > 0 || Number(product.stock || 0) > 0) {
       return res.status(400).json({ error: 'Нельзя удалить товар, пока на складе есть запас' });
     }
@@ -330,7 +330,7 @@ router.get('/:id/history', async (req, res, next) => {
     const warehouseIdsFromReasons = Array.from(
       new Set(
         transactions
-          .flatMap((transaction) => {
+          .flatMap((transaction: any) => {
             const matches = String(transaction.reason || '').match(/Warehouse\s+#(\d+)/gi) || [];
             return matches
               .map((match) => Number((match.match(/(\d+)/) || [])[0]))
@@ -353,7 +353,7 @@ router.get('/:id/history', async (req, res, next) => {
     const formatHistoryReason = (reason: string | null | undefined) =>
       String(reason || '').replace(/Warehouse\s+#(\d+)/gi, (_match: string, idText: string): string => {
         const warehouseName = warehousesById.get(Number(idText));
-        return warehouseName || `Склад #${idText}`;
+        return String(warehouseName || `Склад #${idText}`);
       });
 
     const transactionHistory = transactions.map((t: any) => ({
