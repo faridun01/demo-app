@@ -15,12 +15,13 @@ coverage/
 .env
 .env.*
 !.env.example
+backend/.env
+
+# Uploads (local files)
+backend/uploads/
+
+# Snapshots / backups
+snapshots/
 
 # OS files
 .DS_Store
-*.log
-.env*
-!.env
-
-
-snapshots/
