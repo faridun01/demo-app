@@ -180,7 +180,7 @@ export const ReportsView = ({ warehouseId }: ReportsViewProps) => {
       <Card title={reportType === 'sales' ? 'График продаж' : 'График прибыли'}>
         <div className="p-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 h-[300px] min-h-[300px]">
+            <div className="lg:col-span-2 h-75 min-h-75">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -210,7 +210,7 @@ export const ReportsView = ({ warehouseId }: ReportsViewProps) => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="h-[300px] min-h-[300px]">
+            <div className="h-75 min-h-75">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import LoginView from './views/LoginView';
 import RegisterView from './views/RegisterView';
 import DashboardView from './views/DashboardView';
@@ -23,7 +23,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   return token ? <>{children}</> : <Navigate to="/login" />;
 };
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
   return (
@@ -51,7 +51,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </header>
 
         <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
@@ -75,27 +75,24 @@ export default function App() {
         <Route path="/login" element={<LoginView />} />
         <Route path="/register" element={<RegisterView />} />
         <Route
-          path="/*"
           element={
             <PrivateRoute>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<DashboardView />} />
-                  <Route path="/products" element={<ProductsView />} />
-                  <Route path="/catalog" element={<CatalogView />} />
-                  <Route path="/sales" element={<SalesView />} />
-                  <Route path="/pos" element={<POSView />} />
-                  <Route path="/customers" element={<CustomerView />} />
-                  <Route path="/reports" element={isAdmin ? <ReportsView /> : <Navigate to="/" />} />
-                  <Route path="/reminders" element={<RemindersView />} />
-                  <Route path="/history" element={<HistoryView />} />
-                  <Route path="/settings" element={isAdmin ? <SettingsView /> : <Navigate to="/" />} />
-                  <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-              </Layout>
+              <Layout />
             </PrivateRoute>
           }
-        />
+        >
+          <Route path="/" element={<DashboardView />} />
+          <Route path="/products" element={<ProductsView />} />
+          <Route path="/catalog" element={<CatalogView />} />
+          <Route path="/sales" element={<SalesView />} />
+          <Route path="/pos" element={<POSView />} />
+          <Route path="/customers" element={<CustomerView />} />
+          <Route path="/reports" element={isAdmin ? <ReportsView /> : <Navigate to="/" replace />} />
+          <Route path="/reminders" element={<RemindersView />} />
+          <Route path="/history" element={<HistoryView />} />
+          <Route path="/settings" element={isAdmin ? <SettingsView /> : <Navigate to="/" replace />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
