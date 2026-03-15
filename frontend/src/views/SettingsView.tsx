@@ -33,7 +33,9 @@ export default function SettingsView() {
   const [showAddWarehouse, setShowAddWarehouse] = useState(false);
   const [showEditWarehouse, setShowEditWarehouse] = useState(false);
   const [showDeleteWarehouseConfirm, setShowDeleteWarehouseConfirm] = useState(false);
+  const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   
   const [warehouseForm, setWarehouseForm] = useState({
     name: '',
@@ -44,7 +46,6 @@ export default function SettingsView() {
 
   const [showAddUser, setShowAddUser] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [newUser, setNewUser] = useState({ 
     username: '', 
     password: '', 
@@ -144,15 +145,16 @@ export default function SettingsView() {
     setSelectedWarehouse(null);
   };
 
-  const handleDeleteUser = async (id: number) => {
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
     if (!isAdmin) {
       toast.error('Недостаточно прав');
       return;
     }
-    if (!window.confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
     try {
-      await client.delete(`/auth/users/${id}`);
+      await client.delete(`/auth/users/${selectedUser.id}`);
       toast.success('Пользователь удален');
+      setSelectedUser(null);
       fetchData();
     } catch (err) {
       toast.error('Ошибка при удалении пользователя');
@@ -534,6 +536,17 @@ export default function SettingsView() {
         message={`Вы уверены, что хотите удалить склад "${selectedWarehouse?.name}"? Это действие нельзя отменить.`}
       />
 
+      <ConfirmationModal
+        isOpen={showDeleteUserConfirm}
+        onClose={() => {
+          setShowDeleteUserConfirm(false);
+          setSelectedUser(null);
+        }}
+        onConfirm={handleDeleteUser}
+        title="Удалить пользователя?"
+        message={`Вы уверены, что хотите удалить пользователя "${selectedUser?.username}"? Это действие нельзя отменить.`}
+      />
+
       {activeTab === 'warehouses' && (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
           {warehouses.map(w => (
@@ -764,7 +777,10 @@ export default function SettingsView() {
                     Удаление
                   </button>
                   <button
-                    onClick={() => handleDeleteUser(u.id)}
+                    onClick={() => {
+                      setSelectedUser(u);
+                      setShowDeleteUserConfirm(true);
+                    }}
                     className="rounded-2xl border border-rose-100 px-4 py-3 text-rose-600"
                   >
                     <Trash2 size={16} />
@@ -848,7 +864,10 @@ export default function SettingsView() {
                           <Edit size={20} />
                         </button>
                         <button 
-                          onClick={() => handleDeleteUser(u.id)}
+                          onClick={() => {
+                            setSelectedUser(u);
+                            setShowDeleteUserConfirm(true);
+                          }}
                           className="text-slate-300 hover:text-rose-600 p-3 hover:bg-rose-50 rounded-xl transition-all"
                         >
                           <Trash2 size={20} />
