@@ -20,7 +20,8 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.0.2",
     "recharts": "^2.15.0",
-    "tailwind-merge": "^2.5.5"
+    "tailwind-merge": "^2.5.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0-alpha.31",

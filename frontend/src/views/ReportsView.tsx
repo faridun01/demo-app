@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { FileSpreadsheet, Warehouse } from 'lucide-react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import client from '../api/client';
 import { formatCount, formatMoney, toFixedNumber } from '../utils/format';
 import { formatProductName } from '../utils/productName';
@@ -81,15 +82,6 @@ function csvCell(value: unknown) {
 
 function buildCsv(rows: unknown[][]) {
   return ['sep=;', ...rows.map((row) => row.map(csvCell).join(';'))].join('\r\n');
-}
-
-function xmlEscape(value: unknown) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 function normalizeSheetName(value: string) {
@@ -448,8 +440,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     const { detailHeaders, detailRows } = buildReportRows(reportData);
     const warehouseName =
       warehouses.find((warehouse) => String(warehouse.id) === selectedWarehouseId)?.name || 'Все склады';
-
-    const workbookSheets: Array<{ name: string; rows: unknown[][] }> = [];
+    const workbook = XLSX.utils.book_new();
 
     const overallRows: unknown[][] = [
       ...buildSummaryRows(reportData, warehouseName),
@@ -472,7 +463,11 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
       );
     }
 
-    workbookSheets.push({ name: 'Общий отчёт', rows: overallRows });
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet(overallRows),
+      normalizeSheetName('Общий отчёт')
+    );
 
     const groupedByWarehouse = reportData.reduce((acc, row) => {
       const key = row.warehouse_name || 'Без склада';
@@ -527,41 +522,14 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
         }
       }
 
-      workbookSheets.push({ name, rows: sheetRows });
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(sheetRows),
+        normalizeSheetName(name)
+      );
     });
 
-    const workbookXml = `<?xml version="1.0" encoding="UTF-8"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- ${workbookSheets
-   .map(({ name, rows }) => {
-     const xmlRows = rows
-       .map((row) => {
-         const cells = row
-           .map((cell) => {
-             const value = cell ?? '';
-             const isNumber = typeof value === 'number' || (/^-?\d+([.,]\d+)?$/.test(String(value)) && String(value) !== '');
-             const normalizedValue = isNumber ? String(value).replace(',', '.') : String(value);
-             return `<Cell><Data ss:Type="${isNumber ? 'Number' : 'String'}">${xmlEscape(normalizedValue)}</Data></Cell>`;
-           })
-           .join('');
-         return `<Row>${cells}</Row>`;
-       })
-       .join('');
-
-     return `<Worksheet ss:Name="${xmlEscape(normalizeSheetName(name))}"><Table>${xmlRows}</Table></Worksheet>`;
-   })
-   .join('')}
-</Workbook>`;
-
-    const blob = new Blob(['\uFEFF' + workbookXml], { type: 'application/xml;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `otchet_${reportType}_${dateRange.start}_${dateRange.end}.xml`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    XLSX.writeFile(workbook, `otchet_${reportType}_${dateRange.start}_${dateRange.end}.xlsx`);
   };
 
   return (
