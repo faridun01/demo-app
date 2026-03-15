@@ -50,6 +50,14 @@ function card(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
 }
 
+const formatShortRuDate = (date: Date) =>
+  date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+  });
+
+const dayStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
 const formatMetricDelta = (value: number) => {
   const safeValue = Number.isFinite(value) ? value : 0;
   const prefix = safeValue > 0 ? '+' : '';
@@ -199,7 +207,6 @@ export default function DashboardView() {
       .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     const now = new Date();
-    const dayStart = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
     if (overviewPeriod === 'week') {
       const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -292,7 +299,14 @@ export default function DashboardView() {
   }, [filteredSales, overviewPeriod, overviewSales, searchQuery]);
 
   const overviewDescription = useMemo(() => {
-    if (overviewPeriod === 'week') return 'Динамика выручки за текущую неделю.';
+    if (overviewPeriod === 'week') {
+      const current = new Date();
+      const monday = dayStart(current);
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return `Текущая неделя: ${formatShortRuDate(monday)} - ${formatShortRuDate(sunday)}.`;
+    }
     if (overviewPeriod === 'month') return 'Динамика выручки за текущий месяц.';
     if (overviewPeriod === 'quarter') return 'Динамика выручки за текущий квартал.';
     return 'Динамика выручки за текущий год.';
