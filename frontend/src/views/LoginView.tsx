@@ -51,35 +51,35 @@ export default function LoginView() {
                 </div>
                 <div>
                   <p className="text-xl font-semibold tracking-tight">Wholesale CRM</p>
-                  <p className="text-xs text-slate-300">Управление оптовым магазином</p>
+                  <p className="text-xs text-slate-300">Контроль оптового магазина в одном окне</p>
                 </div>
               </div>
             </div>
 
             <div className="relative mt-12 space-y-10">
               <div>
-                <p className="text-sm uppercase tracking-[0.24em] text-[#9db8df]">Вход в систему</p>
+                <p className="text-sm uppercase tracking-[0.24em] text-[#9db8df]">Система для опта</p>
                 <h1 className="mt-5 max-w-lg text-[56px] font-semibold leading-[1.02] tracking-tight">
-                  Рабочее пространство для складов, продаж и клиентов
+                  Учитывайте товар, продажи и долги без хаоса в таблицах
                 </h1>
                 <p className="mt-6 max-w-xl text-[15px] leading-8 text-slate-300">
-                  Авторизуйтесь под своей учётной записью и продолжайте работу только с теми складами и данными, которые доступны вашей роли.
+                  CRM помогает владельцу и сотрудникам держать под контролем остатки по складам, накладные, клиентов, оплаты и прибыль по товарам в одном понятном рабочем процессе.
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-[28px] border border-white/10 bg-white/7 p-6 backdrop-blur">
                   <ShieldCheck className="text-[#8ed7a8]" size={20} />
-                  <p className="mt-4 text-base font-semibold">Безопасный доступ</p>
+                  <p className="mt-4 text-base font-semibold">Меньше ошибок в продаже</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Сессия завершается после закрытия браузера, повторный вход обязателен.
+                    Каждая продажа, возврат и движение товара фиксируются в системе, а не теряются в переписках и бумагах.
                   </p>
                 </div>
                 <div className="rounded-[28px] border border-white/10 bg-white/7 p-6 backdrop-blur">
                   <Building2 className="text-[#8fb7ff]" size={20} />
-                  <p className="mt-4 text-base font-semibold">Привязка к складу</p>
+                  <p className="mt-4 text-base font-semibold">Больше контроля для владельца</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Пользователь видит только свои склады и данные, администратор видит всё.
+                    Вы сразу видите, какой товар продаётся, где заканчивается остаток и откуда формируется выручка.
                   </p>
                 </div>
               </div>
@@ -98,7 +98,7 @@ export default function LoginView() {
                 </div>
                 <h2 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Вход в CRM</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Введите логин и пароль сотрудника, чтобы продолжить работу.
+                  Войдите в систему и управляйте складом, продажами и клиентами из одного места.
                 </p>
               </div>
 
