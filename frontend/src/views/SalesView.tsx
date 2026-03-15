@@ -671,11 +671,7 @@ export default function SalesView() {
                 </div>
                 <div className="rounded-2xl bg-slate-50 px-3 py-3">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
-                  <p className="mt-1 break-words text-sm text-rose-600">
-                    {getInvoiceChangeAmount(inv) > PAYMENT_EPSILON
-                      ? `Сдача ${formatMoney(getInvoiceChangeAmount(inv))}`
-                      : formatMoney(getInvoiceBalance(inv))}
-                  </p>
+                  <p className="mt-1 break-words text-sm text-rose-600">{formatMoney(getInvoiceBalance(inv))}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 px-3 py-3">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Склад</p>
@@ -750,11 +746,7 @@ export default function SalesView() {
                   <td className="px-5 py-5 text-sm text-slate-700">{inv.customer_name}</td>
                   <td className="px-5 py-5 text-sm text-slate-700">{formatMoney(getInvoiceNetAmount(inv))}</td>
                   <td className="px-5 py-5 text-sm text-emerald-500">{formatMoney(getInvoiceAppliedPaidAmount(inv))}</td>
-                  <td className={clsx('px-5 py-5 text-sm', getInvoiceChangeAmount(inv) > PAYMENT_EPSILON ? 'text-amber-500' : 'text-rose-500')}>
-                    {getInvoiceChangeAmount(inv) > PAYMENT_EPSILON
-                      ? `Сдача ${formatMoney(getInvoiceChangeAmount(inv))}`
-                      : formatMoney(getInvoiceBalance(inv))}
-                  </td>
+                  <td className="px-5 py-5 text-sm text-rose-500">{formatMoney(getInvoiceBalance(inv))}</td>
                   <td className="px-5 py-5">{getStatusBadge(getEffectiveStatus(inv), inv.cancelled)}</td>
                   <td className="px-5 py-5 text-sm text-slate-500">{inv.staff_name}</td>
                   <td className="px-5 py-5 text-right">
