@@ -72,7 +72,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
         name: true,
       }
     });
-    const existingProduct = existingProducts.find((product) => normalizeProductName(product.name) === normalizedName);
+    const existingProduct = existingProducts.find((product: { id: number; name: string }) => normalizeProductName(product.name) === normalizedName);
 
     if (existingProduct) {
       return res.status(400).json({
@@ -167,7 +167,7 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
           name: true,
         }
       });
-      const existingProduct = existingProducts.find((product) => (
+      const existingProduct = existingProducts.find((product: { id: number; name: string }) => (
         product.id !== productId && normalizeProductName(product.name) === newName
       ));
 
