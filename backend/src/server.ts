@@ -12,11 +12,12 @@ dotenv.config({ path: path.resolve(process.cwd(), 'backend/.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const PORT = Number(process.env.PORT) || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
 
 const { default: app } = await import('./app.js');
 
-const server = app.listen(PORT, 'localhost', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {
