@@ -263,9 +263,9 @@ export default function CatalogView() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
                   onClick={() => handleProductClick(product)}
-                  className="flex h-full cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:rounded-3xl"
+                  className="flex h-[32rem] cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:h-[35rem] md:rounded-3xl"
                 >
-                  <div className="aspect-square bg-slate-100">
+                  <div className="h-56 shrink-0 bg-slate-100 md:h-80">
                     {product.photoUrl ? (
                       <img
                         src={resolveMediaUrl(product.photoUrl, product.id)}
@@ -282,11 +282,11 @@ export default function CatalogView() {
                   </div>
 
                   <div className="flex flex-1 flex-col p-3 md:p-5">
-                    <div className="min-h-28 md:min-h-33">
+                    <div className="min-h-[10rem] md:min-h-[11.5rem]">
                       <div className="min-w-0">
                         <h3
                           title={formatProductName(product.name)}
-                          className="mt-3 line-clamp-4 wrap-break-word text-[13px] leading-5 text-slate-900 md:mt-4 md:min-h-21 md:text-base md:leading-7"
+                          className="mt-3 line-clamp-4 min-h-[5rem] break-words text-[13px] leading-5 text-slate-900 md:mt-4 md:min-h-[7rem] md:text-base md:leading-7"
                         >
                           {formatProductName(product.name)}
                         </h3>
