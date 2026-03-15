@@ -80,18 +80,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
       });
     }
 
-    let resolvedPhotoUrl = rest.photoUrl || null;
-    if (!resolvedPhotoUrl && normalizedName) {
-      const productWithSameNamePhoto = await prisma.product.findFirst({
-        where: {
-          name: normalizedName,
-          active: true,
-          photoUrl: { not: null }
-        },
-        orderBy: { updatedAt: 'desc' }
-      });
-      resolvedPhotoUrl = productWithSameNamePhoto?.photoUrl || null;
-    }
+    const resolvedPhotoUrl = rest.photoUrl || null;
 
     // Create product with 0 stock first
     const product = await prisma.product.create({

@@ -266,13 +266,19 @@ export default function CatalogView() {
                   className="flex h-full cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:rounded-[24px]"
                 >
                   <div className="aspect-square bg-slate-100">
-                    <img
-                      src={resolveMediaUrl(product.photoUrl, product.id)}
-                      alt={product.name}
-                      className="h-full w-full object-cover"
-                      referrerPolicy="no-referrer"
-                      onError={(event) => handleBrokenImage(event, product.id)}
-                    />
+                    {product.photoUrl ? (
+                      <img
+                        src={resolveMediaUrl(product.photoUrl, product.id)}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={(event) => handleBrokenImage(event, product.id)}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-slate-100 text-slate-300">
+                        <Package size={42} />
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-1 flex-col p-3 md:p-5">
@@ -408,13 +414,19 @@ export default function CatalogView() {
               <div className="grid max-h-[88vh] md:max-h-[92vh] md:grid-cols-[1.05fr_0.95fr]">
                 <div className="flex items-center justify-center bg-slate-50 p-3 md:max-h-[90vh] md:p-6">
                   <div className="w-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm md:rounded-[24px]">
-                  <img
-                    src={resolveMediaUrl(selectedProduct.photoUrl, selectedProduct.id)}
-                    alt={selectedProduct.name}
-                    className="h-[170px] w-full object-contain md:h-[620px]"
-                    referrerPolicy="no-referrer"
-                    onError={(event) => handleBrokenImage(event, selectedProduct.id)}
-                  />
+                  {selectedProduct.photoUrl ? (
+                    <img
+                      src={resolveMediaUrl(selectedProduct.photoUrl, selectedProduct.id)}
+                      alt={selectedProduct.name}
+                      className="h-[170px] w-full object-contain md:h-[620px]"
+                      referrerPolicy="no-referrer"
+                      onError={(event) => handleBrokenImage(event, selectedProduct.id)}
+                    />
+                  ) : (
+                    <div className="flex h-[170px] w-full items-center justify-center bg-slate-100 text-slate-300 md:h-[620px]">
+                      <Package size={72} />
+                    </div>
+                  )}
                 </div>
                 </div>
 
