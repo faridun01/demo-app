@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { Card, Badge } from '../components/UI';
 import client from '../api/client';
 import { formatCount, formatMoney } from '../utils/format';
+import ConfirmationModal from '../components/common/ConfirmationModal';
 
 interface Customer {
   id: number;
@@ -69,6 +70,7 @@ export default function CustomerView() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [statementData, setStatementData] = useState<StatementInvoice[]>([]);
   const [formData, setFormData] = useState(emptyForm);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchCustomers();
@@ -110,6 +112,20 @@ export default function CustomerView() {
     try {
       await client.delete(`/customers/${id}`);
       toast.success('Клиент удален');
+      fetchCustomers();
+    } catch {
+      toast.error('Ошибка при удалении');
+    }
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!selectedCustomer) return;
+
+    try {
+      await client.delete(`/customers/${selectedCustomer.id}`);
+      toast.success('Клиент удален');
+      setShowDeleteConfirm(false);
+      setSelectedCustomer(null);
       fetchCustomers();
     } catch {
       toast.error('Ошибка при удалении');
@@ -200,7 +216,10 @@ export default function CustomerView() {
                         <Edit2 size={18} />
                       </button>
                       <button
-                        onClick={() => handleDelete(customer.id)}
+                        onClick={() => {
+                          setSelectedCustomer(customer);
+                          setShowDeleteConfirm(true);
+                        }}
                         className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
                       >
                         <Trash2 size={18} />
@@ -245,6 +264,19 @@ export default function CustomerView() {
             ))}
           </div>
         </div>
+
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          title="Удалить клиента?"
+          message={selectedCustomer ? `Клиент "${selectedCustomer.name}" будет скрыт из активного списка.` : 'Клиент будет скрыт из активного списка.'}
+          confirmText="Удалить"
+          cancelText="Отмена"
+          onConfirm={handleDeleteConfirmed}
+          onClose={() => {
+            setShowDeleteConfirm(false);
+            setSelectedCustomer(null);
+          }}
+        />
 
         <AnimatePresence>
           {isModalOpen && (
