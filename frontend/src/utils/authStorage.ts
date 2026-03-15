@@ -5,6 +5,21 @@ export function getAuthToken() {
   return sessionStorage.getItem(TOKEN_KEY);
 }
 
+export function getTokenPayload() {
+  const token = getAuthToken();
+  if (!token) return null;
+
+  try {
+    const [, payload = ''] = token.split('.');
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
 export function getStoredUser() {
   return sessionStorage.getItem(USER_KEY);
 }
