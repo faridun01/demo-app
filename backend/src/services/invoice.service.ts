@@ -2,6 +2,10 @@ import prisma from '../db/prisma.js';
 import { StockService } from './stock.service.js';
 
 const PAYMENT_EPSILON = 0.01;
+const TRANSACTION_OPTIONS = {
+  maxWait: 10000,
+  timeout: 120000,
+};
 
 function getInvoiceStatus(paidAmount: number, netAmount: number) {
   if (paidAmount > 0 && paidAmount >= netAmount - PAYMENT_EPSILON) {
@@ -96,7 +100,7 @@ export class InvoiceService {
       }
 
       return invoice;
-    });
+    }, TRANSACTION_OPTIONS);
   }
 
   /**
@@ -115,7 +119,8 @@ export class InvoiceService {
 
       // 1. Return stock for each item
       for (const item of invoice.items) {
-        await StockService.deallocateStock(item.id, undefined, undefined, tx);
+        await StockService.deallocateStock(item.id, undefined, undefined, tx, false);
+        await StockService.updateProductStockCache(item.productId, tx);
       }
 
       // 2. Mark invoice as cancelled
@@ -140,7 +145,7 @@ export class InvoiceService {
       }
 
       return { success: true };
-    });
+    }, TRANSACTION_OPTIONS);
   }
 
   /**
@@ -221,6 +226,7 @@ export class InvoiceService {
       if (invoice.status === 'paid') throw new Error('Cannot return items for a fully paid invoice');
 
       let totalRefundValue = 0;
+      const affectedProductIds = new Set<number>();
 
       for (const returnItem of items) {
         const originalItem = invoice.items.find((i: any) => i.productId === returnItem.productId);
@@ -231,7 +237,8 @@ export class InvoiceService {
         }
 
         // 1. Return stock to batches (FIFO reverse) - this ensures stock goes back to the same warehouse
-        await StockService.deallocateStock(originalItem.id, returnItem.quantity, undefined, tx);
+        await StockService.deallocateStock(originalItem.id, returnItem.quantity, undefined, tx, false);
+        affectedProductIds.add(returnItem.productId);
 
         // 2. Record inventory transaction
         await tx.inventoryTransaction.create({
@@ -254,6 +261,10 @@ export class InvoiceService {
 
         // 4. Calculate refund value
         totalRefundValue += Number(originalItem.sellingPrice) * returnItem.quantity;
+      }
+
+      for (const productId of affectedProductIds) {
+        await StockService.updateProductStockCache(productId, tx);
       }
 
       // 5. Create Return record
@@ -285,6 +296,6 @@ export class InvoiceService {
       });
 
       return { success: true, refundAmount: totalRefundValue };
-    });
+    }, TRANSACTION_OPTIONS);
   }
 }

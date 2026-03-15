@@ -68,7 +68,13 @@ export class StockService {
    * Returns stock to batches (used for returns or invoice cancellation).
    * It returns stock to the EXACT batches it was taken from.
    */
-  static async deallocateStock(invoiceItemId: number, quantityToReturn?: number, specificBatchId?: number, tx?: any) {
+  static async deallocateStock(
+    invoiceItemId: number,
+    quantityToReturn?: number,
+    specificBatchId?: number,
+    tx?: any,
+    updateStockCache: boolean = true
+  ) {
     const client = tx || prisma;
     const whereClause: any = { invoiceItemId };
     if (specificBatchId) {
@@ -114,9 +120,11 @@ export class StockService {
     }
 
     // Update product cache stock
-    const item = await client.invoiceItem.findUnique({ where: { id: invoiceItemId } });
-    if (item) {
-      await this.updateProductStockCache(item.productId, client);
+    if (updateStockCache) {
+      const item = await client.invoiceItem.findUnique({ where: { id: invoiceItemId } });
+      if (item) {
+        await this.updateProductStockCache(item.productId, client);
+      }
     }
   }
 
