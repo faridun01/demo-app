@@ -16,6 +16,8 @@ const normalizeProductName = (value: string | null | undefined) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const formatMoneyValue = (value: unknown) => Number(value || 0).toFixed(2);
+
 router.get('/', async (req, res, next) => {
   try {
     const access = await getAccessContext(req as AuthRequest);
@@ -484,7 +486,7 @@ router.get('/:id/history', async (req: AuthRequest, res, next) => {
       warehouse: null,
       warehouseName: '---',
       username: 'system',
-      reason: `Цена продажи: ${p.sellingPrice}, себестоимость: ${p.costPrice}`,
+      reason: `Цена продажи: ${formatMoneyValue(p.sellingPrice)}, себестоимость: ${formatMoneyValue(p.costPrice)}`,
     }));
 
     const history = [...transactionHistory, ...priceEvents].sort(
