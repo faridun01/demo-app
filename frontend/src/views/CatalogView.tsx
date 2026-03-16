@@ -265,12 +265,12 @@ export default function CatalogView() {
                   onClick={() => handleProductClick(product)}
                   className="flex h-[32rem] cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:h-[35rem] md:rounded-3xl"
                 >
-                  <div className="h-56 shrink-0 bg-slate-100 md:h-80">
+                  <div className="h-56 shrink-0 bg-slate-100 p-3 md:h-80 md:p-4">
                     {product.photoUrl ? (
                       <img
                         src={resolveMediaUrl(product.photoUrl, product.id)}
                         alt={product.name}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                         referrerPolicy="no-referrer"
                         onError={(event) => handleBrokenImage(event, product.id)}
                       />
