@@ -5,7 +5,7 @@ import { getAccessContext } from '../utils/access.js';
 
 const router = Router();
 const PAYMENT_EPSILON = 0.01;
-const DEFAULT_CUSTOMER_NAME = 'Без названия';
+const DEFAULT_CUSTOMER_NAME = 'Без клиента';
 
 const getInvoiceBalance = (invoice: { netAmount: number; paidAmount: number }) => {
   const balance = Number(invoice.netAmount || 0) - Number(invoice.paidAmount || 0);
@@ -146,7 +146,7 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
 
     const customer = await prisma.customer.update({
       where: { id: Number(req.params.id) },
-      data: access.isAdmin ? req.body : { ...req.body, city: access.city || null }
+      data: access.isAdmin ? req.body : { ...req.body, city: access.city || null },
     });
     res.json(customer);
   } catch (error) {
@@ -170,7 +170,7 @@ router.delete('/:id', async (req: AuthRequest, res, next) => {
 
     await prisma.customer.update({
       where: { id: Number(req.params.id) },
-      data: { active: false }
+      data: { active: false },
     });
     res.json({ success: true });
   } catch (error) {
@@ -200,7 +200,7 @@ router.get('/:id/invoices', async (req: AuthRequest, res, next) => {
         warehouse: true,
         user: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     res.json(invoices);
   } catch (error) {
@@ -218,14 +218,16 @@ router.get('/:id/payments', async (req: AuthRequest, res, next) => {
       },
       include: {
         user: true,
-        invoice: true
+        invoice: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
-    res.json(payments.map((p: any) => ({
-      ...p,
-      staff_name: p.user.username
-    })));
+    res.json(
+      payments.map((p: any) => ({
+        ...p,
+        staff_name: p.user.username,
+      })),
+    );
   } catch (error) {
     next(error);
   }
@@ -241,14 +243,16 @@ router.get('/:id/returns', async (req: AuthRequest, res, next) => {
       },
       include: {
         user: true,
-        invoice: true
+        invoice: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
-    res.json(returns.map((r: any) => ({
-      ...r,
-      staff_name: r.user.username
-    })));
+    res.json(
+      returns.map((r: any) => ({
+        ...r,
+        staff_name: r.user.username,
+      })),
+    );
   } catch (error) {
     next(error);
   }
@@ -276,7 +280,7 @@ router.get('/:id/history', async (req: AuthRequest, res, next) => {
         warehouse: true,
         user: true,
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
     const history = invoices.map((invoice: any) => ({
       ...invoice,

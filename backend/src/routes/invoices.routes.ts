@@ -5,7 +5,8 @@ import { AuthRequest } from '../middlewares/auth.middleware.js';
 import { ensureWarehouseAccess, getAccessContext, getScopedWarehouseId } from '../utils/access.js';
 
 const router = Router();
-const DEFAULT_CUSTOMER_NAME = 'Без названия';
+const DEFAULT_CUSTOMER_NAME = 'Без клиента';
+
 const canCancelInvoice = (req: AuthRequest) => {
   const role = req.user?.role?.toUpperCase();
   return role === 'ADMIN' || role === 'MANAGER' || Boolean(req.user?.canCancelInvoices);
@@ -57,18 +58,20 @@ router.get('/', async (req: AuthRequest, res, next) => {
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(invoices.map((inv: any) => {
-      const totalProfit = inv.items.reduce((sum: number, item: any) => {
-        return sum + (item.sellingPrice - item.costPrice) * (item.quantity - item.returnedQty);
-      }, 0);
+    res.json(
+      invoices.map((inv: any) => {
+        const totalProfit = inv.items.reduce((sum: number, item: any) => {
+          return sum + (item.sellingPrice - item.costPrice) * (item.quantity - item.returnedQty);
+        }, 0);
 
-      return {
-        ...inv,
-        customer_name: inv.customer.name,
-        staff_name: inv.user.username,
-        totalProfit: String(req.user?.role || '').toUpperCase() === 'ADMIN' ? totalProfit : undefined,
-      };
-    }));
+        return {
+          ...inv,
+          customer_name: inv.customer.name,
+          staff_name: inv.user.username,
+          totalProfit: String(req.user?.role || '').toUpperCase() === 'ADMIN' ? totalProfit : undefined,
+        };
+      }),
+    );
   } catch (error) {
     next(error);
   }
