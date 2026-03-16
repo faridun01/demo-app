@@ -263,9 +263,9 @@ export default function CatalogView() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
                   onClick={() => handleProductClick(product)}
-                  className="flex h-[32rem] cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:h-[35rem] md:rounded-3xl"
+                  className="flex h-[31rem] cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:h-[35rem] md:rounded-3xl"
                 >
-                  <div className="flex h-56 shrink-0 items-center justify-center bg-slate-100 p-4 md:h-80 md:p-5">
+                  <div className="flex h-44 shrink-0 items-center justify-center bg-slate-100 p-4 md:h-72 md:p-5">
                     {product.photoUrl ? (
                       <img
                         src={resolveMediaUrl(product.photoUrl, product.id)}
@@ -282,11 +282,11 @@ export default function CatalogView() {
                   </div>
 
                   <div className="flex flex-1 flex-col p-3 md:p-5">
-                    <div className="min-h-[10rem] md:min-h-[11.5rem]">
+                    <div className="min-h-[9rem] md:min-h-[11rem]">
                       <div className="min-w-0">
                         <h3
                           title={formatProductName(product.name)}
-                          className="mt-3 line-clamp-4 min-h-[5rem] break-words text-[13px] leading-5 text-slate-900 md:mt-4 md:min-h-[7rem] md:text-base md:leading-7"
+                          className="mt-3 line-clamp-4 min-h-[4.5rem] break-words text-[13px] leading-5 text-slate-900 md:mt-4 md:min-h-[6.5rem] md:text-base md:leading-7"
                         >
                           {formatProductName(product.name)}
                         </h3>
@@ -296,7 +296,7 @@ export default function CatalogView() {
                       </span>
                     </div>
 
-                    <div className="mt-auto flex items-center justify-between gap-3 pt-3 md:pt-4">
+                    <div className="mt-auto flex items-center justify-between gap-3 pt-4 md:pt-4">
                       {shouldShowPrice(product) ? (
                         <span className="text-[16px] font-semibold tracking-tight text-slate-900 md:text-2xl">
                           {formatMoney(product.sellingPrice)}
@@ -320,7 +320,7 @@ export default function CatalogView() {
                         handleAddToSale(product);
                       }}
                       disabled={product.stock <= 0 || !selectedWarehouseId}
-                      className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-sky-500 px-3 py-2.5 text-xs text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 md:mt-4 md:gap-2 md:rounded-2xl md:px-4 md:py-3 md:text-sm"
+                      className="mt-3 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-sky-500 px-3 py-2.5 text-xs text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 md:mt-4 md:gap-2 md:rounded-2xl md:px-4 md:py-3 md:text-sm"
                     >
                       <ShoppingCart size={14} className="md:h-4 md:w-4" />
                       <span>В продажу</span>
