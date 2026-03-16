@@ -5,7 +5,7 @@ import { AuthRequest } from '../middlewares/auth.middleware.js';
 import { ensureWarehouseAccess, getAccessContext, getScopedWarehouseId } from '../utils/access.js';
 
 const router = Router();
-const DEFAULT_CUSTOMER_NAME = 'Без клиента';
+const DEFAULT_CUSTOMER_NAME = 'Без названия';
 
 const canCancelInvoice = (req: AuthRequest) => {
   const role = req.user?.role?.toUpperCase();

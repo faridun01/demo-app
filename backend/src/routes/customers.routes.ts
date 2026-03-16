@@ -5,7 +5,7 @@ import { getAccessContext } from '../utils/access.js';
 
 const router = Router();
 const PAYMENT_EPSILON = 0.01;
-const DEFAULT_CUSTOMER_NAME = 'Без клиента';
+const DEFAULT_CUSTOMER_NAME = 'Без названия';
 
 const getInvoiceBalance = (invoice: { netAmount: number; paidAmount: number }) => {
   const balance = Number(invoice.netAmount || 0) - Number(invoice.paidAmount || 0);
