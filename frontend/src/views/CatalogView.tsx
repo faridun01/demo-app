@@ -263,7 +263,7 @@ export default function CatalogView() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
                   onClick={() => handleProductClick(product)}
-                  className="flex h-[31rem] cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:h-[35rem] md:rounded-3xl"
+                  className="flex h-124 cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:h-140 md:rounded-3xl"
                 >
                   <div className="flex h-44 shrink-0 items-center justify-center bg-slate-100 p-4 md:h-72 md:p-5">
                     {product.photoUrl ? (
@@ -282,23 +282,23 @@ export default function CatalogView() {
                   </div>
 
                   <div className="flex flex-1 flex-col p-3 md:p-5">
-                    <div className="min-h-[9rem] md:min-h-[11rem]">
+                    <div className="min-h-36 md:min-h-44">
                       <div className="min-w-0">
                         <h3
                           title={formatProductName(product.name)}
-                          className="mt-3 line-clamp-4 min-h-[4.5rem] break-words text-[13px] leading-5 text-slate-900 md:mt-4 md:min-h-[6.5rem] md:text-base md:leading-7"
+                          className="mt-3 line-clamp-4 min-h-16 wrap-break-word text-[12px] leading-[1.35rem] text-slate-900 md:mt-4 md:min-h-23 md:text-[15px] md:leading-6"
                         >
                           {formatProductName(product.name)}
                         </h3>
                       </div>
-                      <span className="inline-flex rounded-lg bg-violet-100 px-2 py-1 text-[10px] text-violet-700 md:rounded-xl md:px-3 md:py-1.5 md:text-xs">
+                      <span className="inline-flex rounded-lg bg-violet-100 px-2 py-1 text-[9px] text-violet-700 md:rounded-xl md:px-3 md:py-1.5 md:text-[11px]">
                         {product.category?.name || 'Без категории'}
                       </span>
                     </div>
 
-                    <div className="mt-auto flex items-center justify-between gap-3 pt-4 md:pt-4">
+                    <div className="mt-auto flex items-center justify-between gap-3 pt-2 md:pt-3">
                       {shouldShowPrice(product) ? (
-                        <span className="text-[16px] font-semibold tracking-tight text-slate-900 md:text-2xl">
+                        <span className="text-[15px] font-semibold tracking-tight text-slate-900 md:text-[22px]">
                           {formatMoney(product.sellingPrice)}
                         </span>
                       ) : (
@@ -306,7 +306,7 @@ export default function CatalogView() {
                       )}
                       <span
                         className={shell(
-                          'shrink-0 rounded-lg px-2 py-1 text-[10px] md:rounded-xl md:px-3 md:py-1.5 md:text-xs',
+                          'shrink-0 rounded-lg px-2 py-1 text-[9px] md:rounded-xl md:px-3 md:py-1.5 md:text-[11px]',
                           product.stock > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                         )}
                       >
@@ -320,7 +320,7 @@ export default function CatalogView() {
                         handleAddToSale(product);
                       }}
                       disabled={product.stock <= 0 || !selectedWarehouseId}
-                      className="mt-3 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-sky-500 px-3 py-2.5 text-xs text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 md:mt-4 md:gap-2 md:rounded-2xl md:px-4 md:py-3 md:text-sm"
+                      className="mt-2 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-sky-500 px-3 py-2.5 text-xs text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 md:mt-3 md:gap-2 md:rounded-2xl md:px-4 md:py-3 md:text-sm"
                     >
                       <ShoppingCart size={14} className="md:h-4 md:w-4" />
                       <span>В продажу</span>
@@ -418,7 +418,7 @@ export default function CatalogView() {
                     <img
                       src={resolveMediaUrl(selectedProduct.photoUrl, selectedProduct.id)}
                       alt={selectedProduct.name}
-                      className="max-h-[16rem] max-w-full rounded-2xl object-contain md:max-h-[34rem]"
+                      className="max-h-64 max-w-full rounded-2xl object-contain md:max-h-136"
                       referrerPolicy="no-referrer"
                       onError={(event) => handleBrokenImage(event, selectedProduct.id)}
                     />
