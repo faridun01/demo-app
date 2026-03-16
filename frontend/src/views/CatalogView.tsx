@@ -265,12 +265,12 @@ export default function CatalogView() {
                   onClick={() => handleProductClick(product)}
                   className="flex h-[32rem] cursor-pointer flex-col overflow-hidden rounded-[18px] border border-white bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md md:h-[35rem] md:rounded-3xl"
                 >
-                  <div className="h-56 shrink-0 bg-slate-100 p-3 md:h-80 md:p-4">
+                  <div className="flex h-56 shrink-0 items-center justify-center bg-slate-100 p-4 md:h-80 md:p-5">
                     {product.photoUrl ? (
                       <img
                         src={resolveMediaUrl(product.photoUrl, product.id)}
                         alt={product.name}
-                        className="h-full w-full object-contain"
+                        className="max-h-full max-w-full rounded-2xl object-contain"
                         referrerPolicy="no-referrer"
                         onError={(event) => handleBrokenImage(event, product.id)}
                       />
@@ -413,17 +413,17 @@ export default function CatalogView() {
             >
               <div className="grid max-h-[88vh] md:max-h-[92vh] md:grid-cols-[1.05fr_0.95fr]">
                 <div className="flex items-center justify-center bg-slate-50 p-3 md:max-h-[90vh] md:p-6">
-                  <div className="w-full overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-sm md:rounded-3xl">
+                  <div className="flex w-full items-center justify-center overflow-hidden rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm md:rounded-3xl md:p-6">
                   {selectedProduct.photoUrl ? (
                     <img
                       src={resolveMediaUrl(selectedProduct.photoUrl, selectedProduct.id)}
                       alt={selectedProduct.name}
-                      className="h-42.5 w-full object-contain md:h-155"
+                      className="max-h-[16rem] max-w-full rounded-2xl object-contain md:max-h-[34rem]"
                       referrerPolicy="no-referrer"
                       onError={(event) => handleBrokenImage(event, selectedProduct.id)}
                     />
                   ) : (
-                    <div className="flex h-42.5 w-full items-center justify-center bg-slate-100 text-slate-300 md:h-155">
+                    <div className="flex h-42.5 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-300 md:h-155">
                       <Package size={72} />
                     </div>
                   )}
