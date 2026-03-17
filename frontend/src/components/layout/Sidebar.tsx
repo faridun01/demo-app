@@ -74,6 +74,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   };
 
   const filteredNavItems = navItems.filter((item) => {
+    if (!isAdmin && (item.to === '/' || item.to === '/customers' || item.to === '/reports' || item.to === '/settings')) {
+      return false;
+    }
     if (item.to === '/reports' || item.to === '/settings') {
       return isAdmin;
     }

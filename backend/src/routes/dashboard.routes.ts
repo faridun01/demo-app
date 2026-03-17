@@ -29,6 +29,11 @@ const getPeriodRevenue = (invoices: Array<{ createdAt: Date; netAmount: number }
 
 router.get('/summary', async (req: AuthRequest, res, next) => {
   try {
+    const access = await getAccessContext(req);
+    if (!access.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -37,7 +42,6 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
 
     // Get user from request (assuming auth middleware is present)
     // For now, we'll get all stats, but in a real app, we'd filter by role.
-    const access = await getAccessContext(req);
     const isAdmin = access.isAdmin;
     const selectedWarehouseId = getScopedWarehouseId(access, req.query.warehouseId);
     const invoiceWhere = {

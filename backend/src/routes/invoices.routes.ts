@@ -7,10 +7,7 @@ import { ensureWarehouseAccess, getAccessContext, getScopedWarehouseId } from '.
 const router = Router();
 const DEFAULT_CUSTOMER_NAME = 'Без названия';
 
-const canCancelInvoice = (req: AuthRequest) => {
-  const role = req.user?.role?.toUpperCase();
-  return role === 'ADMIN' || role === 'MANAGER' || Boolean(req.user?.canCancelInvoices);
-};
+const isAdminRequest = (req: AuthRequest) => String(req.user?.role || '').toUpperCase() === 'ADMIN';
 
 const resolveDefaultCustomerId = async (warehouseId: number, userId: number, fallbackCity?: string | null) => {
   const warehouse = await prisma.warehouse.findUnique({
@@ -50,6 +47,7 @@ router.get('/', async (req: AuthRequest, res, next) => {
     const invoices = await prisma.invoice.findMany({
       where: {
         warehouseId: warehouseId ?? undefined,
+        userId: access.isAdmin ? undefined : (access.userId ?? -1),
       },
       include: {
         customer: true,
@@ -82,12 +80,12 @@ router.get('/:id', async (req: AuthRequest, res, next) => {
     const access = await getAccessContext(req);
     const invoiceMeta = await prisma.invoice.findUnique({
       where: { id: Number(req.params.id) },
-      select: { warehouseId: true },
+      select: { warehouseId: true, userId: true },
     });
     if (!invoiceMeta) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
-    if (!access.isAdmin && !ensureWarehouseAccess(access, invoiceMeta.warehouseId)) {
+    if (!access.isAdmin && (!ensureWarehouseAccess(access, invoiceMeta.warehouseId) || invoiceMeta.userId !== access.userId)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -127,7 +125,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
 
 router.post('/:id/cancel', async (req: AuthRequest, res, next) => {
   try {
-    if (!canCancelInvoice(req)) {
+    if (!isAdminRequest(req)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -153,6 +151,10 @@ router.post('/:id/cancel', async (req: AuthRequest, res, next) => {
 
 router.post('/:id/return', async (req: AuthRequest, res, next) => {
   try {
+    if (!isAdminRequest(req)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const access = await getAccessContext(req);
     const invoiceMeta = await prisma.invoice.findUnique({
       where: { id: Number(req.params.id) },
@@ -178,7 +180,7 @@ router.post('/:id/return', async (req: AuthRequest, res, next) => {
 
 router.delete('/:id', async (req: AuthRequest, res, next) => {
   try {
-    if (!canCancelInvoice(req)) {
+    if (!isAdminRequest(req)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

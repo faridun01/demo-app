@@ -25,7 +25,12 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const user = getCurrentUser();
-  return isAdminUser(user) ? <>{children}</> : <Navigate to="/" replace />;
+  return isAdminUser(user) ? <>{children}</> : <Navigate to="/pos" replace />;
+};
+
+const RootRoute = () => {
+  const user = getCurrentUser();
+  return isAdminUser(user) ? <DashboardView /> : <Navigate to="/pos" replace />;
 };
 
 const Layout = () => {
@@ -83,12 +88,12 @@ export default function App() {
             </PrivateRoute>
           }
         >
-          <Route path="/" element={<DashboardView />} />
+          <Route path="/" element={<RootRoute />} />
           <Route path="/products" element={<ProductsView />} />
           <Route path="/catalog" element={<CatalogView />} />
           <Route path="/sales" element={<SalesView />} />
           <Route path="/pos" element={<POSView />} />
-          <Route path="/customers" element={<CustomerView />} />
+          <Route path="/customers" element={<AdminRoute><CustomerView /></AdminRoute>} />
           <Route path="/reports" element={<AdminRoute><ReportsView /></AdminRoute>} />
           <Route path="/reminders" element={<RemindersView />} />
           <Route path="/history" element={<HistoryView />} />

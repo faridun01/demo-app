@@ -7,6 +7,10 @@ const PAYMENT_EPSILON = 0.01;
 
 router.post('/', async (req: AuthRequest, res, next) => {
   try {
+    if (String(req.user?.role || '').toUpperCase() !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const { customer_id, invoice_id, amount, method, note } = req.body;
     const userId = req.user!.id;
 

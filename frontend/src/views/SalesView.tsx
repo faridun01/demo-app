@@ -612,6 +612,8 @@ export default function SalesView() {
                 <p className="mt-1 text-[10px] font-medium uppercase tracking-widest text-slate-400">{user.role}</p>
              </div>
           </div>
+          {isAdmin && (
+          <>
           <select 
             value={selectedWarehouseId}
             onChange={(e) => setSelectedWarehouseId(e.target.value)}
@@ -628,6 +630,8 @@ export default function SalesView() {
             <Plus size={18} />
             <span>Новая продажа</span>
           </button>
+          </>
+          )}
         </div>
       </div>
 
@@ -679,7 +683,7 @@ export default function SalesView() {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              {isAdmin && <div className="mt-4 flex flex-wrap gap-2">
                 {getInvoiceBalance(inv) > 0 && !inv.cancelled && (
                   <button
                     onClick={() => {
@@ -716,7 +720,7 @@ export default function SalesView() {
                 >
                   Удалить
                 </button>
-              </div>
+              </div>}
             </div>
           ))}
         </div>
@@ -733,7 +737,7 @@ export default function SalesView() {
                 <th className="px-5 py-5">{renderSortLabel("Остаток", "balance")}</th>
                 <th className="px-5 py-5">{renderSortLabel("Статус", "status")}</th>
                 <th className="px-5 py-5">{renderSortLabel("Сотрудник", "staff_name")}</th>
-                <th className="px-5 py-5 text-right">Действия</th>
+                {isAdmin && <th className="px-5 py-5 text-right">Действия</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -749,7 +753,7 @@ export default function SalesView() {
                   <td className="px-5 py-5 text-sm text-rose-500">{formatMoney(getInvoiceBalance(inv))}</td>
                   <td className="px-5 py-5">{getStatusBadge(getEffectiveStatus(inv), inv.cancelled)}</td>
                   <td className="px-5 py-5 text-sm text-slate-500">{inv.staff_name}</td>
-                  <td className="px-5 py-5 text-right">
+                  {isAdmin && <td className="px-5 py-5 text-right">
                     <div className="flex items-center justify-end space-x-2">
                       {getInvoiceBalance(inv) > 0 && !inv.cancelled && (
                         <button 
@@ -792,12 +796,12 @@ export default function SalesView() {
                         <Trash2 size={18} />
                       </button>
                     </div>
-                  </td>
+                  </td>}
                 </tr>
               ))}
               {sortedInvoices.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 8} className="px-8 py-32 text-center">
+                  <td colSpan={isAdmin ? 9 : 7} className="px-8 py-32 text-center">
                     <div className="flex flex-col items-center justify-center space-y-6">
                       <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#f4f5fb] text-slate-300">
                         <Receipt size={48} />

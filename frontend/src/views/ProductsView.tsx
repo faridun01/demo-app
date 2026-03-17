@@ -1476,42 +1476,38 @@ export default function ProductsView() {
                 </div>
               </div>
 
-              {!isAggregateMode && (
+              {isAdmin && !isAggregateMode && (
                 <div className="mt-4 grid grid-cols-3 gap-2">
-                  {isAdmin && (
-                    <button
-                      onClick={() => {
-                        setSelectedProduct(product);
-                        setFormData({
-                          name: product.name || '',
-                          unit: product.unit || '',
-                          categoryId: product.categoryId?.toString() || '',
-                          warehouseId: product.warehouseId?.toString() || '',
-                          costPrice: formatPriceInput(product.costPrice),
-                          sellingPrice: formatPriceInput(product.sellingPrice),
-                          minStock: product.minStock?.toString() || '0',
-                          initialStock: product.initialStock?.toString() || '0',
-                          photoUrl: product.photoUrl || ''
-                        });
-                        setShowEditModal(true);
-                      }}
-                      className="rounded-2xl border border-violet-200 bg-violet-50 px-3 py-3 text-xs font-semibold text-violet-700"
-                    >
-                      Изменить
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      onClick={() => {
-                        setSelectedProduct(product);
-                        setRestockData({ ...restockData, warehouseId: product.warehouseId?.toString() || '' });
-                        setShowRestockModal(true);
-                      }}
-                      className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-semibold text-emerald-700"
-                    >
-                      Приход
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setFormData({
+                        name: product.name || '',
+                        unit: product.unit || '',
+                        categoryId: product.categoryId?.toString() || '',
+                        warehouseId: product.warehouseId?.toString() || '',
+                        costPrice: formatPriceInput(product.costPrice),
+                        sellingPrice: formatPriceInput(product.sellingPrice),
+                        minStock: product.minStock?.toString() || '0',
+                        initialStock: product.initialStock?.toString() || '0',
+                        photoUrl: product.photoUrl || ''
+                      });
+                      setShowEditModal(true);
+                    }}
+                    className="rounded-2xl border border-violet-200 bg-violet-50 px-3 py-3 text-xs font-semibold text-violet-700"
+                  >
+                    Изменить
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setRestockData({ ...restockData, warehouseId: product.warehouseId?.toString() || '' });
+                      setShowRestockModal(true);
+                    }}
+                    className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-semibold text-emerald-700"
+                  >
+                    Приход
+                  </button>
                   <button
                     onClick={() => handleShowHistory(product)}
                     className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3 text-xs font-semibold text-sky-700"
@@ -1524,33 +1520,29 @@ export default function ProductsView() {
                   >
                     Партии
                   </button>
-                  {isAdmin && (
-                    <button
-                      onClick={() => {
-                        setSelectedProduct(product);
-                        setTransferData({ ...transferData, fromWarehouseId: product.warehouseId?.toString() || '' });
-                        setShowTransferModal(true);
-                      }}
-                      className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-semibold text-amber-700"
-                    >
-                      Перенос
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      onClick={() => {
-                        if (Number(product.stock || 0) > 0) {
-                          toast.error('Нельзя удалить товар, пока на складе есть запас');
-                          return;
-                        }
-                        setSelectedProduct(product);
-                        setShowDeleteConfirm(true);
-                      }}
-                      className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs font-semibold text-rose-700"
-                    >
-                      Удалить
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      setTransferData({ ...transferData, fromWarehouseId: product.warehouseId?.toString() || '' });
+                      setShowTransferModal(true);
+                    }}
+                    className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-semibold text-amber-700"
+                  >
+                    Перенос
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (Number(product.stock || 0) > 0) {
+                        toast.error('Нельзя удалить товар, пока на складе есть запас');
+                        return;
+                      }
+                      setSelectedProduct(product);
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs font-semibold text-rose-700"
+                  >
+                    Удалить
+                  </button>
                 </div>
               )}
             </div>
@@ -1598,7 +1590,7 @@ export default function ProductsView() {
                   </div>
                 </th>
                 <th className="px-5 py-3">Приход</th>
-                <th className="px-5 py-3 text-right">Действия</th>
+                {isAdmin && <th className="px-5 py-3 text-right">Действия</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1661,7 +1653,7 @@ export default function ProductsView() {
                   <td className="px-5 py-3">
                     <p className="text-xs font-medium text-slate-500">{product.totalIncoming} <span className="text-[10px] font-medium text-slate-400 uppercase">{product.unit}</span></p>
                   </td>
-                  <td className="px-5 py-3 text-right">
+                  {isAdmin && <td className="px-5 py-3 text-right">
                     {selectedWarehouseId ? (
                     <div className="flex flex-col items-end space-y-1.5">
                       <div className="flex items-center space-x-1.5">
@@ -1751,12 +1743,12 @@ export default function ProductsView() {
                     ) : (
                       <span className="text-xs text-slate-300">-</span>
                     )}
-                  </td>
+                  </td>}
                 </tr>
               ))}
               {filteredProducts.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-20 text-center">
+                  <td colSpan={isAdmin ? 7 : 5} className="px-5 py-20 text-center">
                     <div className="flex flex-col items-center justify-center space-y-4">
                       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f5fb] text-slate-300">
                         <Package size={32} />
