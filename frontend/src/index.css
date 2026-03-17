@@ -53,7 +53,7 @@
   }
 
   .app-page-inner {
-    @apply mx-auto w-full max-w-[1440px];
+    @apply w-full min-w-0;
   }
 
   .app-surface {

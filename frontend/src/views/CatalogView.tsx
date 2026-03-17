@@ -162,7 +162,7 @@ export default function CatalogView() {
             </div>
           </div>
 
-          <section className="rounded-[24px] border border-white bg-white p-4 shadow-sm sm:p-5">
+          <section className="rounded-3xl border border-white bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-2">
                 <p className="text-sm text-slate-500">Каталог товаров</p>
@@ -258,7 +258,7 @@ export default function CatalogView() {
           {loading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div key={item} className="h-[420px] animate-pulse rounded-[28px] border border-white bg-white" />
+                <div key={item} className="h-105 animate-pulse rounded-[28px] border border-white bg-white" />
               ))}
             </div>
           ) : (
@@ -270,9 +270,9 @@ export default function CatalogView() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
                   onClick={() => handleProductClick(product)}
-                  className="group flex min-h-[440px] cursor-pointer flex-col overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
+                  className="group flex min-h-110 cursor-pointer flex-col overflow-hidden rounded-[28px] border border-slate-200/70 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
                 >
-                  <div className="flex h-[220px] shrink-0 items-center justify-center overflow-hidden rounded-t-[28px] bg-slate-100 p-4 sm:h-[250px] lg:h-[280px]">
+                  <div className="flex h-55 shrink-0 items-center justify-center overflow-hidden rounded-t-[28px] bg-slate-100 p-4 sm:h-62.5 lg:h-70">
                     {product.photoUrl ? (
                       <img
                         src={resolveMediaUrl(product.photoUrl, product.id)}
@@ -293,7 +293,7 @@ export default function CatalogView() {
                       <div className="min-w-0">
                         <h3
                           title={formatProductName(product.name)}
-                          className="line-clamp-4 break-words text-base font-semibold leading-7 text-slate-900 sm:text-[1.05rem]"
+                          className="line-clamp-4 wrap-break-word text-base font-semibold leading-7 text-slate-900 sm:text-[1.05rem]"
                         >
                           {formatProductName(product.name)}
                         </h3>
@@ -361,14 +361,14 @@ export default function CatalogView() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="fixed bottom-4 right-4 left-4 z-50 rounded-[24px] border border-emerald-100 bg-white p-4 shadow-2xl sm:left-auto sm:w-[min(92vw,420px)] sm:p-5"
+            className="fixed bottom-4 right-4 left-4 z-50 rounded-3xl border border-emerald-100 bg-white p-4 shadow-2xl sm:left-auto sm:w-[min(92vw,420px)] sm:p-5"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900">
                   {cartNotice.count > 0 ? 'Товар добавлен' : 'Нужно выбрать склад'}
                 </p>
-                <p className="mt-1 break-words text-sm leading-6 text-slate-500">{cartNotice.productName}</p>
+                <p className="mt-1 wrap-break-word text-sm leading-6 text-slate-500">{cartNotice.productName}</p>
                 {cartNotice.count > 0 && <p className="mt-2 text-xs text-slate-400">В корзине: {cartNotice.count}</p>}
               </div>
               <button
@@ -426,17 +426,17 @@ export default function CatalogView() {
             >
               <div className="grid max-h-[94vh] overflow-y-auto lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="flex items-center justify-center bg-slate-50 p-4 sm:p-5 lg:p-6">
-                  <div className="flex w-full items-center justify-center overflow-hidden rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                  <div className="flex w-full items-center justify-center overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                     {selectedProduct.photoUrl ? (
                       <img
                         src={resolveMediaUrl(selectedProduct.photoUrl, selectedProduct.id)}
                         alt={selectedProduct.name}
-                        className="max-h-[300px] max-w-full rounded-2xl object-contain sm:max-h-[380px] lg:max-h-[600px]"
+                        className="max-h-75 max-w-full rounded-2xl object-contain sm:max-h-95 lg:max-h-150"
                         referrerPolicy="no-referrer"
                         onError={(event) => handleBrokenImage(event, selectedProduct.id)}
                       />
                     ) : (
-                      <div className="flex h-[280px] w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-300 sm:h-[340px] lg:h-[600px]">
+                      <div className="flex h-70 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-300 sm:h-85 lg:h-150">
                         <Package size={72} />
                       </div>
                     )}
@@ -456,7 +456,7 @@ export default function CatalogView() {
                     </button>
                   </div>
 
-                  <h2 className="mt-4 break-words text-xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:mt-6 lg:text-4xl">
+                  <h2 className="mt-4 wrap-break-word text-xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:mt-6 lg:text-4xl">
                     {formatProductName(selectedProduct.name)}
                   </h2>
 
@@ -508,7 +508,7 @@ export default function CatalogView() {
                             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
                               Склад
                             </p>
-                            <p className="mt-1 break-words text-sm text-slate-900 sm:text-base lg:text-lg">
+                            <p className="mt-1 wrap-break-word text-sm text-slate-900 sm:text-base lg:text-lg">
                               {selectedProduct.warehouse?.name || 'Основной склад'}
                             </p>
                           </div>

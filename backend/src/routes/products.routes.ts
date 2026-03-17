@@ -16,6 +16,14 @@ const normalizeProductName = (value: string | null | undefined) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const normalizeProductFamilyName = (value: string | null | undefined) =>
+  normalizeProductName(value)
+    .toLowerCase()
+    .replace(/\bмассой\s+\d+(?:[.,]\d+)?\s*(?:гр|г|кг|л|мл|шт)\b/giu, '')
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:гр|г|кг|л|мл|шт)\b/giu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 const formatMoneyValue = (value: unknown) => Number(value || 0).toFixed(2);
 
 const ensureAdminProductAccess = (access: Awaited<ReturnType<typeof getAccessContext>>, res: any) => {
@@ -25,6 +33,29 @@ const ensureAdminProductAccess = (access: Awaited<ReturnType<typeof getAccessCon
   }
 
   return true;
+};
+
+const applyFamilyPhotoFallback = <T extends { id: number; name: string | null; photoUrl?: string | null }>(items: T[]) => {
+  const familyPhotoMap = new Map<string, string>();
+
+  for (const item of items) {
+    const familyKey = normalizeProductFamilyName(item.name);
+    if (!familyKey || !item.photoUrl) continue;
+    if (!familyPhotoMap.has(familyKey)) {
+      familyPhotoMap.set(familyKey, item.photoUrl);
+    }
+  }
+
+  return items.map((item) => {
+    if (item.photoUrl) {
+      return item;
+    }
+
+    const familyKey = normalizeProductFamilyName(item.name);
+    const inheritedPhoto = familyKey ? familyPhotoMap.get(familyKey) : null;
+
+    return inheritedPhoto ? { ...item, photoUrl: inheritedPhoto } : item;
+  });
 };
 
 router.get('/', async (req, res, next) => {
@@ -45,8 +76,10 @@ router.get('/', async (req, res, next) => {
       },
     });
 
+    const productsWithResolvedPhoto = applyFamilyPhotoFallback(products as any[]);
+
     if (warehouseId) {
-      const productsWithWarehouseStock = products.map((p: any) => {
+      const productsWithWarehouseStock = productsWithResolvedPhoto.map((p: any) => {
         const warehouseStock = p.batches.reduce((sum: number, b: any) => sum + b.remainingQuantity, 0);
         return {
           ...p,
@@ -58,7 +91,7 @@ router.get('/', async (req, res, next) => {
     }
 
     res.json(
-      products.map((product: any) => ({
+      productsWithResolvedPhoto.map((product: any) => ({
         ...product,
         costPrice: access.isAdmin ? product.costPrice : null,
       }))
@@ -203,11 +236,25 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
     });
 
     if (req.body.photoUrl !== undefined) {
+      const familyName = normalizeProductFamilyName(newName);
+      const relatedProducts = await prisma.product.findMany({
+        where: {
+          active: true,
+          id: { not: productId },
+        },
+        select: {
+          id: true,
+          name: true,
+        }
+      });
+
+      const relatedIds = relatedProducts
+        .filter((relatedProduct: { id: number; name: string }) => normalizeProductFamilyName(relatedProduct.name) === familyName)
+        .map((relatedProduct: { id: number; name: string }) => relatedProduct.id);
+
       await prisma.product.updateMany({
         where: {
-          id: { not: productId },
-          name: newName,
-          active: true
+          id: { in: relatedIds },
         },
         data: {
           photoUrl: req.body.photoUrl || null
