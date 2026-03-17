@@ -683,7 +683,7 @@ export default function SalesView() {
                 </div>
               </div>
 
-              {isAdmin && <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap gap-2">
                 {getInvoiceBalance(inv) > 0 && !inv.cancelled && (
                   <button
                     onClick={() => {
@@ -696,7 +696,7 @@ export default function SalesView() {
                     Оплата
                   </button>
                 )}
-                {!inv.cancelled && getEffectiveStatus(inv) !== 'paid' && (
+                {!inv.cancelled && (
                   <button
                     onClick={() => {
                       setSelectedInvoice(inv);
@@ -714,13 +714,15 @@ export default function SalesView() {
                 >
                   Детали
                 </button>
-                <button
-                  onClick={() => handleDeleteInvoice(inv.id)}
-                  className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"
-                >
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDeleteInvoice(inv.id)}
+                    className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"
+                  >
                   Удалить
-                </button>
-              </div>}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -742,7 +744,11 @@ export default function SalesView() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {sortedInvoices.map((inv) => (
-                <tr key={inv.id} className="transition-all duration-300 hover:bg-[#fafbfe]">
+                <tr
+                  key={inv.id}
+                  onClick={() => fetchInvoiceDetails(inv.id)}
+                  className="cursor-pointer transition-all duration-300 hover:bg-[#fafbfe]"
+                >
                   {isAdmin && <td className="px-5 py-5 text-sm text-slate-400">#{inv.id}</td>}
                   <td className="px-5 py-5 text-sm text-slate-500">
                     {new Date(inv.createdAt).toLocaleDateString('ru-RU')}
@@ -757,7 +763,8 @@ export default function SalesView() {
                     <div className="flex items-center justify-end space-x-2">
                       {getInvoiceBalance(inv) > 0 && !inv.cancelled && (
                         <button 
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvoice(inv);
                             setPaymentAmount(toFixedNumber(getInvoiceBalance(inv)));
                             setShowPaymentModal(true);
@@ -770,7 +777,8 @@ export default function SalesView() {
                       )}
                       {!inv.cancelled && getEffectiveStatus(inv) !== 'paid' && (
                         <button 
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedInvoice(inv);
                             setReturnItems(inv.items?.map((item: any) => ({ ...item, returnQty: 0 })) || []);
                             setShowReturnModal(true);
@@ -782,14 +790,20 @@ export default function SalesView() {
                         </button>
                       )}
                       <button 
-                        onClick={() => fetchInvoiceDetails(inv.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fetchInvoiceDetails(inv.id);
+                        }}
                         className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-400 transition-all hover:border-sky-100 hover:bg-sky-50 hover:text-sky-500" 
                         title="Просмотр"
                       >
                         <Eye size={18} />
                       </button>
                       <button 
-                        onClick={() => handleDeleteInvoice(inv.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteInvoice(inv.id);
+                        }}
                         className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-400 transition-all hover:border-rose-100 hover:bg-rose-50 hover:text-rose-500" 
                         title="Удалить"
                       >
@@ -1024,7 +1038,31 @@ export default function SalesView() {
                 )}
               </div>
               
-              <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 p-4 md:p-8">
+              <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 bg-slate-50 p-4 md:p-8">
+                {getInvoiceBalance(selectedInvoice) > 0 && !selectedInvoice.cancelled && (
+                  <button
+                    onClick={() => {
+                      setPaymentAmount(toFixedNumber(getInvoiceBalance(selectedInvoice)));
+                      setShowPaymentModal(true);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-bold text-emerald-700 transition-all hover:bg-emerald-100 md:px-8 md:py-4"
+                  >
+                    <Banknote size={18} />
+                    <span>Оплата</span>
+                  </button>
+                )}
+                {!selectedInvoice.cancelled && (
+                  <button
+                    onClick={() => {
+                      setReturnItems(selectedInvoice.items?.map((item: any) => ({ ...item, returnQty: 0 })) || []);
+                      setShowReturnModal(true);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-3 text-sm font-bold text-amber-700 transition-all hover:bg-amber-100 md:px-8 md:py-4"
+                  >
+                    <RotateCcw size={18} />
+                    <span>Возврат</span>
+                  </button>
+                )}
                 <button
                   onClick={() => handlePrintInvoice(selectedInvoice)}
                   className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-6 py-3 text-sm font-bold text-indigo-700 transition-all hover:bg-indigo-100 md:px-8 md:py-4"

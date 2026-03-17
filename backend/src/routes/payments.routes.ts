@@ -1,42 +1,56 @@
 import { Router } from 'express';
 import prisma from '../db/prisma.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
+import { ensureWarehouseAccess, getAccessContext } from '../utils/access.js';
 
 const router = Router();
 const PAYMENT_EPSILON = 0.01;
 
 router.post('/', async (req: AuthRequest, res, next) => {
   try {
-    if (String(req.user?.role || '').toUpperCase() !== 'ADMIN') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-
     const { customer_id, invoice_id, amount, method, note } = req.body;
     const userId = req.user!.id;
+    const access = await getAccessContext(req);
+    const invoiceId = invoice_id ? Number(invoice_id) : null;
+    const invoice = invoiceId
+      ? await prisma.invoice.findUnique({
+          where: { id: invoiceId },
+          select: { id: true, customerId: true, warehouseId: true, userId: true },
+        })
+      : null;
+
+    if (!access.isAdmin) {
+      if (!invoice) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      if (!ensureWarehouseAccess(access, invoice.warehouseId) || invoice.userId !== access.userId) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+    }
 
     const payment = await prisma.$transaction(async (tx: any) => {
       const p = await tx.payment.create({
         data: {
-          customerId: Number(customer_id),
-          invoiceId: invoice_id ? Number(invoice_id) : null,
+          customerId: invoice?.customerId ?? Number(customer_id),
+          invoiceId,
           userId,
           amount: Number(amount),
           method: method || 'cash',
         },
       });
 
-      if (invoice_id) {
-        const invoice = await tx.invoice.findUnique({
-          where: { id: Number(invoice_id) },
+      if (invoiceId) {
+        const currentInvoice = await tx.invoice.findUnique({
+          where: { id: invoiceId },
         });
 
-        if (invoice) {
-          const newPaidAmount = Number(invoice.paidAmount) + Number(amount);
-          const netAmount = Number(invoice.netAmount);
+        if (currentInvoice) {
+          const newPaidAmount = Number(currentInvoice.paidAmount) + Number(amount);
+          const netAmount = Number(currentInvoice.netAmount);
           const status = newPaidAmount > 0 && newPaidAmount >= netAmount - PAYMENT_EPSILON ? 'paid' : 'partial';
           
           await tx.invoice.update({
-            where: { id: Number(invoice_id) },
+            where: { id: invoiceId },
             data: {
               paidAmount: newPaidAmount,
               status,

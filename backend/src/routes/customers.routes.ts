@@ -29,6 +29,26 @@ const mapCustomerWithTotals = (customer: any) => {
   };
 };
 
+const getCustomerAccess = async (access: Awaited<ReturnType<typeof getAccessContext>>, customerId: number) => {
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    select: { id: true, createdByUserId: true },
+  });
+
+  if (!customer) {
+    return { customer: null, allowed: false };
+  }
+
+  if (access.isAdmin) {
+    return { customer, allowed: true };
+  }
+
+  return {
+    customer,
+    allowed: customer.createdByUserId === access.userId,
+  };
+};
+
 router.get('/', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
@@ -67,49 +87,24 @@ router.get('/', async (req: AuthRequest, res, next) => {
           AND: [
             baseWhere,
             {
-              city: access.city ?? '__no_city__',
+              createdByUserId: access.userId ?? -1,
             },
           ],
         };
 
-    let customers;
-
-    try {
-      customers = await prisma.customer.findMany({
-        where,
-        include: {
-          invoices: {
-            where: { cancelled: false },
-            select: {
-              netAmount: true,
-              paidAmount: true,
-            },
+    const customers = await prisma.customer.findMany({
+      where,
+      include: {
+        invoices: {
+          where: { cancelled: false },
+          select: {
+            netAmount: true,
+            paidAmount: true,
           },
         },
-        orderBy: { createdAt: 'desc' },
-      });
-    } catch {
-      customers = await prisma.customer.findMany({
-        where: {
-          OR: [
-            { active: true },
-            { invoices: { some: {} } },
-            { payments: { some: {} } },
-            { returns: { some: {} } },
-          ],
-        },
-        include: {
-          invoices: {
-            where: { cancelled: false },
-            select: {
-              netAmount: true,
-              paidAmount: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-    }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     const mappedCustomers = customers.map(mapCustomerWithTotals);
     mappedCustomers.sort((a: any, b: any) => {
@@ -127,20 +122,13 @@ router.get('/', async (req: AuthRequest, res, next) => {
 router.post('/', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
-
-    let customer;
-
-    try {
-      customer = await prisma.customer.create({
-        data: {
-          ...req.body,
-          city: access.isAdmin ? (req.body.city || null) : (access.city || null),
-          createdByUserId: req.user?.id || null,
-        },
-      });
-    } catch {
-      customer = await prisma.customer.create({ data: req.body });
-    }
+    const customer = await prisma.customer.create({
+      data: {
+        ...req.body,
+        city: access.isAdmin ? (req.body.city || null) : (access.city || null),
+        createdByUserId: req.user?.id || null,
+      },
+    });
 
     res.status(201).json(customer);
   } catch (error) {
@@ -151,19 +139,17 @@ router.post('/', async (req: AuthRequest, res, next) => {
 router.put('/:id', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
-    const current = await prisma.customer.findUnique({
-      where: { id: Number(req.params.id) },
-      select: { city: true },
-    });
+    const customerId = Number(req.params.id);
+    const { customer: current, allowed } = await getCustomerAccess(access, customerId);
     if (!current) {
       return res.status(404).json({ error: 'Клиент не найден' });
     }
-    if (!access.isAdmin && current.city !== access.city) {
+    if (!allowed) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
     const customer = await prisma.customer.update({
-      where: { id: Number(req.params.id) },
+      where: { id: customerId },
       data: access.isAdmin ? req.body : { ...req.body, city: access.city || null },
     });
     res.json(customer);
@@ -175,19 +161,17 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
 router.delete('/:id', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
-    const current = await prisma.customer.findUnique({
-      where: { id: Number(req.params.id) },
-      select: { city: true },
-    });
+    const customerId = Number(req.params.id);
+    const { customer: current, allowed } = await getCustomerAccess(access, customerId);
     if (!current) {
       return res.status(404).json({ error: 'Клиент не найден' });
     }
-    if (!access.isAdmin && current.city !== access.city) {
+    if (!allowed) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
     await prisma.customer.update({
-      where: { id: Number(req.params.id) },
+      where: { id: customerId },
       data: { active: false },
     });
     res.json({ success: true });
@@ -199,11 +183,20 @@ router.delete('/:id', async (req: AuthRequest, res, next) => {
 router.get('/:id/invoices', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    const customerId = Number(req.params.id);
+    const { customer, allowed } = await getCustomerAccess(access, customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'ÐšÐ»Ð¸ÐµÐ½Ñ‚ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½' });
+    }
+    if (!allowed) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const invoices = await prisma.invoice.findMany({
       where: {
-        customerId: Number(req.params.id),
+        customerId,
         cancelled: false,
         warehouseId: access.isAdmin ? undefined : (access.warehouseId ?? -1),
+        userId: access.isAdmin ? undefined : (access.userId ?? -1),
       },
       include: {
         items: { include: { product: true } },
@@ -229,10 +222,18 @@ router.get('/:id/invoices', async (req: AuthRequest, res, next) => {
 router.get('/:id/payments', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    const customerId = Number(req.params.id);
+    const { customer, allowed } = await getCustomerAccess(access, customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'ÐšÐ»Ð¸ÐµÐ½Ñ‚ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½' });
+    }
+    if (!allowed) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const payments = await prisma.payment.findMany({
       where: {
-        customerId: Number(req.params.id),
-        invoice: access.isAdmin ? undefined : { warehouseId: access.warehouseId ?? -1 },
+        customerId,
+        invoice: access.isAdmin ? undefined : { warehouseId: access.warehouseId ?? -1, userId: access.userId ?? -1 },
       },
       include: {
         user: true,
@@ -254,10 +255,18 @@ router.get('/:id/payments', async (req: AuthRequest, res, next) => {
 router.get('/:id/returns', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    const customerId = Number(req.params.id);
+    const { customer, allowed } = await getCustomerAccess(access, customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'ÐšÐ»Ð¸ÐµÐ½Ñ‚ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½' });
+    }
+    if (!allowed) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const returns = await prisma.return.findMany({
       where: {
-        customerId: Number(req.params.id),
-        invoice: access.isAdmin ? undefined : { warehouseId: access.warehouseId ?? -1 },
+        customerId,
+        invoice: access.isAdmin ? undefined : { warehouseId: access.warehouseId ?? -1, userId: access.userId ?? -1 },
       },
       include: {
         user: true,
@@ -279,11 +288,20 @@ router.get('/:id/returns', async (req: AuthRequest, res, next) => {
 router.get('/:id/history', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    const customerId = Number(req.params.id);
+    const { customer, allowed } = await getCustomerAccess(access, customerId);
+    if (!customer) {
+      return res.status(404).json({ error: 'ÐšÐ»Ð¸ÐµÐ½Ñ‚ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½' });
+    }
+    if (!allowed) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const invoices = await prisma.invoice.findMany({
       where: {
-        customerId: Number(req.params.id),
+        customerId,
         cancelled: false,
         warehouseId: access.isAdmin ? undefined : (access.warehouseId ?? -1),
+        userId: access.isAdmin ? undefined : (access.userId ?? -1),
       },
       include: {
         items: { include: { product: true } },

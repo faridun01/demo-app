@@ -93,7 +93,7 @@ export default function App() {
           <Route path="/catalog" element={<CatalogView />} />
           <Route path="/sales" element={<SalesView />} />
           <Route path="/pos" element={<POSView />} />
-          <Route path="/customers" element={<AdminRoute><CustomerView /></AdminRoute>} />
+          <Route path="/customers" element={<CustomerView />} />
           <Route path="/reports" element={<AdminRoute><ReportsView /></AdminRoute>} />
           <Route path="/reminders" element={<RemindersView />} />
           <Route path="/history" element={<HistoryView />} />
