@@ -37,11 +37,20 @@ interface SalesViewProps {
   warehouseId: number | null;
 }
 
+interface CartItem {
+  product_id: number;
+  name: string;
+  quantity: number;
+  selling_price: number;
+  unit: string;
+  quantityInput?: string;
+}
+
 export const SalesView = ({ invoices, products, customers, fetchData, user, warehouseId }: SalesViewProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
-  const [cart, setCart] = useState<{ product_id: number, name: string, quantity: number, selling_price: number, unit: string }[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<number | ''>('');
   const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -51,6 +60,36 @@ export const SalesView = ({ invoices, products, customers, fetchData, user, ware
   const subtotal = cart.reduce((sum, item) => sum + (item.quantity * item.selling_price), 0);
   const discountAmount = (subtotal * discount) / 100;
   const total = subtotal - discountAmount;
+
+  const updateCartQuantityInput = (productId: number, value: string, maxStock?: number) => {
+    setCart(currentCart => currentCart.map(item => {
+      if (item.product_id !== productId) return item;
+      if (value === '') {
+        return { ...item, quantityInput: '' };
+      }
+
+      const parsed = parseInt(value, 10);
+      if (Number.isNaN(parsed)) {
+        return { ...item, quantityInput: value };
+      }
+
+      const nextQuantity = Math.max(1, maxStock ? Math.min(parsed, maxStock) : parsed);
+      return { ...item, quantity: nextQuantity, quantityInput: String(nextQuantity) };
+    }));
+  };
+
+  const normalizeCartQuantityInput = (productId: number, maxStock?: number) => {
+    setCart(currentCart => currentCart.map(item => {
+      if (item.product_id !== productId) return item;
+
+      const normalizedQuantity = Math.max(1, maxStock ? Math.min(item.quantity, maxStock) : item.quantity);
+      return {
+        ...item,
+        quantity: normalizedQuantity,
+        quantityInput: undefined,
+      };
+    }));
+  };
 
   const addToCart = (product: Product) => {
     if (product.stock <= 0) {
@@ -67,7 +106,7 @@ export const SalesView = ({ invoices, products, customers, fetchData, user, ware
         alert("Недостаточно товара на складе!");
         return;
       }
-      setCart(cart.map(item => item.product_id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
+      setCart(cart.map(item => item.product_id === product.id ? { ...item, quantity: item.quantity + 1, quantityInput: undefined } : item));
     } else {
       setCart([...cart, { product_id: product.id, name: product.name, quantity: 1, selling_price: product.selling_price, unit: product.unit }]);
     }
@@ -222,11 +261,11 @@ export const SalesView = ({ invoices, products, customers, fetchData, user, ware
                         <input 
                           type="number" 
                           className="w-16 px-2 py-0.5 border border-slate-200 rounded text-sm"
-                          value={item.quantity}
-                          onChange={e => {
-                            const val = parseInt(e.target.value);
-                            setCart(cart.map(c => c.product_id === item.product_id ? { ...c, quantity: val } : c));
-                          }}
+                          min="1"
+                          max={products.find(p => p.id === item.product_id)?.stock}
+                          value={item.quantityInput ?? String(item.quantity)}
+                          onChange={e => updateCartQuantityInput(item.product_id, e.target.value, products.find(p => p.id === item.product_id)?.stock)}
+                          onBlur={() => normalizeCartQuantityInput(item.product_id, products.find(p => p.id === item.product_id)?.stock)}
                         />
                         <span className="text-xs text-slate-500">x {item.selling_price.toFixed(2)} сомони</span>
                       </div>
