@@ -88,13 +88,22 @@ export default function CustomerView() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      name: formData.name.trim(),
+    };
+
+    if (!payload.name) {
+      toast.error('Введите название клиента');
+      return;
+    }
 
     try {
       if (selectedCustomer) {
-        await client.put(`/customers/${selectedCustomer.id}`, formData);
+        await client.put(`/customers/${selectedCustomer.id}`, payload);
         toast.success('Клиент обновлен');
       } else {
-        await client.post('/customers', formData);
+        await client.post('/customers', payload);
         toast.success('Клиент добавлен');
       }
 
@@ -102,8 +111,8 @@ export default function CustomerView() {
       setSelectedCustomer(null);
       setFormData(emptyForm);
       fetchCustomers();
-    } catch {
-      toast.error('Ошибка при сохранении');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка при сохранении');
     }
   };
 
@@ -184,12 +193,12 @@ export default function CustomerView() {
   };
 
   const getInvoiceChangeAmount = (invoice: StatementInvoice) => {
-    const change = Number(invoice?.paidAmount || 0) - getInvoiceNetAmount(invoice);
+    const change = Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice);
     return change > PAYMENT_EPSILON ? change : 0;
   };
 
   const getInvoiceAppliedPaidAmount = (invoice: StatementInvoice) =>
-    Math.max(0, Number(invoice?.paidAmount || 0) - getInvoiceChangeAmount(invoice));
+    Math.max(0, Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceChangeAmount(invoice));
 
   const getPrintableStatus = (invoice: StatementInvoice) => {
     if (invoice.status === 'paid') return 'Оплачено';
@@ -739,7 +748,7 @@ export default function CustomerView() {
                     </div>
                     <div className="flex justify-between text-sm text-emerald-600">
                       <span>Оплачено</span>
-                      <span>{formatMoney(selectedInvoice.paidAmount)}</span>
+                      <span>{formatMoney(getInvoiceAppliedPaidAmount(selectedInvoice))}</span>
                     </div>
                     <div className="flex justify-between text-sm text-rose-600">
                       <span>Остаток</span>

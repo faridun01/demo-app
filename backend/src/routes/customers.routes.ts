@@ -2,7 +2,7 @@ import { Router } from 'express';
 import prisma from '../db/prisma.js';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { getAccessContext } from '../utils/access.js';
-import { DEFAULT_CUSTOMER_NAME, getCanonicalDefaultCustomer, isDefaultCustomerName } from '../utils/defaultCustomer.js';
+import { DEFAULT_CUSTOMER_NAME, getCanonicalDefaultCustomer, isDefaultCustomerName, mergeDuplicateCustomers } from '../utils/defaultCustomer.js';
 
 const router = Router();
 const PAYMENT_EPSILON = 0.01;
@@ -76,7 +76,7 @@ const getCustomerAccess = async (access: Awaited<ReturnType<typeof getAccessCont
 router.get('/', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
-    const defaultCustomer = await getCanonicalDefaultCustomer(prisma, req.user?.id || null);
+    const defaultCustomer = await mergeDuplicateCustomers(prisma, req.user?.id || null);
 
 
     const baseWhere: any = {
@@ -129,6 +129,7 @@ router.get('/', async (req: AuthRequest, res, next) => {
 router.post('/', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    await mergeDuplicateCustomers(prisma, req.user?.id || null);
     const customerName = String(req.body?.name || '').trim();
     if (!customerName) {
       return res.status(400).json({ error: 'Название клиента обязательно' });
@@ -162,6 +163,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
 router.put('/:id', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    await mergeDuplicateCustomers(prisma, req.user?.id || null);
     const customerId = Number(req.params.id);
     const customerName = String(req.body?.name || '').trim();
     const { customer: current, allowed } = await getCustomerAccess(access, customerId);

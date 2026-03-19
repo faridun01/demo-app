@@ -239,7 +239,7 @@ export default function SalesView() {
       return 'cancelled';
     }
 
-    const paidAmount = Number(invoice?.paidAmount || 0);
+    const paidAmount = Math.max(0, Number(invoice?.paidAmount || 0));
     const netAmount = getInvoiceNetAmount(invoice);
 
     if (paidAmount > 0 && paidAmount >= netAmount - PAYMENT_EPSILON) {
@@ -254,7 +254,7 @@ export default function SalesView() {
   };
 
   const getInvoiceBalance = (invoice: any) => {
-    const balance = getInvoiceNetAmount(invoice) - Number(invoice?.paidAmount || 0);
+    const balance = getInvoiceNetAmount(invoice) - Math.max(0, Number(invoice?.paidAmount || 0));
     if (balance <= PAYMENT_EPSILON) {
       return 0;
     }
@@ -300,7 +300,7 @@ export default function SalesView() {
   };
 
   const getInvoiceChangeAmount = (invoice: any) => {
-    const change = Number(invoice?.paidAmount || 0) - getInvoiceNetAmount(invoice);
+    const change = Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice);
     if (change <= PAYMENT_EPSILON) {
       return 0;
     }
@@ -309,7 +309,7 @@ export default function SalesView() {
   };
 
   const getInvoiceAppliedPaidAmount = (invoice: any) =>
-    Math.max(0, Number(invoice?.paidAmount || 0) - getInvoiceChangeAmount(invoice));
+    Math.max(0, Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceChangeAmount(invoice));
 
   const isInvoicePaidInFull = (invoice: any) => getEffectiveStatus(invoice) === 'paid';
 
