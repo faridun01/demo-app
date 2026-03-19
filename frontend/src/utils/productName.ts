@@ -5,8 +5,9 @@ export function formatProductName(value: unknown) {
     return '';
   }
 
-  return normalized.replace(
-    /(^|[\s(])(?:SKIF|«SKIF»|"SKIF")(?=[$\s),.])/gi,
-    (_match, prefix: string) => `${prefix}«SKIF»`
-  );
+  return normalized
+    .replace(/[«"“”„‟'][^«"“”„‟']+[»"“”„‟']/gu, ' ')
+    .replace(/\bskif\b/giu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
