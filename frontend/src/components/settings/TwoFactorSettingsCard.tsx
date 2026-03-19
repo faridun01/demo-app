@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { KeyRound, Lock, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import QRCode from 'qrcode';
 import {
   disableTwoFactor,
   setupTwoFactor,
@@ -23,9 +24,47 @@ export default function TwoFactorSettingsCard({ currentUser }: Props) {
     backupCodes: string[];
     setupToken: string;
   }>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [disablePassword, setDisablePassword] = useState('');
   const [disableCode, setDisableCode] = useState('');
+
+  useEffect(() => {
+    let isActive = true;
+
+    const buildQr = async () => {
+      if (!setupData?.otpauthUrl) {
+        setQrCodeDataUrl('');
+        return;
+      }
+
+      try {
+        const dataUrl = await QRCode.toDataURL(setupData.otpauthUrl, {
+          width: 280,
+          margin: 2,
+          errorCorrectionLevel: 'M',
+          color: {
+            dark: '#0f172a',
+            light: '#ffffff',
+          },
+        });
+
+        if (isActive) {
+          setQrCodeDataUrl(dataUrl);
+        }
+      } catch {
+        if (isActive) {
+          setQrCodeDataUrl('');
+        }
+      }
+    };
+
+    buildQr();
+
+    return () => {
+      isActive = false;
+    };
+  }, [setupData?.otpauthUrl]);
 
   const handleStartSetup = async () => {
     try {
@@ -60,6 +99,22 @@ export default function TwoFactorSettingsCard({ currentUser }: Props) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCopySecret = async () => {
+    if (!setupData?.secret) return;
+
+    try {
+      await navigator.clipboard.writeText(setupData.secret.replace(/\s+/g, ''));
+      toast.success('Секретный ключ скопирован');
+    } catch {
+      toast.error('Не удалось скопировать ключ');
+    }
+  };
+
+  const handleOpenAuthenticator = () => {
+    if (!setupData?.otpauthUrl) return;
+    window.location.href = setupData.otpauthUrl;
   };
 
   const handleDisable = async (event: React.FormEvent) => {
@@ -125,12 +180,41 @@ export default function TwoFactorSettingsCard({ currentUser }: Props) {
           <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-6">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Шаг 1</p>
             <p className="mt-3 text-sm font-semibold leading-7 text-slate-700">
-              В приложении-аутентификаторе выберите ручное добавление аккаунта и введите этот секрет:
+              Откройте Google Authenticator или Microsoft Authenticator и отсканируйте QR-код. Если сканирование недоступно, используйте секретный ключ вручную:
             </p>
+            {qrCodeDataUrl && (
+              <div className="mt-4 flex justify-center">
+                <div className="rounded-3xl bg-white p-4 shadow-sm">
+                  <img
+                    src={qrCodeDataUrl}
+                    alt="QR code for two-factor authentication"
+                    className="h-56 w-56 rounded-2xl"
+                  />
+                </div>
+              </div>
+            )}
             <div className="mt-4 rounded-2xl bg-white px-5 py-4 font-mono text-lg font-bold tracking-[0.18em] text-slate-900">
               {setupData.secret}
             </div>
-            <p className="mt-3 break-all text-xs text-slate-500">URI: {setupData.otpauthUrl}</p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleOpenAuthenticator}
+                className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition-all hover:bg-emerald-700"
+              >
+                Открыть в Authenticator
+              </button>
+              <button
+                type="button"
+                onClick={handleCopySecret}
+                className="rounded-2xl border border-emerald-200 bg-white px-5 py-3 text-sm font-black text-emerald-700 transition-all hover:bg-emerald-50"
+              >
+                Копировать ключ
+              </button>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              Если приложение не открылось автоматически, добавьте аккаунт вручную и вставьте этот секретный ключ.
+            </p>
           </div>
 
           <div className="rounded-3xl border border-amber-100 bg-amber-50 p-6">
