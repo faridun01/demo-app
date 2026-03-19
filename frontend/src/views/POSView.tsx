@@ -61,6 +61,18 @@ const posTheme = {
   },
 };
 
+type CartItem = {
+  id: number;
+  name: string;
+  quantity: number;
+  quantityInput?: string;
+  stock: number;
+  unit: string;
+  sellingPrice: number;
+  photoUrl?: string | null;
+  [key: string]: any;
+};
+
 export default function POSView() {
   const cartStorageKey = 'pos_cart_session';
   const pendingCartStorageKey = 'pending_cart';
@@ -72,7 +84,7 @@ export default function POSView() {
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [cart, setCart] = useState<any[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [warehouseId, setWarehouseId] = useState(() => {
     return getStoredWarehouseId() || (userWarehouseId ? String(userWarehouseId) : '');
@@ -166,7 +178,7 @@ export default function POSView() {
     }
 
     if (existing) {
-      setCart(cart.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)));
+      setCart(cart.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1, quantityInput: undefined } : item)));
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
@@ -197,6 +209,57 @@ export default function POSView() {
     }
 
     setCart(cart.map((item) => (item.id === id ? { ...item, quantity } : item)));
+  };
+
+  const updateQuantityInput = (id: number, value: string) => {
+    if (productListRef.current) {
+      lastProductScrollRef.current = productListRef.current.scrollTop;
+    }
+
+    setCart((currentCart) =>
+      currentCart.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        if (value === '') {
+          return { ...item, quantityInput: '' };
+        }
+
+        const parsedQuantity = Number(value);
+        if (Number.isNaN(parsedQuantity)) {
+          return item;
+        }
+
+        const product = products.find((productItem) => productItem.id === id);
+        const maxStock = product?.stock ?? item.stock;
+        const nextQuantity = Math.max(1, Math.min(parsedQuantity, maxStock));
+        return {
+          ...item,
+          quantity: nextQuantity,
+          quantityInput: String(nextQuantity),
+        };
+      }),
+    );
+  };
+
+  const commitQuantityInput = (id: number) => {
+    setCart((currentCart) =>
+      currentCart.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        const product = products.find((productItem) => productItem.id === id);
+        const maxStock = product?.stock ?? item.stock;
+        const normalizedQuantity = Math.max(1, Math.min(item.quantity, maxStock));
+        return {
+          ...item,
+          quantity: normalizedQuantity,
+          quantityInput: undefined,
+        };
+      }),
+    );
   };
 
   useLayoutEffect(() => {
@@ -573,8 +636,9 @@ export default function POSView() {
                                 type="number"
                                 min={1}
                                 max={products.find((product) => product.id === item.id)?.stock || undefined}
-                                value={item.quantity}
-                                onChange={(e) => updateQuantity(item.id, Number(e.target.value) || 0)}
+                                value={item.quantityInput ?? String(item.quantity)}
+                                onChange={(e) => updateQuantityInput(item.id, e.target.value)}
+                                onBlur={() => commitQuantityInput(item.id)}
                                 className="h-8 w-14 min-w-[56px] border-x border-slate-200 bg-white px-2 text-center text-sm text-slate-900 outline-none md:w-20 md:min-w-[80px]"
                               />
                               <button
