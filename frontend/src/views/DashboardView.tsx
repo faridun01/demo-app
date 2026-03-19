@@ -20,6 +20,7 @@ import { formatCount, formatMoney, formatPercent } from '../utils/format';
 import { filterWarehousesForUser, getCurrentUser, getUserWarehouseId, isAdminUser } from '../utils/userAccess';
 import client from '../api/client';
 import { getDefaultWarehouseId } from '../utils/warehouse';
+import ChartSkeleton from '../components/charts/ChartSkeleton';
 
 const DashboardCharts = React.lazy(() => import('../components/charts/DashboardCharts'));
 
@@ -571,8 +572,8 @@ export default function DashboardView() {
             <React.Suspense
               fallback={
                 <section className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_360px]">
-                  <div className="h-[312px] rounded-3xl border border-white bg-white p-4 shadow-sm" />
-                  <div className="h-[312px] rounded-[24px] border border-white bg-white p-4 shadow-sm" />
+                  <ChartSkeleton variant="area" />
+                  <ChartSkeleton variant="pie" />
                 </section>
               }
             >

@@ -64,16 +64,32 @@ router.get('/analytics', authorize(['ADMIN', 'MANAGER']), async (req: AuthReques
     const [invoices, products, customers, warehouses, batches] = await Promise.all([
       prisma.invoice.findMany({
         where: whereClause,
-        include: {
+        select: {
+          netAmount: true,
+          paidAmount: true,
+          warehouseId: true,
+          createdAt: true,
           items: {
-            include: {
+            select: {
+              sellingPrice: true,
               saleAllocations: {
-                include: { batch: true }
-              }
-            }
+                select: {
+                  quantity: true,
+                  batch: {
+                    select: {
+                      costPrice: true,
+                    },
+                  },
+                },
+              },
+            },
           },
-          warehouse: true
-        }
+          warehouse: {
+            select: {
+              name: true,
+            },
+          },
+        },
       }),
       prisma.product.findMany({ where: { active: true, warehouseId: warehouseId ?? undefined } }),
       prisma.customer.findMany({ where: { active: true, city: access.isAdmin ? undefined : (access.city ?? '__no_city__') } }),
@@ -166,10 +182,19 @@ router.get('/sales', authorize(['ADMIN', 'MANAGER']), async (req: AuthRequest, r
 
     const invoices = await prisma.invoice.findMany({
       where,
-      include: {
-        customer: true,
-        warehouse: true,
-        items: { include: { product: true } },
+      select: {
+        id: true,
+        createdAt: true,
+        customer: { select: { name: true } },
+        warehouse: { select: { name: true } },
+        items: {
+          select: {
+            quantity: true,
+            returnedQty: true,
+            sellingPrice: true,
+            product: { select: { name: true, unit: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -223,14 +248,26 @@ router.get('/profit', async (req: AuthRequest, res, next) => {
 
     const invoices = await prisma.invoice.findMany({
       where,
-      include: {
-        customer: true,
-        warehouse: true,
+      select: {
+        id: true,
+        createdAt: true,
+        discount: true,
+        customer: { select: { name: true } },
+        warehouse: { select: { name: true } },
         items: {
-          include: {
-            product: true,
-            saleAllocations: { include: { batch: true } }
-          }
+          select: {
+            quantity: true,
+            returnedQty: true,
+            sellingPrice: true,
+            costPrice: true,
+            product: { select: { name: true, unit: true } },
+            saleAllocations: {
+              select: {
+                quantity: true,
+                batch: { select: { costPrice: true } },
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: 'asc' },

@@ -103,13 +103,35 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
         where: invoiceWhere,
         orderBy: { createdAt: 'desc' },
         take: 5,
-        include: { customer: true },
+        select: {
+          id: true,
+          createdAt: true,
+          netAmount: true,
+          status: true,
+          customer: {
+            select: {
+              name: true,
+            },
+          },
+        },
       }),
       prisma.invoice.findMany({
         where: invoiceWhere,
-        include: {
-          items: true
-        }
+        select: {
+          id: true,
+          createdAt: true,
+          netAmount: true,
+          paidAmount: true,
+          items: {
+            select: {
+              productId: true,
+              quantity: true,
+              returnedQty: true,
+              sellingPrice: true,
+              costPrice: true,
+            },
+          },
+        },
       }),
       prisma.reminder.findMany({
         where: { userId: req.user!.id, isCompleted: false },
@@ -208,7 +230,17 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
 
     const topProductsRaw = await prisma.product.findMany({
       where: { id: { in: topProductIds }, warehouseId: isAdmin ? undefined : (access.warehouseId ?? -1) },
-      include: { category: true }
+      select: {
+        id: true,
+        name: true,
+        stock: true,
+        unit: true,
+        category: {
+          select: {
+            name: true,
+          },
+        },
+      }
     });
 
     const topProducts = topProductsRaw.map((p: any) => ({

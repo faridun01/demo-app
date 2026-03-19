@@ -22,12 +22,12 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
-import ConfirmationModal from '../components/common/ConfirmationModal';
 import { getCurrentUser } from '../utils/userAccess';
 import { updateStoredUser } from '../utils/authStorage';
 import TwoFactorSettingsCard from '../components/settings/TwoFactorSettingsCard';
 
 export default function SettingsView() {
+  const ConfirmationModal = React.lazy(() => import('../components/common/ConfirmationModal'));
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
@@ -499,24 +499,26 @@ export default function SettingsView() {
         )}
       </AnimatePresence>
 
-      <ConfirmationModal 
-        isOpen={showDeleteWarehouseConfirm}
-        onClose={() => setShowDeleteWarehouseConfirm(false)}
-        onConfirm={handleDeleteWarehouse}
-        title="Удалить склад?"
-        message={`Вы уверены, что хотите удалить склад "${selectedWarehouse?.name}"? Это действие нельзя отменить.`}
-      />
+      <React.Suspense fallback={null}>
+        <ConfirmationModal 
+          isOpen={showDeleteWarehouseConfirm}
+          onClose={() => setShowDeleteWarehouseConfirm(false)}
+          onConfirm={handleDeleteWarehouse}
+          title="Удалить склад?"
+          message={`Вы уверены, что хотите удалить склад "${selectedWarehouse?.name}"? Это действие нельзя отменить.`}
+        />
 
-      <ConfirmationModal
-        isOpen={showDeleteUserConfirm}
-        onClose={() => {
-          setShowDeleteUserConfirm(false);
-          setSelectedUser(null);
-        }}
-        onConfirm={handleDeleteUser}
-        title="Удалить пользователя?"
-        message={`Вы уверены, что хотите удалить пользователя "${selectedUser?.username}"? Это действие нельзя отменить.`}
-      />
+        <ConfirmationModal
+          isOpen={showDeleteUserConfirm}
+          onClose={() => {
+            setShowDeleteUserConfirm(false);
+            setSelectedUser(null);
+          }}
+          onConfirm={handleDeleteUser}
+          title="Удалить пользователя?"
+          message={`Вы уверены, что хотите удалить пользователя "${selectedUser?.username}"? Это действие нельзя отменить.`}
+        />
+      </React.Suspense>
 
       {activeTab === 'warehouses' && (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">

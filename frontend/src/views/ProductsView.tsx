@@ -24,7 +24,6 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
-import ConfirmationModal from '../components/common/ConfirmationModal';
 import { formatMoney, toFixedNumber } from '../utils/format';
 import { getProductBatches } from '../api/products.api';
 import { filterWarehousesForUser, getCurrentUser, getUserWarehouseId, isAdminUser } from '../utils/userAccess';
@@ -94,6 +93,9 @@ const formatPriceInput = (value: unknown) => {
 };
 
 export default function ProductsView() {
+  const ConfirmationModal = React.lazy(() => import('../components/common/ConfirmationModal'));
+  const ProductHistoryModal = React.lazy(() => import('../components/products/ProductHistoryModal'));
+  const ProductBatchesModal = React.lazy(() => import('../components/products/ProductBatchesModal'));
   const user = getCurrentUser();
   const isAdmin = isAdminUser(user);
   const userWarehouseId = getUserWarehouseId(user);
@@ -1291,221 +1293,20 @@ export default function ProductsView() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showHistoryModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-[56rem] overflow-hidden rounded-[2rem] bg-white shadow-2xl"
-            >
-              <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 p-5 sm:p-6">
-                <h3 className="flex items-center space-x-3 text-xl font-black text-slate-900">
-                  <div className="rounded-2xl bg-sky-500 p-2.5 text-white">
-                    <History size={20} />
-                  </div>
-                  <span>История товара: {formatProductName(selectedProduct?.name)}</span>
-                </h3>
-                <button onClick={() => setShowHistoryModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <X size={24} />
-                </button>
-              </div>
-              <div className="max-h-[56vh] overflow-y-auto p-4 sm:p-6">
-                <div className="space-y-3 sm:hidden">
-                  {productHistory.map((t, i) => (
-                    <div key={i} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{new Date(t.createdAt).toLocaleString('ru-RU')}</p>
-                          <p className="mt-1 text-xs text-slate-500">{t.warehouseName || t.warehouse?.name || '---'}</p>
-                        </div>
-                        <span className={clsx(
-                          "rounded-lg px-2 py-1 text-[10px] font-black uppercase",
-                          t.type === 'incoming' ? "bg-emerald-50 text-emerald-600" :
-                          t.type === 'outgoing' ? "bg-rose-50 text-rose-600" :
-                          t.type === 'price_change' || t.type === 'adjustment' ? "bg-sky-50 text-sky-600" :
-                          "bg-amber-50 text-amber-600"
-                        )}>
-                          {t.type === 'incoming'
-                            ? 'Приход'
-                            : t.type === 'outgoing'
-                              ? 'Расход'
-                              : t.type === 'price_change' || t.type === 'adjustment'
-                                ? 'Изменение цены'
-                                : 'Перенос'}
-                        </span>
-                      </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl bg-white px-3 py-3">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Кол-во</p>
-                          <p className="mt-1 text-sm font-black text-slate-900">{Number(t.qtyChange || 0) > 0 ? `+${t.qtyChange}` : (t.qtyChange ?? 0)}</p>
-                        </div>
-                        <div className="rounded-2xl bg-white px-3 py-3">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Пользователь</p>
-                          <p className="mt-1 break-words text-sm font-medium text-slate-900">{t.username || '---'}</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 rounded-2xl bg-white px-3 py-3">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Причина</p>
-                        <p className="mt-1 break-words text-sm text-slate-600">{t.reason || '---'}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <table className="hidden w-full table-fixed text-left sm:table">
-                  <thead>
-                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                      <th className="w-[18%] pb-4">Дата</th>
-                      <th className="w-[11%] pb-4">Тип</th>
-                      <th className="w-[10%] pb-4">Кол-во</th>
-                      <th className="w-[13%] pb-4">Склад</th>
-                      <th className="w-[33%] pb-4">Причина</th>
-                      <th className="w-[15%] pb-4">Пользователь</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {productHistory.map((t, i) => (
-                      <tr key={i} className="text-[13px]">
-                        <td className="py-3 pr-3 align-top text-slate-500">{new Date(t.createdAt).toLocaleString('ru-RU')}</td>
-                        <td className="py-3 pr-3 align-top">
-                          <span className={clsx(
-                            "px-2 py-1 rounded-lg text-[10px] font-black uppercase",
-                            t.type === 'incoming' ? "bg-emerald-50 text-emerald-600" :
-                            t.type === 'outgoing' ? "bg-rose-50 text-rose-600" :
-                            t.type === 'price_change' || t.type === 'adjustment' ? "bg-sky-50 text-sky-600" :
-                            "bg-amber-50 text-amber-600"
-                          )}>
-                            {t.type === 'incoming'
-                              ? 'Приход'
-                              : t.type === 'outgoing'
-                                ? 'Расход'
-                                : t.type === 'price_change' || t.type === 'adjustment'
-                                  ? 'Изменение цены'
-                                  : 'Перенос'}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-3 align-top font-black">{Number(t.qtyChange || 0) > 0 ? `+${t.qtyChange}` : (t.qtyChange ?? 0)}</td>
-                        <td className="py-3 pr-3 align-top break-words text-slate-600">{t.warehouseName || t.warehouse?.name || '---'}</td>
-                        <td className="py-3 pr-3 align-top break-words text-slate-500 italic">{t.reason || '---'}</td>
-                        <td className="py-3 align-top break-words text-slate-500">{t.username}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showBatchesModal && selectedProduct && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-[52rem] overflow-hidden rounded-[2rem] bg-white shadow-2xl"
-            >
-              <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-violet-50/50 p-5 sm:p-6">
-                <h3 className="flex items-center space-x-3 text-xl font-black text-slate-900">
-                  <div className="rounded-2xl bg-violet-500 p-2.5 text-white">
-                    <Layers size={20} />
-                  </div>
-                  <span>Партии товара (FIFO): {selectedProduct.name}</span>
-                </h3>
-                <button onClick={() => setShowBatchesModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <X size={24} />
-                </button>
-              </div>
-              <div className="max-h-[56vh] overflow-y-auto p-4 sm:p-6">
-                <div className="mb-5 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm font-medium text-amber-800">
-                  Система списывает товар из самых старых партий в первую очередь (FIFO).
-                </div>
-                <div className="space-y-3 sm:hidden">
-                  {productBatches.map((b, i) => (
-                    <div key={b.id} className={clsx("rounded-3xl border border-slate-100 p-4", i === 0 ? "bg-violet-50/60" : "bg-slate-50")}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{new Date(b.createdAt).toLocaleDateString('ru-RU')}</p>
-                          <p className="mt-1 text-sm text-slate-500">{b.warehouse?.name || '---'}</p>
-                        </div>
-                        {i === 0 && (
-                          <span className="rounded-md bg-violet-500 px-2 py-1 text-[8px] uppercase text-white">След. на списание</span>
-                        )}
-                      </div>
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl bg-white px-3 py-3">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Нач. кол-во</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{b.quantity} {selectedProduct.unit}</p>
-                        </div>
-                        <div className="rounded-2xl bg-white px-3 py-3">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
-                          <p className="mt-1 text-sm font-black text-slate-900">{b.remainingQuantity} {selectedProduct.unit}</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 rounded-2xl bg-white px-3 py-3">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Цена закупки</p>
-                        <p className="mt-1 text-sm font-black text-emerald-600">{formatMoney(b.costPrice)}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {productBatches.length === 0 && (
-                    <div className="rounded-3xl bg-slate-50 px-4 py-10 text-center text-sm font-bold text-slate-400">Активных партий не найдено</div>
-                  )}
-                </div>
-                <table className="hidden w-full text-left sm:table">
-                  <thead>
-                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                      <th className="pb-4">Дата закупки</th>
-                      <th className="pb-4">Склад</th>
-                      <th className="pb-4 text-right">Начальное кол-во</th>
-                      <th className="pb-4 text-right">Остаток</th>
-                      <th className="pb-4 text-right">Цена закупки</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {productBatches.map((b, i) => (
-                      <tr key={b.id} className={clsx("text-[13px]", i === 0 && "bg-violet-50/40")}>
-                        <td className="py-3 text-slate-500 font-bold">
-                          {new Date(b.createdAt).toLocaleDateString('ru-RU')}
-                          {i === 0 && <span className="ml-2 px-2 py-0.5 bg-violet-500 text-white text-[8px] rounded-md uppercase">След. на списание</span>}
-                        </td>
-                        <td className="py-3 text-slate-600 font-bold">{b.warehouse?.name}</td>
-                        <td className="py-3 text-right text-slate-400 font-bold">{b.quantity} {selectedProduct.unit}</td>
-                        <td className="py-3 text-right font-black text-slate-900">{b.remainingQuantity} {selectedProduct.unit}</td>
-                        <td className="py-3 text-right font-black text-emerald-600">{formatMoney(b.costPrice)}</td>
-                      </tr>
-                    ))}
-                    {productBatches.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-20 text-center text-slate-400 font-bold">Активных партий не найдено</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-end border-t border-slate-100 bg-slate-50 p-6">
-                <button 
-                  onClick={() => setShowBatchesModal(false)}
-                  className="rounded-2xl border border-slate-200 bg-white px-8 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50"
-                >
-                  Закрыть
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <React.Suspense fallback={null}>
+        <ProductHistoryModal
+          isOpen={showHistoryModal}
+          onClose={() => setShowHistoryModal(false)}
+          productName={selectedProduct?.name}
+          productHistory={productHistory}
+        />
+        <ProductBatchesModal
+          isOpen={showBatchesModal}
+          onClose={() => setShowBatchesModal(false)}
+          selectedProduct={selectedProduct}
+          productBatches={productBatches}
+        />
+      </React.Suspense>
 
       <AnimatePresence>
         {showMergeModal && selectedProduct && (
@@ -1577,13 +1378,15 @@ export default function ProductsView() {
         )}
       </AnimatePresence>
 
-      <ConfirmationModal 
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDeleteProduct}
-        title="Удалить товар?"
-        message={`Вы уверены, что хотите удалить товар "${formatProductName(selectedProduct?.name)}"? Это действие нельзя отменить.`}
-      />
+      <React.Suspense fallback={null}>
+        <ConfirmationModal 
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDeleteProduct}
+          title="Удалить товар?"
+          message={`Вы уверены, что хотите удалить товар "${formatProductName(selectedProduct?.name)}"? Это действие нельзя отменить.`}
+        />
+      </React.Suspense>
 
       <div className="overflow-hidden rounded-[28px] border border-white bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 bg-white p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">

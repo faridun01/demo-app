@@ -5,6 +5,7 @@ import client from '../api/client';
 import { formatCount, formatMoney, toFixedNumber } from '../utils/format';
 import { formatProductName } from '../utils/productName';
 import { getCurrentUser } from '../utils/userAccess';
+import ChartSkeleton from '../components/charts/ChartSkeleton';
 
 const ReportsCharts = React.lazy(() => import('../components/charts/ReportsCharts'));
 
@@ -609,8 +610,8 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
       <React.Suspense
         fallback={
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_360px]">
-            <div className="h-[392px] rounded-3xl border border-slate-200 bg-white shadow-sm" />
-            <div className="h-[392px] rounded-3xl border border-slate-200 bg-white shadow-sm" />
+            <ChartSkeleton variant="bar" heightClassName="h-[392px]" />
+            <ChartSkeleton variant="pie" heightClassName="h-[392px]" />
           </section>
         }
       >
