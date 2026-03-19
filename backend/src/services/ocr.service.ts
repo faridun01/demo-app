@@ -7,7 +7,7 @@ export class OCRService {
   private static readonly OCR_PROMPT = `Extract invoice items from this invoice as separate rows.
 Requirements:
 1. Return one JSON object per invoice line item. Never merge different products into one object.
-2. "name" must contain only the base product name before the first opening parenthesis "(". If the invoice has extra details inside parentheses, do not include them in "name"; put them into "note" instead.
+2. "name" must contain only the normalized base product name before the first opening parenthesis "(". Remove the brand word "SKIF" and similar quoted brand tokens. If the invoice has extra details inside parentheses, do not include them in "name"; put them into "note" instead.
 3. If two lines have similar names, keep them as separate objects unless the line is literally the same repeated line.
 4. "packageCount": Return how many bags, boxes, or packages are listed on the line. If not available, return 0.
 5. "unitsPerPackage": Return how many individual pieces are inside one bag, box, or package. If not available, return 0.
@@ -19,6 +19,7 @@ Requirements:
 11. "note": Return useful details for that exact line only, such as packaging conversion, color, scent, or remarks.
 12. "lineIndex": Return the visible order number of the line from top to bottom starting with 1.
 13. Do not invent values. If a field is missing, omit it or return an empty string for text fields and 0 for numeric fields.
+14. Keep the product type and mass in the "name" when they are visible, for example "автомат 900гр" or "гель для мытья посуды 1.5л".
 Return only a JSON array of objects with "lineIndex", "name", "packageCount", "unitsPerPackage", "quantity", "price", "rawQuantity", "unit", "lineTotal", and "note".`;
 
   static getClient() {

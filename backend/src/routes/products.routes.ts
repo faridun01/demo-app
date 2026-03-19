@@ -32,6 +32,43 @@ const normalizeProductFamilyName = (value: string | null | undefined) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const extractMassKey = (value: string | null | undefined) => {
+  const match = normalizeProductName(value).toLowerCase().match(/(\d+(?:\.\d+)?)\s*(гр|г|кг|л|мл|шт)\b/u);
+  return match ? `${match[1]} ${match[2]}` : '';
+};
+
+const findCanonicalProductName = async (categoryId: number, name: string, excludeProductId?: number) => {
+  const familyKey = normalizeProductFamilyName(name);
+  const massKey = extractMassKey(name);
+
+  if (!familyKey || !massKey) {
+    return null;
+  }
+
+  const products = await prisma.product.findMany({
+    where: {
+      active: true,
+      categoryId,
+      id: excludeProductId ? { not: excludeProductId } : undefined,
+    },
+    select: {
+      id: true,
+      name: true,
+      warehouseId: true,
+      stock: true,
+      totalIncoming: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const candidate = products
+    .filter((product: any) => normalizeProductFamilyName(product.name) === familyKey && extractMassKey(product.name) === massKey)
+    .sort((a: any, b: any) => Number(b.stock || 0) - Number(a.stock || 0) || Number(b.totalIncoming || 0) - Number(a.totalIncoming || 0))[0];
+
+  return candidate?.name || null;
+};
+
 const formatMoneyValue = (value: unknown) => Number(value || 0).toFixed(2);
 
 const ensureAdminProductAccess = (access: Awaited<ReturnType<typeof getAccessContext>>, res: any) => {
@@ -124,6 +161,11 @@ router.post('/', async (req: AuthRequest, res, next) => {
       return res.status(400).json({ error: 'Warehouse ID is required' });
     }
     const normalizedName = normalizeProductName(rest.name);
+    const canonicalName =
+      Number.isFinite(Number(rest.categoryId))
+        ? await findCanonicalProductName(Number(rest.categoryId), normalizedName)
+        : null;
+    const finalName = canonicalName || normalizedName;
 
     // Check for unique constraints
     const existingProducts = await prisma.product.findMany({
@@ -136,7 +178,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
         name: true,
       }
     });
-    const existingProduct = existingProducts.find((product: { id: number; name: string }) => normalizeProductName(product.name) === normalizedName);
+    const existingProduct = existingProducts.find((product: { id: number; name: string }) => normalizeProductName(product.name) === finalName);
 
     if (existingProduct) {
       return res.status(400).json({
@@ -150,7 +192,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
     const product = await prisma.product.create({
       data: {
         ...rest,
-        name: normalizedName,
+        name: finalName,
         sku: null,
         photoUrl: resolvedPhotoUrl,
         initialStock: Number(initialStock || 0),
@@ -207,7 +249,10 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
     }
 
     // Check for unique constraints if name or warehouseId changed
-    const newName = normalizeProductName(req.body.name || oldProduct.name);
+    const normalizedRequestedName = normalizeProductName(req.body.name || oldProduct.name);
+    const nextCategoryId = req.body.categoryId !== undefined ? Number(req.body.categoryId) : oldProduct.categoryId;
+    const canonicalName = await findCanonicalProductName(nextCategoryId, normalizedRequestedName, productId);
+    const newName = canonicalName || normalizedRequestedName;
     const newWarehouseId = access.isAdmin
       ? (req.body.warehouseId !== undefined ? Number(req.body.warehouseId) : oldProduct.warehouseId)
       : access.warehouseId;

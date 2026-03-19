@@ -403,9 +403,13 @@ export default function ProductsView() {
       for (const item of mergedPreparedResults) {
         const costPriceTJS = item.costPricePerPieceTJS;
         const normalizedItemName = normalizeCatalogName(item.name);
+        const familyKey = normalizeProductFamilyName(item.name);
+        const massKey = extractMassKey(item.name);
         const categoryId = await ensureCategoryId(item.name);
         const product = currentProducts.find((p) => {
           const productName = normalizeCatalogName(String(p.name || ''));
+          const productFamilyKey = normalizeProductFamilyName(String(p.name || ''));
+          const productMassKey = extractMassKey(String(p.name || ''));
           const productWarehouseId = Number(p.warehouseId || 0);
           const targetWarehouseId = Number(selectedWarehouseId);
 
@@ -413,7 +417,7 @@ export default function ProductsView() {
             return false;
           }
 
-          return productName === normalizedItemName;
+          return productName === normalizedItemName || (productFamilyKey === familyKey && productMassKey === massKey);
         });
         if (product) {
           await restockProduct(product.id, {
@@ -563,6 +567,8 @@ export default function ProductsView() {
   const getMergeCandidates = (product: any) => {
     const sourceFamily = normalizeProductFamilyName(String(product?.name || ''));
     const sourceWarehouseId = Number(product?.warehouseId || selectedWarehouseId || 0);
+    const sourceCategoryId = Number(product?.categoryId || 0);
+    const sourceMassKey = extractMassKey(String(product?.name || ''));
 
     return products.filter((candidate) => {
       if (!candidate || candidate.id === product?.id) {
@@ -574,7 +580,11 @@ export default function ProductsView() {
         return false;
       }
 
-      return normalizeProductFamilyName(String(candidate.name || '')) === sourceFamily;
+      const candidateFamily = normalizeProductFamilyName(String(candidate.name || ''));
+      const candidateMassKey = extractMassKey(String(candidate.name || ''));
+      const candidateCategoryId = Number(candidate.categoryId || 0);
+
+      return candidateFamily === sourceFamily || (sourceCategoryId > 0 && candidateCategoryId === sourceCategoryId && sourceMassKey && candidateMassKey === sourceMassKey);
     });
   };
 
