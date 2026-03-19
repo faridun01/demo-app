@@ -47,6 +47,7 @@ const normalizeCatalogName = (name: string) =>
   normalizeVolumeSpacing(String(name || ''))
     .replace(/\s*\[[^\]]*\]\s*$/u, '')
     .replace(/[«"“”„‟'][^«"“”„‟']+[»"“”„‟']/gu, ' ')
+    .replace(/\bskif\b/giu, ' ')
     .replace(/[«»“”„‟"']/gu, '')
     .replace(/[(),]/gu, ' ')
     .replace(/[ёЁ]/g, 'е')
@@ -61,6 +62,11 @@ const normalizeProductFamilyName = (name: string) =>
     .replace(/\b\d+(?:\.\d+)?\s*(?:гр|г|кг|л|мл|шт)\b/giu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+const extractMassKey = (name: string) => {
+  const match = normalizeVolumeSpacing(String(name || '').toLowerCase()).match(/(\d+(?:\.\d+)?)\s*(гр|г|кг|л|мл|шт)\b/u);
+  return match ? `${match[1]} ${match[2]}` : '';
+};
 
 const detectCategoryName = (name: string) => {
   const normalized = String(name || '').toLowerCase().replace(/[ё]/g, 'е');
@@ -570,6 +576,32 @@ export default function ProductsView() {
 
       return normalizeProductFamilyName(String(candidate.name || '')) === sourceFamily;
     });
+  };
+
+  const getDuplicateHintCount = (product: any) => {
+    const sourceWarehouseId = Number(product?.warehouseId || selectedWarehouseId || 0);
+    const sourceCategoryId = Number(product?.categoryId || 0);
+    const sourceMassKey = extractMassKey(String(product?.name || ''));
+
+    if (!sourceCategoryId || !sourceMassKey) {
+      return 0;
+    }
+
+    return products.filter((candidate) => {
+      if (!candidate || candidate.id === product?.id) {
+        return false;
+      }
+
+      const candidateWarehouseId = Number(candidate.warehouseId || 0);
+      const candidateCategoryId = Number(candidate.categoryId || 0);
+      const candidateMassKey = extractMassKey(String(candidate.name || ''));
+
+      if (sourceWarehouseId && candidateWarehouseId && candidateWarehouseId !== sourceWarehouseId) {
+        return false;
+      }
+
+      return candidateCategoryId === sourceCategoryId && candidateMassKey === sourceMassKey;
+    }).length;
   };
 
   const handleOpenMergeModal = (product: any) => {
@@ -1602,6 +1634,14 @@ export default function ProductsView() {
                     <span className="rounded-xl bg-violet-50 px-2.5 py-1 text-[11px] text-violet-700">
                       {product.category?.name || 'Без категории'}
                     </span>
+                    {getDuplicateHintCount(product) > 0 && (
+                      <button
+                        onClick={() => handleOpenMergeModal(product)}
+                        className="rounded-xl bg-amber-50 px-2.5 py-1 text-[11px] text-amber-700"
+                      >
+                        Дубликат: {getDuplicateHintCount(product)}
+                      </button>
+                    )}
                     <span className="rounded-xl bg-slate-50 px-2.5 py-1 text-[11px] text-slate-500">
                       {selectedWarehouseId ? product.warehouse?.name || 'Склад' : 'Все склады'}
                     </span>
@@ -1776,9 +1816,19 @@ export default function ProductsView() {
                       </div>
                       <div>
                         <p className="text-sm font-medium leading-tight text-slate-900">{formatProductName(product.name)}</p>
-                        <p className="mt-1 text-xs font-medium text-slate-400">
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className="text-xs font-medium text-slate-400">
                           {product.category?.name || 'Без категории'}
-                        </p>
+                          </p>
+                          {getDuplicateHintCount(product) > 0 && (
+                            <button
+                              onClick={() => handleOpenMergeModal(product)}
+                              className="rounded-lg bg-amber-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-700"
+                            >
+                              Дубликат
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>

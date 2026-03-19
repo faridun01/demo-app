@@ -16,6 +16,7 @@ const normalizeProductName = (value: string | null | undefined) =>
   normalizeVolumeSpacing(String(value || ''))
     .replace(/\s*\[[^\]]*\]\s*$/u, '')
     .replace(/[«"“”„‟'][^«"“”„‟']+[»"“”„‟']/gu, ' ')
+    .replace(/\bskif\b/giu, ' ')
     .replace(/[«»“”„‟"']/gu, '')
     .replace(/[(),]/gu, ' ')
     .replace(/plasticковых/giu, 'пластиковых')
