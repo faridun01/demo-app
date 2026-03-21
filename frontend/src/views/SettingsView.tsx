@@ -31,6 +31,15 @@ export default function SettingsView() {
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
+  const [companyProfile, setCompanyProfile] = useState({
+    name: '',
+    country: '',
+    region: '',
+    city: '',
+    addressLine: '',
+    phone: '',
+    note: '',
+  });
   const [activeTab, setActiveTab] = useState<'warehouses' | 'users' | 'general' | 'profile'>('warehouses');
   
   const [showAddWarehouse, setShowAddWarehouse] = useState(false);
@@ -94,6 +103,16 @@ export default function SettingsView() {
       if (canManageSettings) {
         const sRes = await client.get('/settings');
         setSettings(sRes.data);
+        const companyRes = await client.get('/settings/company-profile');
+        setCompanyProfile({
+          name: companyRes.data?.name || '',
+          country: companyRes.data?.country || '',
+          region: companyRes.data?.region || '',
+          city: companyRes.data?.city || '',
+          addressLine: companyRes.data?.addressLine || '',
+          phone: companyRes.data?.phone || '',
+          note: companyRes.data?.note || '',
+        });
       }
       
       if (canViewUsers) {
@@ -268,6 +287,22 @@ export default function SettingsView() {
       toast.success('Настройки сохранены');
     } catch (err) {
       toast.error('Ошибка при сохранении настроек');
+    }
+  };
+
+  const handleSaveCompanyProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canManageSettings) {
+      toast.error('Недостаточно прав');
+      return;
+    }
+
+    try {
+      await client.post('/settings/company-profile', companyProfile);
+      toast.success('Данные компании сохранены');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка при сохранении данных компании');
     }
   };
 
@@ -882,11 +917,105 @@ export default function SettingsView() {
           <TwoFactorSettingsCard currentUser={currentUser} />
         </div>
       )}
-      {activeTab === 'general' && (
-        <div className="max-w-2xl space-y-8">
-          <div className="space-y-10 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 flex items-center space-x-3">
+        {activeTab === 'general' && (
+          <div className="max-w-2xl space-y-8">
+            <div className="space-y-10 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 flex items-center space-x-3">
+                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+                    <MapPin size={28} />
+                  </div>
+                  <span>Данные компании для печати</span>
+                </h3>
+                <p className="text-slate-500 mt-3 font-medium">Эти данные будут подставляться в печатную накладную. После изменения новые данные будут печататься автоматически.</p>
+              </div>
+
+              <form onSubmit={handleSaveCompanyProfile} className="space-y-5">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-widest">Название компании</label>
+                    <input
+                      type="text"
+                      required
+                      value={companyProfile.name}
+                      onChange={(e) => setCompanyProfile({ ...companyProfile, name: e.target.value })}
+                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-emerald-300/30 focus:border-emerald-300 transition-all font-bold"
+                      placeholder='Например: ООО "Имдоди Шифо"'
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-widest">Страна</label>
+                    <input
+                      type="text"
+                      value={companyProfile.country}
+                      onChange={(e) => setCompanyProfile({ ...companyProfile, country: e.target.value })}
+                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-emerald-300/30 focus:border-emerald-300 transition-all font-bold"
+                      placeholder="Республика Таджикистан"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-widest">Область / регион</label>
+                    <input
+                      type="text"
+                      value={companyProfile.region}
+                      onChange={(e) => setCompanyProfile({ ...companyProfile, region: e.target.value })}
+                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-emerald-300/30 focus:border-emerald-300 transition-all font-bold"
+                      placeholder="Согдийская область"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-widest">Город</label>
+                    <input
+                      type="text"
+                      value={companyProfile.city}
+                      onChange={(e) => setCompanyProfile({ ...companyProfile, city: e.target.value })}
+                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-emerald-300/30 focus:border-emerald-300 transition-all font-bold"
+                      placeholder="г. Истаравшан"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-widest">Телефон</label>
+                    <input
+                      type="text"
+                      value={companyProfile.phone}
+                      onChange={(e) => setCompanyProfile({ ...companyProfile, phone: e.target.value })}
+                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-emerald-300/30 focus:border-emerald-300 transition-all font-bold"
+                      placeholder="+992..."
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-widest">Адрес</label>
+                    <input
+                      type="text"
+                      value={companyProfile.addressLine}
+                      onChange={(e) => setCompanyProfile({ ...companyProfile, addressLine: e.target.value })}
+                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-emerald-300/30 focus:border-emerald-300 transition-all font-bold"
+                      placeholder="Дж. Гули Сурх, т/ц Хочи Хаит"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-black text-slate-700 mb-2 uppercase tracking-widest">Примечание</label>
+                    <textarea
+                      rows={3}
+                      value={companyProfile.note}
+                      onChange={(e) => setCompanyProfile({ ...companyProfile, note: e.target.value })}
+                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-emerald-300/30 focus:border-emerald-300 transition-all font-bold resize-none"
+                      placeholder="Дополнительная строка для печати, если нужна"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button type="submit" className="rounded-2xl bg-emerald-500 px-6 py-4 font-black text-white shadow-xl shadow-emerald-500/20 transition-all hover:bg-emerald-600 active:scale-95">
+                    Сохранить данные компании
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="space-y-10 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900 flex items-center space-x-3">
                 <div className="p-3 bg-slate-100 text-slate-700 rounded-2xl">
                   <Eye size={28} />
                 </div>

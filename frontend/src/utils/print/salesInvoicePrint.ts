@@ -48,7 +48,7 @@ export function printSalesInvoice({
             <tr>
               <td>${index + 1}</td>
               <td>${escapeHtml(formatProductName(item.product_name))}</td>
-              <td>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</td>
+              <td>${escapeHtml(item.quantityLabel || `${item.quantity} ${item.unit || ''}`)}</td>
               <td>${escapeHtml(formatMoney(item.sellingPrice))}</td>
               <td>${escapeHtml(formatMoney(item.totalPrice))}</td>
             </tr>
@@ -119,6 +119,12 @@ export function printSalesInvoice({
     `
     : '';
 
+  const companyLocation = [invoice.company_country, invoice.company_region, invoice.company_city]
+    .filter(Boolean)
+    .join(', ');
+
+  const customerDetails = [invoice.customer_phone, invoice.customer_address].filter(Boolean).join('<br/>');
+
   const html = `
     <!doctype html>
     <html lang="ru">
@@ -159,13 +165,19 @@ export function printSalesInvoice({
                 <div>Сотрудник: ${escapeHtml(invoice.staff_name || '---')}</div>
               </div>
             </div>
+            <div class="muted" style="max-width: 320px; text-align: right;">
+              <div style="font-size: 18px; font-weight: 700; color: #0f172a;">${escapeHtml(invoice.company_name || '---')}</div>
+              ${companyLocation ? `<div>${escapeHtml(companyLocation)}</div>` : ''}
+              ${invoice.company_address ? `<div>${escapeHtml(invoice.company_address)}</div>` : ''}
+              ${invoice.company_phone ? `<div>${escapeHtml(invoice.company_phone)}</div>` : ''}
+            </div>
           </div>
 
           <div class="grid">
             <div class="card">
               <p class="label">Клиент</p>
               <p class="value">${escapeHtml(invoice.customer_name || 'Обычный клиент')}</p>
-              <p class="subvalue">${escapeHtml(invoice.customer_phone || 'Нет телефона')}</p>
+              <p class="subvalue">${customerDetails || 'Нет данных клиента'}</p>
             </div>
             <div class="card">
               <p class="label">Склад</p>
@@ -186,7 +198,7 @@ export function printSalesInvoice({
                 <tr>
                   <th style="width: 52px;">№</th>
                   <th>Товар</th>
-                  <th style="width: 120px;">Количество</th>
+                  <th style="width: 140px;">Количество</th>
                   <th style="width: 140px;">Цена</th>
                   <th style="width: 140px;">Сумма</th>
                 </tr>

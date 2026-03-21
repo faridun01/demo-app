@@ -25,12 +25,16 @@ function getLineNetRevenue(invoice: any, item: any) {
 
   const remainingSubtotal = getRemainingSubtotal(invoice.items || []);
   const lineRemainingSubtotal = Number(item.sellingPrice || 0) * remainingQty;
+  const invoiceNetAmount = Number(invoice.netAmount || 0);
 
   if (remainingSubtotal <= MONEY_EPSILON) {
     return lineRemainingSubtotal;
   }
 
-  const invoiceNetAmount = Number(invoice.netAmount || 0);
+  if (invoiceNetAmount <= MONEY_EPSILON) {
+    return lineRemainingSubtotal;
+  }
+
   return (lineRemainingSubtotal / remainingSubtotal) * invoiceNetAmount;
 }
 
