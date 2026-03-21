@@ -51,10 +51,6 @@ export function printSalesInvoice({
         .join('')
     : '';
 
-  const companyLocation = [invoice.company_country, invoice.company_region, invoice.company_city]
-    .filter(Boolean)
-    .join(', ');
-
   const customerDetails = [invoice.customer_phone, invoice.customer_address].filter(Boolean).join('<br/>');
 
   const html = `
@@ -70,6 +66,8 @@ export function printSalesInvoice({
           .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 24px; }
           .title { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
           .muted { color: #475569; font-size: 14px; line-height: 1.6; }
+          .company-block { max-width: 420px; }
+          .company-line { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: #0f172a; line-height: 1.45; }
           .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
           .card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; background: #f8fafc; }
           .label { margin: 0 0 8px; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
@@ -89,14 +87,16 @@ export function printSalesInvoice({
       <body>
         <div class="sheet">
           <div class="header">
-            <div>
-              <h1 class="title">Накладная #${invoice.id}</h1>
+            <div class="company-block">
+              ${invoice.company_name ? `<p class="company-line">${escapeHtml(invoice.company_name)}</p>` : ''}
+              ${invoice.company_country ? `<p class="company-line">${escapeHtml(invoice.company_country)}</p>` : ''}
+              ${(invoice.company_region || invoice.company_city) ? `<p class="company-line">${escapeHtml([invoice.company_region, invoice.company_city].filter(Boolean).join(' '))}</p>` : ''}
+              ${invoice.company_address ? `<p class="company-line">${escapeHtml(invoice.company_address)}</p>` : ''}
+              ${invoice.company_phone ? `<p class="company-line">${escapeHtml(invoice.company_phone)}</p>` : ''}
             </div>
-            <div class="muted" style="max-width: 340px; text-align: right;">
-              <div style="font-size: 18px; font-weight: 700; color: #0f172a;">${escapeHtml(invoice.company_name || '---')}</div>
-              ${companyLocation ? `<div>${escapeHtml(companyLocation)}</div>` : ''}
-              ${invoice.company_address ? `<div>${escapeHtml(invoice.company_address)}</div>` : ''}
-              ${invoice.company_phone ? `<div>${escapeHtml(invoice.company_phone)}</div>` : ''}
+            <div style="text-align: right;">
+              <h1 class="title">Накладная #${invoice.id}</h1>
+              <div class="muted">${escapeHtml(new Date(invoice.createdAt).toLocaleDateString('ru-RU'))}</div>
             </div>
           </div>
 
