@@ -1,8 +1,6 @@
 import { formatMoney } from '../format';
 import { formatProductName } from '../productName';
 
-const PAYMENT_EPSILON = 0.01;
-
 const escapeHtml = (value: unknown) =>
   String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -24,13 +22,9 @@ interface SalesInvoicePrintOptions {
 
 export function printSalesInvoice({
   invoice,
-  statusLabel,
   subtotal,
   discountAmount,
   netAmount,
-  balanceAmount,
-  changeAmount,
-  appliedPaidAmount,
 }: SalesInvoicePrintOptions) {
   if (typeof window === 'undefined' || !invoice) {
     return { ok: false, reason: 'invalid' as const };
@@ -57,68 +51,6 @@ export function printSalesInvoice({
         .join('')
     : '';
 
-  const paymentsBlock = Array.isArray(invoice.payments) && invoice.payments.length > 0
-    ? `
-      <div class="section">
-        <h3>Оплаты</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Дата</th>
-              <th>Сумма</th>
-              <th>Сотрудник</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoice.payments
-              .map(
-                (payment: any) => `
-                  <tr>
-                    <td>${escapeHtml(new Date(payment.createdAt).toLocaleString('ru-RU'))}</td>
-                    <td>${escapeHtml(formatMoney(payment.amount))}</td>
-                    <td>${escapeHtml(payment.staff_name)}</td>
-                  </tr>
-                `,
-              )
-              .join('')}
-          </tbody>
-        </table>
-      </div>
-    `
-    : '';
-
-  const returnsBlock = Array.isArray(invoice.returns) && invoice.returns.length > 0
-    ? `
-      <div class="section">
-        <h3>Возвраты</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Дата</th>
-              <th>Сумма</th>
-              <th>Причина</th>
-              <th>Сотрудник</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoice.returns
-              .map(
-                (itemReturn: any) => `
-                  <tr>
-                    <td>${escapeHtml(new Date(itemReturn.createdAt).toLocaleString('ru-RU'))}</td>
-                    <td>-${escapeHtml(formatMoney(itemReturn.totalValue))}</td>
-                    <td>${escapeHtml(itemReturn.reason || '---')}</td>
-                    <td>${escapeHtml(itemReturn.staff_name)}</td>
-                  </tr>
-                `,
-              )
-              .join('')}
-          </tbody>
-        </table>
-      </div>
-    `
-    : '';
-
   const companyLocation = [invoice.company_country, invoice.company_region, invoice.company_city]
     .filter(Boolean)
     .join(', ');
@@ -136,9 +68,9 @@ export function printSalesInvoice({
           body { margin: 0; padding: 32px; font-family: Arial, sans-serif; color: #0f172a; background: #ffffff; }
           .sheet { max-width: 900px; margin: 0 auto; }
           .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 24px; }
-          .title { font-size: 30px; font-weight: 700; margin: 0 0 8px; }
+          .title { font-size: 28px; font-weight: 700; margin: 0 0 8px; }
           .muted { color: #475569; font-size: 14px; line-height: 1.6; }
-          .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+          .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
           .card { border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; background: #f8fafc; }
           .label { margin: 0 0 8px; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
           .value { margin: 0; font-size: 18px; font-weight: 700; }
@@ -159,13 +91,8 @@ export function printSalesInvoice({
           <div class="header">
             <div>
               <h1 class="title">Накладная #${invoice.id}</h1>
-              <div class="muted">
-                <div>Дата: ${escapeHtml(new Date(invoice.createdAt).toLocaleString('ru-RU'))}</div>
-                <div>Статус: ${escapeHtml(statusLabel)}</div>
-                <div>Сотрудник: ${escapeHtml(invoice.staff_name || '---')}</div>
-              </div>
             </div>
-            <div class="muted" style="max-width: 320px; text-align: right;">
+            <div class="muted" style="max-width: 340px; text-align: right;">
               <div style="font-size: 18px; font-weight: 700; color: #0f172a;">${escapeHtml(invoice.company_name || '---')}</div>
               ${companyLocation ? `<div>${escapeHtml(companyLocation)}</div>` : ''}
               ${invoice.company_address ? `<div>${escapeHtml(invoice.company_address)}</div>` : ''}
@@ -180,14 +107,9 @@ export function printSalesInvoice({
               <p class="subvalue">${customerDetails || 'Нет данных клиента'}</p>
             </div>
             <div class="card">
-              <p class="label">Склад</p>
-              <p class="value">${escapeHtml(invoice.warehouse?.name || '---')}</p>
-              <p class="subvalue">${escapeHtml(invoice.warehouse?.address || '---')}</p>
-            </div>
-            <div class="card">
-              <p class="label">Оплата</p>
-              <p class="value">${escapeHtml(formatMoney(appliedPaidAmount))}</p>
-              <p class="subvalue">${changeAmount > PAYMENT_EPSILON ? `Сдача клиенту: ${escapeHtml(formatMoney(changeAmount))}` : `Остаток: ${escapeHtml(formatMoney(balanceAmount))}`}</p>
+              <p class="label">Дата</p>
+              <p class="value">${escapeHtml(new Date(invoice.createdAt).toLocaleDateString('ru-RU'))}</p>
+              <p class="subvalue">Накладная #${escapeHtml(invoice.id)}</p>
             </div>
           </div>
 
@@ -212,11 +134,7 @@ export function printSalesInvoice({
             <div class="summary-row"><span>Скидка (${escapeHtml(invoice.discount || 0)}%)</span><strong>-${escapeHtml(formatMoney(discountAmount))}</strong></div>
             ${Number(invoice.returnedAmount || 0) > 0 ? `<div class="summary-row"><span>Возвращено</span><strong>-${escapeHtml(formatMoney(invoice.returnedAmount || 0))}</strong></div>` : ''}
             <div class="summary-row total"><span>Итого</span><span>${escapeHtml(formatMoney(netAmount))}</span></div>
-            ${changeAmount > PAYMENT_EPSILON ? `<div class="summary-row"><span>Сдача клиенту</span><strong>${escapeHtml(formatMoney(changeAmount))}</strong></div>` : ''}
           </div>
-
-          ${paymentsBlock}
-          ${returnsBlock}
         </div>
       </body>
     </html>

@@ -83,6 +83,27 @@ const detectCategoryName = (name: string) => {
   return words.slice(0, 2).join(' ') || 'Прочее';
 };
 
+const normalizeOcrBaseUnit = (value: string) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'шт';
+  if (['шт', 'штук', 'штука', 'штуки', 'pcs', 'piece', 'pieces'].includes(normalized)) return 'шт';
+  if (['пачка', 'пачки', 'пачек'].includes(normalized)) return 'пачка';
+  if (['флакон', 'флакона', 'флаконов'].includes(normalized)) return 'флакон';
+  if (['емкость', 'ёмкость', 'емкости', 'ёмкости', 'емкостей', 'ёмкостей'].includes(normalized)) return 'ёмкость';
+  if (['бутылка', 'бутылки', 'бутылок'].includes(normalized)) return 'бутылка';
+  return normalized;
+};
+
+const normalizeOcrPackageName = (value: string) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '';
+  if (['мешок', 'мешка', 'мешков', 'bag'].includes(normalized)) return 'мешок';
+  if (['коробка', 'коробки', 'коробок', 'box'].includes(normalized)) return 'коробка';
+  if (['упаковка', 'упаковки', 'упаковок', 'pack'].includes(normalized)) return 'упаковка';
+  if (['пачка', 'пачки', 'пачек'].includes(normalized)) return 'пачка';
+  return normalized;
+};
+
 const formatPriceInput = (value: unknown) => {
   if (value === '' || value === null || value === undefined) {
     return '';
@@ -273,23 +294,37 @@ export default function ProductsView() {
 
     try {
       const res = await client.post('/ocr/parse-invoice', formData);
-      const rawItems = Array.isArray(res.data) ? res.data : [];
+      const rawItems = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.items)
+          ? res.data.items
+          : [];
       const items = rawItems
         .map((item: any, index: number) => ({
           enabled: true,
           lineIndex: Number(item.lineIndex || index + 1),
-          name: normalizeOcrProductName(item.name || ''),
+          rawName: String(item.rawName || item.name || '').trim(),
+          name: normalizeOcrProductName(item.name || item.rawName || ''),
+          brand: String(item.brand || '').trim(),
+          packageName: normalizeOcrPackageName(item.packageName || ''),
+          baseUnitName: normalizeOcrBaseUnit(item.baseUnitName || item.unit || 'шт'),
           packageCount: Number(item.packageCount || 0),
           unitsPerPackage: Number(item.unitsPerPackage || 0),
-          quantity: Number(item.quantity || 0),
+          quantity: Number(
+            item.quantity
+            || (Number(item.packageCount || 0) > 0 && Number(item.unitsPerPackage || 0) > 0
+              ? Number(item.packageCount || 0) * Number(item.unitsPerPackage || 0)
+              : 0)
+          ),
           price: Number(item.price || 0),
           rawQuantity: item.rawQuantity || '',
-          unit: item.unit || 'шт',
+          unit: normalizeOcrBaseUnit(item.baseUnitName || item.unit || 'шт'),
           lineTotal: Number(item.lineTotal || 0),
           note: item.note || '',
           sellingPrice: item.sellingPrice || '',
         }))
-        .sort((a, b) => a.lineIndex - b.lineIndex);
+        .filter((item: any) => item.rawName || item.name)
+        .sort((a: any, b: any) => a.lineIndex - b.lineIndex);
       if (!items.length) {
         toast.error('Сканирование завершено, но товары не были распознаны');
         setOcrResults([]);
@@ -337,6 +372,10 @@ export default function ProductsView() {
             return null;
           }
           const normalizedName = normalizeOcrProductName(item.name || '');
+          const rawName = String(item.rawName || item.name || '').trim();
+          const brand = String(item.brand || '').trim();
+          const packageName = normalizeOcrPackageName(item.packageName || '');
+          const baseUnitName = normalizeOcrBaseUnit(item.baseUnitName || item.unit || 'шт');
           const packageCount = Number(item.packageCount || 0);
           const unitsPerPackage = Number(item.unitsPerPackage || 0);
           const normalizedQuantity = Number(item.quantity || 0);
@@ -345,9 +384,12 @@ export default function ProductsView() {
               ? packageCount * unitsPerPackage
               : normalizedQuantity;
           const price = Number(item.price || 0);
+          const lineTotal = Number(item.lineTotal || 0);
           const sellingPrice = item.sellingPrice ? Number(item.sellingPrice) : 0;
           const costPricePerPieceTJS =
-            unitsPerPackage > 0
+            lineTotal > 0 && quantity > 0
+              ? (lineTotal * rate) / quantity
+              : unitsPerPackage > 0
               ? (price * rate) / unitsPerPackage
               : quantity > 0
                 ? (price * rate) / quantity
@@ -368,27 +410,37 @@ export default function ProductsView() {
           return {
             lineIndex: Number(item.lineIndex || 0),
             name: normalizedName,
+            rawName,
+            brand,
+            packageName,
+            baseUnitName,
             packageCount,
             unitsPerPackage,
             quantity,
             price,
+            lineTotal,
             costPricePerPieceTJS,
             sellingPrice,
             rawQuantity: String(item.rawQuantity || '').trim(),
-            lineTotal: Number(item.lineTotal || 0),
+            note: String(item.note || '').trim(),
           };
         })
         .filter(Boolean) as Array<{
           lineIndex: number;
           name: string;
+          rawName: string;
+          brand: string;
+          packageName: string;
+          baseUnitName: string;
           packageCount: number;
           unitsPerPackage: number;
           quantity: number;
           price: number;
+          lineTotal: number;
           costPricePerPieceTJS: number;
           sellingPrice: number;
           rawQuantity: string;
-          lineTotal: number;
+          note: string;
         }>;
 
       const mergedPreparedResults = Array.from(
@@ -406,12 +458,29 @@ export default function ProductsView() {
           existing.lineTotal += Number(item.lineTotal || 0);
           existing.packageCount += Number(item.packageCount || 0);
           existing.unitsPerPackage = Math.max(Number(existing.unitsPerPackage || 0), Number(item.unitsPerPackage || 0));
-          existing.costPricePerPieceTJS = existing.quantity > 0 ? (existing.price * rate) / existing.quantity : existing.costPricePerPieceTJS;
+          existing.costPricePerPieceTJS = existing.quantity > 0
+            ? ((existing.lineTotal > 0 ? existing.lineTotal * rate : existing.price * rate) / existing.quantity)
+            : existing.costPricePerPieceTJS;
           if (Number(item.sellingPrice || 0) > 0) {
             existing.sellingPrice = Number(item.sellingPrice);
           }
           if (!existing.rawQuantity && item.rawQuantity) {
             existing.rawQuantity = item.rawQuantity;
+          }
+          if (!existing.rawName && item.rawName) {
+            existing.rawName = item.rawName;
+          }
+          if (!existing.brand && item.brand) {
+            existing.brand = item.brand;
+          }
+          if (!existing.packageName && item.packageName) {
+            existing.packageName = item.packageName;
+          }
+          if (!existing.baseUnitName && item.baseUnitName) {
+            existing.baseUnitName = item.baseUnitName;
+          }
+          if (!existing.note && item.note) {
+            existing.note = item.note;
           }
 
           return acc;
@@ -449,9 +518,26 @@ export default function ProductsView() {
             costPrice: costPriceTJS,
             reason: 'OCR Restock'
           });
-          if (item.sellingPrice) {
+          if (item.sellingPrice || item.rawName || item.brand || item.packageName) {
+            const productUpdatePayload: Record<string, unknown> = {
+              rawName: item.rawName,
+              brand: item.brand || undefined,
+              baseUnitName: item.baseUnitName,
+              unit: item.baseUnitName,
+              packaging: item.packageName && Number(item.unitsPerPackage || 0) > 0
+                ? {
+                    packageName: item.packageName,
+                    baseUnitName: item.baseUnitName,
+                    unitsPerPackage: Number(item.unitsPerPackage || 0),
+                    isDefault: true,
+                  }
+                : undefined,
+            };
+            if (Number(item.sellingPrice || 0) > 0) {
+              productUpdatePayload.sellingPrice = Number(item.sellingPrice);
+            }
             await updateProduct(product.id, {
-              sellingPrice: Number(item.sellingPrice)
+              ...productUpdatePayload,
             });
           }
           continue;
@@ -459,13 +545,24 @@ export default function ProductsView() {
         try {
           const createdProduct = await createProduct({
             name: item.name,
-            unit: 'шт',
+            rawName: item.rawName,
+            brand: item.brand || undefined,
+            baseUnitName: item.baseUnitName,
+            unit: item.baseUnitName,
             categoryId,
             warehouseId: Number(selectedWarehouseId),
             costPrice: costPriceTJS,
             sellingPrice: Number(item.sellingPrice) || costPriceTJS * 1.2,
             initialStock: Number(item.quantity),
             minStock: 0,
+            packaging: item.packageName && Number(item.unitsPerPackage || 0) > 0
+              ? {
+                  packageName: item.packageName,
+                  baseUnitName: item.baseUnitName,
+                  unitsPerPackage: Number(item.unitsPerPackage || 0),
+                  isDefault: true,
+                }
+              : undefined,
           });
           currentProducts.push(createdProduct);
         } catch (createErr: any) {
@@ -486,9 +583,26 @@ export default function ProductsView() {
             reason: 'OCR Restock'
           });
 
-          if (item.sellingPrice) {
+          if (item.sellingPrice || item.rawName || item.brand || item.packageName) {
+            const duplicateUpdatePayload: Record<string, unknown> = {
+              rawName: item.rawName,
+              brand: item.brand || undefined,
+              baseUnitName: item.baseUnitName,
+              unit: item.baseUnitName,
+              packaging: item.packageName && Number(item.unitsPerPackage || 0) > 0
+                ? {
+                    packageName: item.packageName,
+                    baseUnitName: item.baseUnitName,
+                    unitsPerPackage: Number(item.unitsPerPackage || 0),
+                    isDefault: true,
+                  }
+                : undefined,
+            };
+            if (Number(item.sellingPrice || 0) > 0) {
+              duplicateUpdatePayload.sellingPrice = Number(item.sellingPrice);
+            }
             await updateProduct(duplicateByName.id, {
-              sellingPrice: Number(item.sellingPrice)
+              ...duplicateUpdatePayload,
             });
           }
         }
@@ -1262,7 +1376,7 @@ export default function ProductsView() {
                         />
                         Добавить строку #{item.lineIndex || i + 1}
                       </label>
-                    <p className="font-bold text-slate-900 break-words whitespace-normal">{formatProductName(item.name)}</p>
+                      <p className="font-bold text-slate-900 break-words whitespace-normal">{formatProductName(item.name || item.rawName)}</p>
                       {item.rawQuantity && (
                         <p className="mt-1 text-[10px] font-bold text-slate-400">Из накладной: {item.rawQuantity}</p>
                       )}
