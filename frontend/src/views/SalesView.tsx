@@ -365,6 +365,15 @@ export default function SalesView() {
     }
   };
 
+  const handleQuickPrintInvoice = async (invoiceId: number) => {
+    try {
+      const res = await client.get(`/invoices/${invoiceId}`);
+      await handlePrintInvoice(res.data);
+    } catch {
+      toast.error('Ошибка при подготовке печати');
+    }
+  };
+
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
     const direction = sortConfig.direction === 'asc' ? 1 : -1;
 
@@ -541,6 +550,12 @@ export default function SalesView() {
                 >
                   Детали
                 </button>
+                <button
+                  onClick={() => handleQuickPrintInvoice(inv.id)}
+                  className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700"
+                >
+                  Печать
+                </button>
                 {isAdmin && (
                   <button
                     onClick={() => handleDeleteInvoice(inv.id)}
@@ -566,7 +581,7 @@ export default function SalesView() {
                 <th className="px-4 py-3">{renderSortLabel("Остаток", "balance")}</th>
                 <th className="px-4 py-3">{renderSortLabel("Статус", "status")}</th>
                 <th className="px-4 py-3">{renderSortLabel("Сотрудник", "staff_name")}</th>
-                {isAdmin && <th className="px-4 py-3 text-right">Действия</th>}
+                <th className="px-4 py-3 text-right">Действия</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -590,8 +605,10 @@ export default function SalesView() {
                   <td className="px-4 py-3 text-sm text-rose-500">{formatMoney(getInvoiceBalance(inv))}</td>
                   <td className="px-4 py-3">{getStatusBadge(getEffectiveStatus(inv), inv.cancelled)}</td>
                   <td className="px-4 py-3 text-sm text-slate-500">{inv.staff_name}</td>
-                  {isAdmin && <td className="w-[164px] px-4 py-3 text-right align-middle">
-                    <div className="ml-auto grid w-[136px] grid-cols-3 gap-2">
+                  <td className="px-4 py-3 text-right align-middle">
+                    <div className={`ml-auto grid gap-2 ${isAdmin ? 'w-[136px] grid-cols-3' : 'w-[90px] grid-cols-2'}`}>
+                      {isAdmin && (
+                        <>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -628,16 +645,18 @@ export default function SalesView() {
                         >
                           <RotateCcw size={16} />
                         </button>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditInvoiceModal(inv);
-                        }}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-violet-500 transition-all hover:border-violet-100 hover:bg-violet-50"
-                        title="Изменить клиента"
-                      >
-                        <Pencil size={16} />
-                      </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditInvoiceModal(inv);
+                          }}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-violet-500 transition-all hover:border-violet-100 hover:bg-violet-50"
+                          title="Изменить клиента"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        </>
+                      )}
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -651,20 +670,32 @@ export default function SalesView() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteInvoice(inv.id);
+                          handleQuickPrintInvoice(inv.id);
                         }}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:border-rose-100 hover:bg-rose-50 hover:text-rose-500" 
-                        title="Удалить"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-indigo-500 transition-all hover:border-indigo-100 hover:bg-indigo-50" 
+                        title="Печать"
                       >
-                        <Trash2 size={16} />
+                        <Printer size={16} />
                       </button>
+                      {isAdmin && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteInvoice(inv.id);
+                          }}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:border-rose-100 hover:bg-rose-50 hover:text-rose-500" 
+                          title="Удалить"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
-                  </td>}
+                  </td>
                 </tr>
               )})}
               {sortedInvoices.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 7} className="px-8 py-20 text-center">
+                  <td colSpan={isAdmin ? 9 : 8} className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center justify-center space-y-6">
                       <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#f4f5fb] text-slate-300">
                         <Receipt size={48} />

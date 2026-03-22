@@ -192,6 +192,38 @@ export default function CustomerView() {
   const getInvoiceAppliedPaidAmount = (invoice: StatementInvoice) =>
     Math.max(0, Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceChangeAmount(invoice));
 
+  const handlePrintInvoiceDirect = async (invoice: StatementInvoice) => {
+    try {
+      const res = await client.get(`/invoices/${invoice.id}`);
+      const fullInvoice = res.data;
+      const statusLabel = fullInvoice?.cancelled
+        ? 'Отменена'
+        : fullInvoice?.status === 'paid'
+          ? 'Оплачено'
+          : Number(fullInvoice?.paidAmount || 0) > PAYMENT_EPSILON
+            ? 'Частично оплачено'
+            : 'Не оплачено';
+
+      const { printSalesInvoice } = await import('../utils/print/salesInvoicePrint');
+      const result = printSalesInvoice({
+        invoice: fullInvoice,
+        statusLabel,
+        subtotal: getInvoiceSubtotal(fullInvoice),
+        discountAmount: getInvoiceDiscountAmount(fullInvoice),
+        netAmount: getInvoiceNetAmount(fullInvoice),
+        appliedPaidAmount: getInvoiceAppliedPaidAmount(fullInvoice),
+        changeAmount: getInvoiceChangeAmount(fullInvoice),
+        balanceAmount: fullInvoice.invoiceBalance || 0,
+      });
+
+      if (!result.ok && result.reason === 'blocked') {
+        toast.error('Разрешите всплывающие окна для печати накладной');
+      }
+    } catch {
+      toast.error('Ошибка при подготовке печати');
+    }
+  };
+
   const handlePrintInvoice = async (invoice: StatementInvoice) => {
     if (!selectedCustomer) {
       return;
@@ -485,6 +517,16 @@ export default function CustomerView() {
                               Оплаты: {formatCount(invoice.paymentEvents?.length || 0)} · Возвраты: {formatCount(invoice.returnEvents?.length || 0)}
                             </p>
                           </div>
+                          <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handlePrintInvoiceDirect(invoice);
+                            }}
+                            className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-700 transition-all hover:bg-indigo-100"
+                          >
+                            <Printer size={16} />
+                            <span>Печать</span>
+                          </button>
                         </div>
                         <div className="w-full text-left sm:w-auto sm:text-right">
                           <p className="text-lg font-medium text-slate-900 md:text-xl">{formatMoney(invoice.netAmount)}</p>
@@ -620,7 +662,7 @@ export default function CustomerView() {
                 </div>
                 <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 bg-slate-50 p-5 sm:p-8">
                   <button
-                    onClick={() => handlePrintInvoice(selectedInvoice)}
+                    onClick={() => handlePrintInvoiceDirect(selectedInvoice)}
                     className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-6 py-3 text-sm font-bold text-indigo-700 transition-all hover:bg-indigo-100"
                   >
                     <Printer size={18} />
