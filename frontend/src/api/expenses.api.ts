@@ -1,0 +1,22 @@
+import client from './client';
+
+export const getExpenses = async (params?: { warehouseId?: number | string; start?: string; end?: string }) => {
+  const response = await client.get('/expenses', {
+    params: {
+      warehouseId: params?.warehouseId || undefined,
+      start: params?.start || undefined,
+      end: params?.end || undefined,
+    },
+  });
+  return response.data;
+};
+
+export const createExpense = async (data: any) => {
+  const response = await client.post('/expenses', data);
+  return response.data;
+};
+
+export const deleteExpense = async (id: number) => {
+  const response = await client.delete(`/expenses/${id}`);
+  return response.data;
+};

@@ -64,6 +64,28 @@ const getInvoiceBalance = (invoice: { netAmount: number; paidAmount: number }) =
   return balance > PAYMENT_EPSILON ? balance : 0;
 };
 
+const getCustomerSegment = (params: {
+  totalInvoiced: number;
+  invoiceCount: number;
+  averageInvoice: number;
+}) => {
+  const { totalInvoiced, invoiceCount, averageInvoice } = params;
+
+  if (totalInvoiced >= 10000 || invoiceCount >= 20 || averageInvoice >= 1500) {
+    return 'VIP';
+  }
+
+  if (totalInvoiced >= 5000 || invoiceCount >= 10 || averageInvoice >= 700) {
+    return 'Постоянный';
+  }
+
+  if (invoiceCount >= 2 || totalInvoiced >= 1000) {
+    return 'Обычный';
+  }
+
+  return 'Новый';
+};
+
 const mapCustomerWithTotals = (customer: any) => {
   const invoices = Array.isArray(customer.invoices) ? customer.invoices : [];
   const totalInvoiced = invoices.reduce((sum: number, invoice: any) => sum + Number(invoice.netAmount || 0), 0);
@@ -72,12 +94,33 @@ const mapCustomerWithTotals = (customer: any) => {
     0,
   );
   const balance = invoices.reduce((sum: number, invoice: any) => sum + getInvoiceBalance(invoice), 0);
+  const invoiceCount = invoices.length;
+  const averageInvoice = invoiceCount > 0 ? totalInvoiced / invoiceCount : 0;
+  const customerSegment = getCustomerSegment({
+    totalInvoiced,
+    invoiceCount,
+    averageInvoice,
+  });
+  const lastPurchaseAt = invoices.reduce((latest: string | null, invoice: any) => {
+    const current = invoice?.createdAt ? new Date(invoice.createdAt).toISOString() : null;
+    if (!current) {
+      return latest;
+    }
+    if (!latest) {
+      return current;
+    }
+    return new Date(current).getTime() > new Date(latest).getTime() ? current : latest;
+  }, null);
 
   return {
     ...customer,
     total_invoiced: totalInvoiced,
     total_paid: totalPaid,
     balance,
+    invoice_count: invoiceCount,
+    average_invoice: averageInvoice,
+    customer_segment: customerSegment,
+    last_purchase_at: lastPurchaseAt,
   };
 };
 
@@ -135,6 +178,7 @@ router.get('/', async (req: AuthRequest, res, next) => {
           select: {
             netAmount: true,
             paidAmount: true,
+            createdAt: true,
           },
         },
       },

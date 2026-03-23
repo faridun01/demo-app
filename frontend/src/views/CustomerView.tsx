@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Search, Plus, Edit2, Trash2, FileText, Phone, MapPin, X, User, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -22,6 +22,10 @@ interface Customer {
   total_invoiced: number;
   total_paid: number;
   balance: number;
+  invoice_count?: number;
+  average_invoice?: number;
+  customer_segment?: 'VIP' | 'Постоянный' | 'Обычный' | 'Новый' | string;
+  last_purchase_at?: string | null;
 }
 
 interface StatementPayment {
@@ -80,6 +84,8 @@ const emptyForm = {
 export default function CustomerView() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('strength');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
@@ -276,9 +282,54 @@ export default function CustomerView() {
   };
 
   const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone?.includes(searchTerm),
+    (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.phone?.includes(searchTerm)) &&
+    (segmentFilter === 'all' || customer.customer_segment === segmentFilter),
   );
+
+  const segmentRank: Record<string, number> = {
+    VIP: 4,
+    Постоянный: 3,
+    Обычный: 2,
+    Новый: 1,
+  };
+
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    if (sortBy === 'amount') {
+      return Number(b.total_invoiced || 0) - Number(a.total_invoiced || 0);
+    }
+
+    if (sortBy === 'invoices') {
+      return Number(b.invoice_count || 0) - Number(a.invoice_count || 0);
+    }
+
+    if (sortBy === 'balance') {
+      return Number(b.balance || 0) - Number(a.balance || 0);
+    }
+
+    if (sortBy === 'lastPurchase') {
+      return new Date(b.last_purchase_at || 0).getTime() - new Date(a.last_purchase_at || 0).getTime();
+    }
+
+    const rankDiff = (segmentRank[b.customer_segment || ''] || 0) - (segmentRank[a.customer_segment || ''] || 0);
+    if (rankDiff !== 0) {
+      return rankDiff;
+    }
+
+    const amountDiff = Number(b.total_invoiced || 0) - Number(a.total_invoiced || 0);
+    if (amountDiff !== 0) {
+      return amountDiff;
+    }
+
+    return Number(b.invoice_count || 0) - Number(a.invoice_count || 0);
+  });
+
+  const segmentTone: Record<string, string> = {
+    VIP: 'bg-violet-100 text-violet-700',
+    Постоянный: 'bg-sky-100 text-sky-700',
+    Обычный: 'bg-emerald-100 text-emerald-700',
+    Новый: 'bg-amber-100 text-amber-700',
+  };
 
   return (
     <div className="app-page-shell app-page-pad">
@@ -305,6 +356,30 @@ export default function CustomerView() {
 
         <div className="overflow-hidden rounded-[28px] border border-white bg-white shadow-sm">
           <div className="border-b border-slate-100 p-5">
+            <div className="mb-3 flex flex-col gap-3 md:flex-row">
+              <select
+                value={segmentFilter}
+                onChange={(e) => setSegmentFilter(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white md:max-w-[240px]"
+              >
+                <option value="all">Все категории</option>
+                <option value="VIP">VIP</option>
+                <option value="Постоянный">Постоянный</option>
+                <option value="Обычный">Обычный</option>
+                <option value="Новый">Новый</option>
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white md:max-w-[260px]"
+              >
+                <option value="strength">Сильные сверху</option>
+                <option value="amount">По сумме покупок</option>
+                <option value="invoices">По числу накладных</option>
+                <option value="balance">По долгу</option>
+                <option value="lastPurchase">По последней покупке</option>
+              </select>
+            </div>
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
@@ -318,7 +393,7 @@ export default function CustomerView() {
           </div>
 
           <div className="grid grid-cols-1 gap-5 p-5 md:grid-cols-2 2xl:grid-cols-3">
-            {filteredCustomers.map((customer) => (
+            {sortedCustomers.map((customer) => (
               <motion.div layout key={customer.id} className="h-full">
                 <Card className="flex h-full flex-col rounded-[24px] border border-slate-200 bg-white shadow-sm transition-all duration-300 group hover:-translate-y-1 hover:shadow-lg">
                   <div className="mb-6 flex items-start justify-between">
@@ -360,6 +435,19 @@ export default function CustomerView() {
                   </div>
 
                   <h3 className="mb-3 break-words text-xl font-medium leading-7 text-slate-900">{customer.name}</h3>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${segmentTone[customer.customer_segment || ''] || 'bg-slate-100 text-slate-600'}`}>
+                      {customer.customer_segment || 'Новый'}
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Накладных: {formatCount(customer.invoice_count || 0)}
+                    </span>
+                  </div>
+                  {customer.last_purchase_at && (
+                    <p className="mb-4 text-xs text-slate-400">
+                      Последняя покупка: {new Date(customer.last_purchase_at).toLocaleDateString('ru-RU')}
+                    </p>
+                  )}
                   <div className="mb-6 space-y-3">
                     <div className="flex items-start text-sm text-slate-500">
                       <Phone size={14} className="mr-2" /> {customer.phone || 'Нет телефона'}

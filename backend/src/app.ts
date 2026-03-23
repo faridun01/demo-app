@@ -12,6 +12,7 @@ import ocrRoutes from './routes/ocr.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import reminderRoutes from './routes/reminders.routes.js';
 import paymentRoutes from './routes/payments.routes.js';
+import expenseRoutes from './routes/expenses.routes.js';
 import { authenticate } from './middlewares/auth.middleware.js';
 import { corsMiddleware, securityHeaders } from './middlewares/security.middleware.js';
 import { imageUpload, uploadsDir } from './utils/upload.js';
@@ -48,6 +49,7 @@ app.use('/api/ocr', authenticate, ocrRoutes);
 app.use('/api/settings', authenticate, settingsRoutes);
 app.use('/api/reminders', authenticate, reminderRoutes);
 app.use('/api/payments', authenticate, paymentRoutes);
+app.use('/api/expenses', authenticate, expenseRoutes);
 
 app.post('/api/upload', authenticate, imageUpload.single('photo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
