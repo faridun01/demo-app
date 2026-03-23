@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Banknote,
   ChevronRight,
-  Minus,
   Package,
   Plus,
   Receipt,
@@ -27,6 +26,13 @@ import { formatProductName } from '../utils/productName';
 import { getDefaultWarehouseId } from '../utils/warehouse';
 
 type PaymentMethod = 'cash' | 'card' | 'transfer';
+type PackagingOption = {
+  id: number;
+  packageName: string;
+  baseUnitName: string;
+  unitsPerPackage: number;
+  isDefault?: boolean;
+};
 
 function tone(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
@@ -66,13 +72,35 @@ type CartItem = {
   id: number;
   name: string;
   quantity: number;
-  quantityInput?: string;
   stock: number;
   unit: string;
+  baseUnitName: string;
   sellingPrice: number;
   photoUrl?: string | null;
+  packagings: PackagingOption[];
+  selectedPackagingId: number | null;
+  packageQuantity: number;
+  packageQuantityInput?: string;
+  extraUnitQuantity: number;
+  extraUnitQuantityInput?: string;
   [key: string]: any;
 };
+
+const normalizePackagings = (product: any): PackagingOption[] =>
+  Array.isArray(product?.packagings)
+    ? product.packagings
+        .map((entry: any) => ({
+          id: Number(entry.id),
+          packageName: String(entry.packageName || '').trim(),
+          baseUnitName: String(entry.baseUnitName || product?.baseUnitName || product?.unit || 'шт').trim() || 'шт',
+          unitsPerPackage: Number(entry.unitsPerPackage || 0),
+          isDefault: Boolean(entry.isDefault),
+        }))
+        .filter((entry: PackagingOption) => entry.id > 0 && entry.packageName && entry.unitsPerPackage > 0)
+    : [];
+
+const getDefaultPackaging = (packagings: PackagingOption[]) =>
+  packagings.find((entry) => entry.isDefault) || packagings[0] || null;
 
 export default function POSView() {
   const cartStorageKey = 'pos_cart_session';
@@ -103,6 +131,77 @@ export default function POSView() {
   const lastProductScrollRef = useRef(0);
   const deferredProductSearch = useDeferredValue(productSearch);
   const deferredCustomerSearch = useDeferredValue(customerSearch);
+
+  const getCartPackaging = (item: CartItem) =>
+    (Array.isArray(item.packagings) ? item.packagings : []).find((entry) => entry.id === item.selectedPackagingId) || null;
+
+  const normalizeCartItem = (item: CartItem, overrides: Partial<CartItem> = {}) => {
+    const merged = { ...item, ...overrides };
+    const packaging = merged.packagings.find((entry) => entry.id === merged.selectedPackagingId) || null;
+    const unitsPerPackage = packaging?.unitsPerPackage || 0;
+    let packageQuantity = Math.max(0, Math.floor(Number(merged.packageQuantity || 0)));
+    let extraUnitQuantity = Math.max(0, Math.floor(Number(merged.extraUnitQuantity || 0)));
+
+    if (!packaging) {
+      packageQuantity = 0;
+    }
+
+    let totalBaseUnits = packageQuantity * unitsPerPackage + extraUnitQuantity;
+
+    if (totalBaseUnits > merged.stock) {
+      if (packaging && unitsPerPackage > 0) {
+        packageQuantity = Math.min(packageQuantity, Math.floor(merged.stock / unitsPerPackage));
+        extraUnitQuantity = Math.min(extraUnitQuantity, Math.max(0, merged.stock - packageQuantity * unitsPerPackage));
+      } else {
+        extraUnitQuantity = Math.min(extraUnitQuantity, merged.stock);
+      }
+
+      totalBaseUnits = packageQuantity * unitsPerPackage + extraUnitQuantity;
+    }
+
+    if (totalBaseUnits <= 0) {
+      if (packaging && unitsPerPackage > 0 && merged.stock >= unitsPerPackage) {
+        packageQuantity = 1;
+        extraUnitQuantity = 0;
+        totalBaseUnits = unitsPerPackage;
+      } else {
+        packageQuantity = 0;
+        extraUnitQuantity = Math.min(Math.max(1, extraUnitQuantity), Math.max(merged.stock, 1));
+        totalBaseUnits = extraUnitQuantity;
+      }
+    }
+
+    return {
+      ...merged,
+      selectedPackagingId: packaging?.id ?? null,
+      packageQuantity,
+      extraUnitQuantity,
+      quantity: totalBaseUnits,
+      packageQuantityInput: overrides.packageQuantityInput !== undefined ? overrides.packageQuantityInput : String(packageQuantity),
+      extraUnitQuantityInput: overrides.extraUnitQuantityInput !== undefined ? overrides.extraUnitQuantityInput : String(extraUnitQuantity),
+    };
+  };
+
+  const createCartItemFromProduct = (product: any): CartItem => {
+    const packagings = normalizePackagings(product);
+    const defaultPackaging = getDefaultPackaging(packagings);
+    const baseUnitName = String(product.baseUnitName || product.unit || defaultPackaging?.baseUnitName || 'шт').trim() || 'шт';
+    const initialItem: CartItem = {
+      ...product,
+      quantity: defaultPackaging && Number(product.stock || 0) >= defaultPackaging.unitsPerPackage ? defaultPackaging.unitsPerPackage : 1,
+      stock: Number(product.stock || 0),
+      unit: baseUnitName,
+      baseUnitName,
+      packagings,
+      selectedPackagingId: defaultPackaging && Number(product.stock || 0) >= defaultPackaging.unitsPerPackage ? defaultPackaging.id : null,
+      packageQuantity: defaultPackaging && Number(product.stock || 0) >= defaultPackaging.unitsPerPackage ? 1 : 0,
+      packageQuantityInput: defaultPackaging && Number(product.stock || 0) >= defaultPackaging.unitsPerPackage ? '1' : '0',
+      extraUnitQuantity: defaultPackaging && Number(product.stock || 0) >= defaultPackaging.unitsPerPackage ? 0 : 1,
+      extraUnitQuantityInput: defaultPackaging && Number(product.stock || 0) >= defaultPackaging.unitsPerPackage ? '0' : '1',
+    };
+
+    return normalizeCartItem(initialItem);
+  };
 
   useEffect(() => {
     const savedCart =
@@ -135,6 +234,51 @@ export default function POSView() {
       .then((data) => setProducts(Array.isArray(data) ? data : []))
       .catch(console.error);
   }, [warehouseId, userWarehouseId]);
+
+  useEffect(() => {
+    if (!products.length) {
+      return;
+    }
+
+    setCart((currentCart) =>
+      currentCart.map((item) => {
+        const product = products.find((entry) => entry.id === item.id);
+        if (!product) {
+          return item;
+        }
+
+        const packagings = normalizePackagings(product);
+        const fallbackPackaging = getDefaultPackaging(packagings);
+        const baseUnitName = String(product.baseUnitName || product.unit || item.baseUnitName || fallbackPackaging?.baseUnitName || 'шт').trim() || 'шт';
+
+        return normalizeCartItem({
+          ...item,
+          ...product,
+          stock: Number(product.stock || 0),
+          unit: baseUnitName,
+          baseUnitName,
+          packagings,
+          selectedPackagingId:
+            item.selectedPackagingId && packagings.some((entry) => entry.id === item.selectedPackagingId)
+              ? item.selectedPackagingId
+              : fallbackPackaging?.id || null,
+          packageQuantity: Number(item.packageQuantity || 0),
+          packageQuantityInput: item.packageQuantityInput ?? String(Number(item.packageQuantity || 0)),
+          extraUnitQuantity:
+            item.extraUnitQuantity !== undefined && item.extraUnitQuantity !== null
+              ? Number(item.extraUnitQuantity)
+              : Number(item.quantity || 1),
+          extraUnitQuantityInput:
+            item.extraUnitQuantityInput
+            ?? String(
+              item.extraUnitQuantity !== undefined && item.extraUnitQuantity !== null
+                ? Number(item.extraUnitQuantity)
+                : Number(item.quantity || 1),
+            ),
+        } as CartItem);
+      }),
+    );
+  }, [products]);
 
   useEffect(() => {
     getCustomers()
@@ -193,17 +337,41 @@ export default function POSView() {
     }
 
     const existing = cart.find((item) => item.id === product.id);
-    const currentQty = existing ? existing.quantity : 0;
 
-    if (currentQty + 1 > product.stock) {
+    if (false) {
       toast.error(`Недостаточно товара. Доступно: ${product.stock} ${product.unit}`);
       return;
     }
 
     if (existing) {
-      setCart(cart.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1, quantityInput: undefined } : item)));
+      const packaging = getCartPackaging(existing);
+      const nextItem = normalizeCartItem(
+        existing,
+        packaging
+          ? {
+              packageQuantity: existing.packageQuantity + 1,
+              packageQuantityInput: String(existing.packageQuantity + 1),
+            }
+          : {
+              extraUnitQuantity: existing.extraUnitQuantity + 1,
+              extraUnitQuantityInput: String(existing.extraUnitQuantity + 1),
+            },
+      );
+
+      if (nextItem.quantity > Number(product.stock || 0)) {
+        toast.error(`Недостаточно товара. Доступно: ${product.stock} ${existing.baseUnitName || product.unit}`);
+        return;
+      }
+
+      setCart(cart.map((item) => (item.id === product.id ? nextItem : item)));
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      const nextItem = createCartItemFromProduct(product);
+      if (nextItem.quantity > Number(product.stock || 0)) {
+        toast.error(`Недостаточно товара. Доступно: ${product.stock} ${nextItem.baseUnitName || product.unit}`);
+        return;
+      }
+
+      setCart([...cart, nextItem]);
     }
   };
 
@@ -285,6 +453,97 @@ export default function POSView() {
     );
   };
 
+  const updateSelectedPackaging = (id: number, value: string) => {
+    setCart((currentCart) =>
+      currentCart.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        const selectedPackagingId = value ? Number(value) : null;
+        return normalizeCartItem(item, {
+          selectedPackagingId,
+          packageQuantity: selectedPackagingId ? Math.max(1, item.packageQuantity || 0) : 0,
+          packageQuantityInput: selectedPackagingId ? String(Math.max(1, item.packageQuantity || 0)) : '0',
+        });
+      }),
+    );
+  };
+
+  const updatePackageQuantityInput = (id: number, value: string) => {
+    setCart((currentCart) =>
+      currentCart.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        if (value === '') {
+          return { ...item, packageQuantityInput: '' };
+        }
+
+        return normalizeCartItem(item, {
+          packageQuantity: Math.max(0, Math.floor(Number(value) || 0)),
+          packageQuantityInput: value,
+        });
+      }),
+    );
+  };
+
+  const commitPackageQuantityInput = (id: number) => {
+    setCart((currentCart) =>
+      currentCart
+        .map((item) => {
+          if (item.id !== id) {
+            return item;
+          }
+
+          const nextValue = Math.max(0, Math.floor(Number(item.packageQuantityInput || item.packageQuantity || 0) || 0));
+          return normalizeCartItem(item, {
+            packageQuantity: nextValue,
+            packageQuantityInput: String(nextValue),
+          });
+        })
+        .filter((item) => item.quantity > 0),
+    );
+  };
+
+  const updateExtraUnitQuantityInput = (id: number, value: string) => {
+    setCart((currentCart) =>
+      currentCart.map((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        if (value === '') {
+          return { ...item, extraUnitQuantityInput: '' };
+        }
+
+        return normalizeCartItem(item, {
+          extraUnitQuantity: Math.max(0, Math.floor(Number(value) || 0)),
+          extraUnitQuantityInput: value,
+        });
+      }),
+    );
+  };
+
+  const commitExtraUnitQuantityInput = (id: number) => {
+    setCart((currentCart) =>
+      currentCart
+        .map((item) => {
+          if (item.id !== id) {
+            return item;
+          }
+
+          const nextValue = Math.max(0, Math.floor(Number(item.extraUnitQuantityInput || item.extraUnitQuantity || 0) || 0));
+          return normalizeCartItem(item, {
+            extraUnitQuantity: nextValue,
+            extraUnitQuantityInput: String(nextValue),
+          });
+        })
+        .filter((item) => item.quantity > 0),
+    );
+  };
+
   useLayoutEffect(() => {
     if (productListRef.current) {
       productListRef.current.scrollTop = lastProductScrollRef.current;
@@ -300,6 +559,10 @@ export default function POSView() {
 
   const handleCheckout = async () => {
     if (!cart.length) return;
+    if (!customerId) {
+      toast.error('Сначала выберите клиента');
+      return;
+    }
     if (!warehouseId) {
       toast.error('Выберите склад');
       return;
@@ -310,11 +573,18 @@ export default function POSView() {
 
 
       await createInvoice({
-        customerId: customerId || undefined,
+        customerId,
         warehouseId: Number(warehouseId),
         items: cart.map((item) => ({
           productId: item.id,
           quantity: Number(item.quantity),
+          totalBaseUnits: Number(item.quantity),
+          packageQuantity: item.selectedPackagingId ? Number(item.packageQuantity) : 0,
+          extraUnitQuantity: Number(item.extraUnitQuantity || 0),
+          packagingId: item.selectedPackagingId || null,
+          packageName: getCartPackaging(item)?.packageName || null,
+          baseUnitName: item.baseUnitName,
+          unitsPerPackage: getCartPackaging(item)?.unitsPerPackage || null,
           sellingPrice: Number(item.sellingPrice),
         })),
         discount: Number(normalizedDiscount),
@@ -659,6 +929,11 @@ export default function POSView() {
                       </div>
                     )}
                   </div>
+                  {!customerId && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                      {'Выберите клиента, иначе оформить продажу нельзя.'}
+                    </div>
+                  )}
                 </div>
 
                 <div className="max-h-[38vh] overflow-y-auto px-4 md:max-h-[320px] md:px-5">
@@ -691,41 +966,65 @@ export default function POSView() {
                             {formatProductName(item.name)}
                           </p>
 
-                          <div className="mt-3 flex flex-wrap items-center gap-2 md:flex-nowrap md:justify-between">
-                            <p className="text-[13px] font-medium text-slate-900 md:min-w-[78px]">
-                              {formatMoney(item.sellingPrice * item.quantity)}
-                            </p>
-
-                            <div className="flex items-center overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50">
+                          <div className="mt-3 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[13px] font-medium text-slate-900">
+                                {formatMoney(item.sellingPrice * item.quantity)}
+                              </p>
                               <button
-                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                className="flex h-8 w-8 items-center justify-center text-slate-500 transition-colors hover:bg-white"
+                                onClick={() => removeFromCart(item.id)}
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
                               >
-                                <Minus size={14} />
-                              </button>
-                              <input
-                                type="number"
-                                min={1}
-                                max={products.find((product) => product.id === item.id)?.stock || undefined}
-                                value={item.quantityInput ?? String(item.quantity)}
-                                onChange={(e) => updateQuantityInput(item.id, e.target.value)}
-                                onBlur={() => commitQuantityInput(item.id)}
-                                className="h-8 w-14 min-w-[56px] border-x border-slate-200 bg-white px-2 text-center text-sm text-slate-900 outline-none md:w-20 md:min-w-[80px]"
-                              />
-                              <button
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                className="flex h-8 w-8 items-center justify-center text-slate-500 transition-colors hover:bg-white"
-                              >
-                                <Plus size={14} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
 
-                            <button
-                              onClick={() => removeFromCart(item.id)}
-                              className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500 md:ml-0"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_88px_96px]">
+                              <select
+                                value={item.selectedPackagingId || ''}
+                                onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
+                                className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700 outline-none"
+                              >
+                                <option value="">Только {item.baseUnitName}</option>
+                                {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
+                                  <option key={packaging.id} value={packaging.id}>
+                                    {packaging.packageName} x {packaging.unitsPerPackage}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <input
+                                type="number"
+                                min={0}
+                                value={item.packageQuantityInput ?? String(item.packageQuantity)}
+                                onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
+                                onBlur={() => commitPackageQuantityInput(item.id)}
+                                disabled={!item.selectedPackagingId}
+                                placeholder="Упак."
+                                className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-center text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                              />
+
+                              <input
+                                type="number"
+                                min={0}
+                                value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
+                                onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
+                                onBlur={() => commitExtraUnitQuantityInput(item.id)}
+                                placeholder={`+ ${item.baseUnitName}`}
+                                className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-center text-sm text-slate-900 outline-none"
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                              <span>
+                                {item.selectedPackagingId
+                                  ? `${getCartPackaging(item)?.packageName || 'Упаковка'}: ${item.packageQuantity}`
+                                  : `Штучно: ${item.extraUnitQuantity}`}
+                              </span>
+                              <span>
+                                Итого: {item.quantity} {item.baseUnitName}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -811,7 +1110,7 @@ export default function POSView() {
 
                   <button
                     onClick={handleCheckout}
-                    disabled={isSubmitting || cart.length === 0}
+                    disabled={isSubmitting || cart.length === 0 || !customerId}
                     className="flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-4 text-base font-medium text-white shadow-[0_18px_35px_rgba(16,185,129,0.25)] transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubmitting ? 'Обработка...' : 'Оформить'}
