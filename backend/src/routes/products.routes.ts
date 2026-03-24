@@ -845,6 +845,7 @@ router.get('/:id/batches', async (req: AuthRequest, res, next) => {
     const batches = await prisma.productBatch.findMany({
       where: { 
         productId: Number(req.params.id),
+        ...(product.warehouseId ? { warehouseId: product.warehouseId } : {}),
         remainingQuantity: { gt: 0 }
       },
       include: { warehouse: true },

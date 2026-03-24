@@ -139,11 +139,11 @@ export default function TwoFactorSettingsCard({ currentUser }: Props) {
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.18)] sm:p-10">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h3 className="flex items-center space-x-3 text-2xl font-black text-slate-900">
-            <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-600">
+            <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-600 shadow-inner ring-4 ring-emerald-50">
               <ShieldCheck size={28} />
             </div>
             <span>Двухфакторная защита</span>
@@ -152,14 +152,14 @@ export default function TwoFactorSettingsCard({ currentUser }: Props) {
             Вход будет подтверждаться кодом из Google Authenticator или Microsoft Authenticator.
           </p>
         </div>
-        <span className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] ${twoFactorEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+        <span className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-all ${twoFactorEnabled ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200' : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'}`}>
           {twoFactorEnabled ? 'Включена' : 'Выключена'}
         </span>
       </div>
 
       {!twoFactorEnabled && !setupData && (
         <div className="space-y-5">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 transition-all duration-300 hover:border-emerald-200 hover:bg-emerald-50/40">
             <p className="text-sm font-semibold leading-7 text-slate-600">
               Нажмите кнопку ниже, затем добавьте аккаунт в приложение-аутентификатор вручную по секретному ключу.
             </p>
@@ -177,7 +177,7 @@ export default function TwoFactorSettingsCard({ currentUser }: Props) {
 
       {!twoFactorEnabled && setupData && (
         <form onSubmit={handleVerifySetup} className="space-y-6">
-          <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-6">
+          <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-6 transition-all duration-300 hover:shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Шаг 1</p>
             <p className="mt-3 text-sm font-semibold leading-7 text-slate-700">
               Откройте Google Authenticator или Microsoft Authenticator и отсканируйте QR-код. Если сканирование недоступно, используйте секретный ключ вручную:
@@ -217,7 +217,7 @@ export default function TwoFactorSettingsCard({ currentUser }: Props) {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-amber-100 bg-amber-50 p-6">
+          <div className="rounded-3xl border border-amber-100 bg-amber-50 p-6 transition-all duration-300 hover:shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">Шаг 2</p>
             <p className="mt-3 text-sm font-semibold leading-7 text-slate-700">
               Сохраните резервные коды. Каждый код можно использовать только один раз.

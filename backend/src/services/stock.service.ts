@@ -2,6 +2,33 @@ import prisma from '../db/prisma.js';
 import { buildProductNameKey } from '../utils/product-packaging.js';
 
 export class StockService {
+  static async syncProductPackaging(
+    sourceProduct: any,
+    destinationProductId: number,
+    toWarehouseId: number,
+    tx: any
+  ) {
+    if (!Array.isArray(sourceProduct?.packagings) || sourceProduct.packagings.length === 0) {
+      return;
+    }
+
+    await tx.productPackaging.createMany({
+      data: sourceProduct.packagings.map((packaging: any) => ({
+        productId: destinationProductId,
+        warehouseId: toWarehouseId,
+        packageName: packaging.packageName,
+        baseUnitName: packaging.baseUnitName,
+        unitsPerPackage: packaging.unitsPerPackage,
+        packageSellingPrice: packaging.packageSellingPrice,
+        barcode: packaging.barcode,
+        active: packaging.active,
+        isDefault: packaging.isDefault,
+        sortOrder: packaging.sortOrder,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   /**
    * Allocates stock from batches using FIFO logic.
    */
@@ -140,7 +167,7 @@ export class StockService {
     userId: number
   ) {
     return await prisma.$transaction(async (tx: any) => {
-      const sourceProduct = await tx.product.findUnique({
+      let sourceProduct = await tx.product.findUnique({
         where: { id: productId },
         include: {
           packagings: {
@@ -152,6 +179,32 @@ export class StockService {
 
       if (!sourceProduct) {
         throw new Error('Товар не найден');
+      }
+
+      if (sourceProduct.warehouseId !== fromWarehouseId) {
+        const fallbackSourceProduct = await tx.product.findFirst({
+          where: {
+            warehouseId: fromWarehouseId,
+            active: true,
+            OR: [
+              { nameKey: sourceProduct.nameKey || buildProductNameKey(sourceProduct.name) },
+              { name: sourceProduct.name },
+            ],
+          },
+          include: {
+            packagings: {
+              where: { active: true },
+              orderBy: { sortOrder: 'asc' },
+            },
+          },
+        });
+
+        if (!fallbackSourceProduct) {
+          throw new Error('Не удалось найти товар на складе-источнике для переноса');
+        }
+
+        sourceProduct = fallbackSourceProduct;
+        productId = sourceProduct.id;
       }
 
       let destinationProduct = await tx.product.findFirst({
@@ -190,23 +243,31 @@ export class StockService {
           },
         });
 
-        if (Array.isArray(sourceProduct.packagings) && sourceProduct.packagings.length > 0) {
-          await tx.productPackaging.createMany({
-            data: sourceProduct.packagings.map((packaging: any) => ({
-              productId: destinationProduct.id,
-              warehouseId: toWarehouseId,
-              packageName: packaging.packageName,
-              baseUnitName: packaging.baseUnitName,
-              unitsPerPackage: packaging.unitsPerPackage,
-              packageSellingPrice: packaging.packageSellingPrice,
-              barcode: packaging.barcode,
-              active: packaging.active,
-              isDefault: packaging.isDefault,
-              sortOrder: packaging.sortOrder,
-            })),
-            skipDuplicates: true,
-          });
-        }
+      }
+
+      await this.syncProductPackaging(sourceProduct, destinationProduct.id, toWarehouseId, tx);
+
+      if (destinationProduct.id !== sourceProduct.id) {
+        await tx.productBatch.updateMany({
+          where: {
+            productId,
+            warehouseId: toWarehouseId,
+          },
+          data: {
+            productId: destinationProduct.id,
+          },
+        });
+
+        await tx.inventoryTransaction.updateMany({
+          where: {
+            productId,
+            warehouseId: toWarehouseId,
+            type: 'transfer',
+          },
+          data: {
+            productId: destinationProduct.id,
+          },
+        });
       }
 
       // 1. Find batches in source warehouse
@@ -283,7 +344,27 @@ export class StockService {
       await this.updateProductStockCache(productId, tx);
       await this.updateProductStockCache(destinationProduct.id, tx);
 
-      return { success: true, destinationProductId: destinationProduct.id };
+      const destinationSnapshot = await tx.product.findUnique({
+        where: { id: destinationProduct.id },
+        include: {
+          category: true,
+          warehouse: true,
+          packagings: {
+            where: { active: true },
+            orderBy: [{ isDefault: 'desc' }, { sortOrder: 'asc' }, { unitsPerPackage: 'asc' }],
+          },
+          batches: {
+            where: { warehouseId: toWarehouseId },
+          },
+        },
+      });
+
+      return {
+        success: true,
+        sourceProductId: productId,
+        destinationProductId: destinationProduct.id,
+        destinationProduct: destinationSnapshot,
+      };
     });
   }
 
@@ -345,14 +426,18 @@ export class StockService {
     const client = tx || prisma;
     const batches = await client.productBatch.findMany({
       where: { productId },
-      select: { remainingQuantity: true },
+      select: { quantity: true, remainingQuantity: true },
     });
 
     const totalStock = batches.reduce((sum: number, b: any) => sum + b.remainingQuantity, 0);
+    const totalIncoming = batches.reduce((sum: number, b: any) => sum + Number(b.quantity || 0), 0);
 
     await client.product.update({
       where: { id: productId },
-      data: { stock: totalStock },
+      data: {
+        stock: totalStock,
+        totalIncoming,
+      },
     });
   }
 }

@@ -85,6 +85,16 @@ export default function SettingsView() {
     profile: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20',
     general: 'bg-amber-500 text-white shadow-lg shadow-amber-500/20',
   } as const;
+  const enabledTwoFactorCount = users.filter((user) => user.twoFactorEnabled).length;
+  const adminCount = users.filter((user) => String(user.role || '').toUpperCase() === 'ADMIN').length;
+  const currentUserWarehouseLabel = currentUser?.warehouse?.name || 'Все склады';
+  const companyPreviewLines = [
+    companyProfile.name,
+    companyProfile.country,
+    [companyProfile.region, companyProfile.city].filter(Boolean).join(', '),
+    companyProfile.addressLine,
+    companyProfile.phone,
+  ].filter(Boolean);
 
   useEffect(() => {
     fetchData();
@@ -323,24 +333,25 @@ export default function SettingsView() {
       </div>
 
       <section className="space-y-4">
-      <div className="grid w-full grid-cols-2 gap-1 rounded-2xl border border-white bg-white p-1 shadow-sm sm:flex sm:w-fit sm:flex-wrap">
+      <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/90 p-1.5 shadow-sm backdrop-blur-sm">
+      <div className="grid w-full grid-cols-2 gap-1 sm:flex sm:w-fit sm:flex-wrap">
         <button 
           onClick={() => setActiveTab('warehouses')}
-          className={`flex items-center justify-center space-x-2 rounded-xl px-4 py-3 text-sm font-medium transition-all sm:justify-start sm:px-5 sm:py-2.5 ${activeTab === 'warehouses' ? tabTheme.warehouses : 'text-slate-500 hover:bg-sky-50 hover:text-sky-700'}`}
+          className={`flex items-center justify-center space-x-2 rounded-[18px] px-4 py-3 text-sm font-semibold transition-all sm:justify-start sm:px-5 sm:py-3 ${activeTab === 'warehouses' ? tabTheme.warehouses : 'text-slate-500 hover:bg-sky-50 hover:text-sky-700'}`}
         >
           <Warehouse size={18} />
           <span>Склады</span>
         </button>
         <button 
           onClick={() => setActiveTab('users')}
-          className={`flex items-center justify-center space-x-2 rounded-xl px-4 py-3 text-sm font-medium transition-all sm:justify-start sm:px-5 sm:py-2.5 ${activeTab === 'users' ? tabTheme.users : 'text-slate-500 hover:bg-violet-50 hover:text-violet-700'}`}
+          className={`flex items-center justify-center space-x-2 rounded-[18px] px-4 py-3 text-sm font-semibold transition-all sm:justify-start sm:px-5 sm:py-3 ${activeTab === 'users' ? tabTheme.users : 'text-slate-500 hover:bg-violet-50 hover:text-violet-700'}`}
         >
           <Users size={18} />
           <span>Пользователи</span>
         </button>
         <button 
           onClick={() => setActiveTab('profile')}
-          className={`flex items-center justify-center space-x-2 rounded-xl px-4 py-3 text-sm font-medium transition-all sm:justify-start sm:px-5 sm:py-2.5 ${activeTab === 'profile' ? tabTheme.profile : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700'}`}
+          className={`flex items-center justify-center space-x-2 rounded-[18px] px-4 py-3 text-sm font-semibold transition-all sm:justify-start sm:px-5 sm:py-3 ${activeTab === 'profile' ? tabTheme.profile : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700'}`}
         >
           <User size={18} />
           <span>Профиль</span>
@@ -348,12 +359,13 @@ export default function SettingsView() {
         {canManageSettings && (
           <button 
             onClick={() => setActiveTab('general')}
-            className={`flex items-center justify-center space-x-2 rounded-xl px-4 py-3 text-sm font-medium transition-all sm:justify-start sm:px-5 sm:py-2.5 ${activeTab === 'general' ? tabTheme.general : 'text-slate-500 hover:bg-amber-50 hover:text-amber-700'}`}
+            className={`flex items-center justify-center space-x-2 rounded-[18px] px-4 py-3 text-sm font-semibold transition-all sm:justify-start sm:px-5 sm:py-3 ${activeTab === 'general' ? tabTheme.general : 'text-slate-500 hover:bg-amber-50 hover:text-amber-700'}`}
           >
             <SettingsIcon size={18} />
             <span>Общие</span>
           </button>
         )}
+      </div>
       </div>
       </section>
 
@@ -367,13 +379,13 @@ export default function SettingsView() {
               setShowAddWarehouse(false);
               setShowEditWarehouse(false);
             }}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
+              className="max-h-[94vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[2.5rem]"
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-5 sm:p-8">
                 <h3 className="flex items-center space-x-3 text-xl font-black text-slate-900 sm:text-2xl">
@@ -453,13 +465,13 @@ export default function SettingsView() {
               setShowEditUser(false);
               setSelectedUser(null);
             }}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
+              className="max-h-[94vh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-5 sm:p-6">
                 <h3 className="flex items-center space-x-3 text-lg font-black text-slate-900 sm:text-xl">
@@ -651,19 +663,47 @@ export default function SettingsView() {
 
       {activeTab === 'users' && (
         <div className="space-y-6">
-          <div className="flex justify-end">
-            <button 
-              onClick={() => setShowAddUser(true)}
-              className="flex w-full items-center justify-center space-x-2 rounded-2xl bg-violet-500 px-6 py-4 font-black text-white shadow-xl shadow-violet-500/20 transition-all hover:-translate-y-0.5 hover:bg-violet-600 active:scale-95 sm:w-auto sm:px-8"
-            >
-              <Plus size={20} />
-              <span>Добавить пользователя</span>
-            </button>
+          <div className="overflow-hidden rounded-[28px] border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(124,58,237,0.28)]">
+            <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-violet-700">
+                  <Users size={14} />
+                  Команда
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Пользователи системы</h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                    Управляйте ролями, складами доступа и статусом двухфакторной защиты в одном месте.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAddUser(true)}
+                className="inline-flex w-full items-center justify-center space-x-2 rounded-2xl bg-violet-500 px-6 py-4 font-black text-white shadow-xl shadow-violet-500/20 transition-all hover:-translate-y-0.5 hover:bg-violet-600 active:scale-95 sm:w-auto sm:px-8"
+              >
+                <Plus size={20} />
+                <span>Добавить пользователя</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-3 border-t border-violet-100/80 bg-white/70 p-5 sm:grid-cols-3 sm:p-6">
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Всего пользователей</p>
+                <p className="mt-2 text-2xl font-black text-slate-900">{users.length}</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600">2FA включена</p>
+                <p className="mt-2 text-2xl font-black text-emerald-700">{enabledTwoFactorCount}</p>
+              </div>
+              <div className="rounded-2xl border border-violet-100 bg-violet-50/80 px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-600">Администраторы</p>
+                <p className="mt-2 text-2xl font-black text-violet-700">{adminCount}</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4 md:hidden">
             {users.map(u => (
-              <div key={u.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div key={u.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-md">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center space-x-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-lg font-black text-slate-500">
@@ -671,7 +711,21 @@ export default function SettingsView() {
                     </div>
                     <div>
                       <p className="text-xl font-black text-slate-900">{u.username}</p>
-                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{u.warehouse?.name || 'Все склады'}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                          {u.warehouse?.name || 'Все склады'}
+                        </span>
+                        <span className={clsx(
+                          "rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
+                          String(u.role || '').toUpperCase() === 'ADMIN'
+                            ? 'bg-violet-100 text-violet-700'
+                            : String(u.role || '').toUpperCase() === 'MANAGER'
+                              ? 'bg-sky-100 text-sky-700'
+                              : 'bg-slate-100 text-slate-600'
+                        )}>
+                          {u.role}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -720,7 +774,7 @@ export default function SettingsView() {
             ))}
           </div>
 
-          <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm md:block">
+          <div className="hidden overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm md:block">
             <table className="w-full text-left">
               <thead className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
                 <tr>
@@ -732,7 +786,7 @@ export default function SettingsView() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {users.map(u => (
-                  <tr key={u.id} className="hover:bg-slate-50/30 transition-colors group">
+                  <tr key={u.id} className="group transition-colors hover:bg-violet-50/20">
                     <td className="px-10 py-6">
                       <div className="flex items-center space-x-5">
                         <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 font-black text-lg group-hover:bg-slate-900 group-hover:text-white transition-all duration-500">
@@ -740,7 +794,21 @@ export default function SettingsView() {
                         </div>
                         <div>
                           <p className="font-black text-slate-900 text-lg">{u.username}</p>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{u.warehouse?.name || 'Все склады'}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                              {u.warehouse?.name || 'Все склады'}
+                            </span>
+                            <span className={clsx(
+                              "rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
+                              String(u.role || '').toUpperCase() === 'ADMIN'
+                                ? 'bg-violet-100 text-violet-700'
+                                : String(u.role || '').toUpperCase() === 'MANAGER'
+                                  ? 'bg-sky-100 text-sky-700'
+                                  : 'bg-slate-100 text-slate-600'
+                            )}>
+                              {u.role}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -772,7 +840,7 @@ export default function SettingsView() {
                       </div>
                     </td>
                     <td className="px-10 py-6 text-right">
-                      <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-all">
+                      <div className="flex justify-end space-x-2 opacity-0 transition-all duration-300 group-hover:opacity-100">
                         <button 
                           onClick={() => {
                             setSelectedUser(u);
@@ -811,13 +879,37 @@ export default function SettingsView() {
       )}
 
       {activeTab === 'profile' && (
-        <div className="max-w-2xl space-y-8">
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-            <h3 className="text-2xl font-black text-slate-900 flex items-center space-x-3 mb-8">
-              <div className="p-3 bg-slate-100 text-slate-700 rounded-2xl">
-                <User size={28} />
+        <div className="max-w-4xl space-y-8">
+          <div className="overflow-hidden rounded-[28px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(16,185,129,0.28)]">
+            <div className="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-[1.4fr_0.9fr]">
+              <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 backdrop-blur">
+                <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-100">
+                  <User size={26} />
+                </div>
+                <h3 className="mt-4 text-2xl font-black tracking-tight text-slate-900">Мой профиль</h3>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                  Изменяйте данные входа и держите аккаунт защищённым без лишних переходов между экранами.
+                </p>
               </div>
-              <span>Мой профиль</span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Текущий логин</p>
+                  <p className="mt-2 text-lg font-black text-slate-900">{profileForm.username || '—'}</p>
+                </div>
+                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Склад доступа</p>
+                  <p className="mt-2 text-lg font-black text-slate-900">{currentUserWarehouseLabel}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.18)] sm:p-10">
+            <h3 className="mb-8 flex items-center space-x-3 text-2xl font-black text-slate-900">
+              <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
+                <Shield size={28} />
+              </div>
+              <span>Данные входа</span>
             </h3>
             <form onSubmit={handleUpdateProfile} className="space-y-6">
               <div>
@@ -862,8 +954,34 @@ export default function SettingsView() {
         </div>
       )}
         {activeTab === 'general' && (
-          <div className="max-w-2xl space-y-8">
-            <div className="space-y-10 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+          <div className="max-w-5xl space-y-8">
+            <div className="overflow-hidden rounded-[28px] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(245,158,11,0.28)]">
+              <div className="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-[1.2fr_1fr]">
+                <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 backdrop-blur">
+                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-4 ring-amber-100">
+                    <SettingsIcon size={26} />
+                  </div>
+                  <h3 className="mt-4 text-2xl font-black tracking-tight text-slate-900">Общие настройки</h3>
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                    Здесь находятся реквизиты компании для печати, параметры каталога и важные системные напоминания.
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Предпросмотр печати</p>
+                  <div className="mt-4 space-y-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+                    {companyPreviewLines.length > 0 ? (
+                      companyPreviewLines.map((line) => (
+                        <p key={line} className="break-words">{line}</p>
+                      ))
+                    ) : (
+                      <p className="text-slate-400">Данные компании пока не заполнены</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-10 rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.18)] sm:p-10">
               <div>
                 <h3 className="text-2xl font-black text-slate-900 flex items-center space-x-3">
                   <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
@@ -957,7 +1075,7 @@ export default function SettingsView() {
               </form>
             </div>
 
-            <div className="space-y-10 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+            <div className="space-y-10 rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.18)] sm:p-10">
               <div>
                 <h3 className="text-2xl font-black text-slate-900 flex items-center space-x-3">
                 <div className="p-3 bg-slate-100 text-slate-700 rounded-2xl">
@@ -991,7 +1109,7 @@ export default function SettingsView() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.18)] sm:p-10">
             <h3 className="text-2xl font-black text-slate-900 flex items-center space-x-3 mb-8">
               <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
                 <Lock size={28} />

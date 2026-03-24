@@ -717,13 +717,13 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowDetailsModal(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl md:rounded-[2.5rem]"
+              className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] md:rounded-[2.5rem]"
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 md:p-8">
                 <div className="flex items-center space-x-4">
@@ -989,15 +989,15 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowEditModal(false)}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl"
+              className="w-full max-w-xl overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-8">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
                 <div className="flex items-center space-x-4">
                   <div className="rounded-2xl bg-violet-600 p-3 text-white">
                     <Pencil size={24} />
@@ -1012,7 +1012,7 @@ export default function SalesView() {
                 </button>
               </div>
 
-              <div className="space-y-6 p-8">
+              <div className="space-y-5 p-4 sm:space-y-6 sm:p-8">
                 <div>
                   <label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Клиент</label>
                   <select
@@ -1033,7 +1033,7 @@ export default function SalesView() {
                 </div>
               </div>
 
-              <div className="flex gap-3 border-t border-slate-100 bg-slate-50 p-8">
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:p-8">
                 <button
                   onClick={() => setShowEditModal(false)}
                   className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 transition-all hover:bg-slate-50"
@@ -1060,15 +1060,15 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowPaymentModal(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
             >
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-emerald-600 text-white rounded-2xl">
                     <Banknote size={24} />
@@ -1080,13 +1080,13 @@ export default function SalesView() {
                 </button>
               </div>
               
-              <div className="p-8 space-y-6">
+              <div className="space-y-5 p-4 sm:space-y-6 sm:p-8">
                 <div>
                   <p className="text-sm font-bold text-slate-500 mb-1">Накладная #{selectedInvoice.id}</p>
                   <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="p-4 bg-slate-50 rounded-2xl">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Итого</p>
                     <p className="text-lg font-black text-slate-900">{formatMoney(getInvoiceNetAmount(selectedInvoice))}</p>
@@ -1114,7 +1114,7 @@ export default function SalesView() {
                 </div>
               </div>
               
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:p-8">
                 <button 
                   onClick={() => setShowPaymentModal(false)}
                   className="flex-1 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"
@@ -1141,15 +1141,15 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowReturnModal(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[2.5rem]"
             >
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-amber-600 text-white rounded-2xl">
                     <RotateCcw size={24} />
@@ -1161,7 +1161,7 @@ export default function SalesView() {
                 </button>
               </div>
               
-              <div className="p-8 overflow-y-auto flex-1 space-y-6">
+              <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:space-y-6 sm:p-8">
                 <div>
                   <p className="text-sm font-bold text-slate-500 mb-1">Накладная #{selectedInvoice.id}</p>
                   <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name}</p>
@@ -1215,7 +1215,7 @@ export default function SalesView() {
                 </div>
               </div>
               
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:p-8">
                 <button 
                   onClick={() => setShowReturnModal(false)}
                   className="flex-1 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"

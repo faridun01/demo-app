@@ -38,14 +38,14 @@ export default function ProductHistoryModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.96, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[56rem] overflow-hidden rounded-[2rem] bg-white shadow-2xl"
+            className="flex max-h-[94vh] w-full max-w-[56rem] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]"
           >
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 p-5 sm:p-6">
               <h3 className="flex items-center space-x-3 text-xl font-black text-slate-900">
@@ -59,7 +59,7 @@ export default function ProductHistoryModal({
               </button>
             </div>
 
-            <div className="max-h-[56vh] overflow-y-auto p-4 sm:p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="space-y-3 sm:hidden">
                 {productHistory.map((t, i) => (
                   <div key={i} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">

@@ -206,11 +206,12 @@ export default function ProductsView() {
     fetchInitialData();
   }, [selectedWarehouseId, isAdmin, userWarehouseId]);
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = async (warehouseIdOverride?: string) => {
     setIsLoading(true);
     try {
+      const effectiveWarehouseId = warehouseIdOverride !== undefined ? warehouseIdOverride : selectedWarehouseId;
       const [productsData, warehousesData, categoriesData] = await Promise.all([
-        getProducts(selectedWarehouseId ? Number(selectedWarehouseId) : undefined),
+        getProducts(effectiveWarehouseId ? Number(effectiveWarehouseId) : undefined),
         client.get('/warehouses').then(res => res.data),
         client.get('/settings/categories').then(res => res.data)
       ]);
@@ -218,7 +219,7 @@ export default function ProductsView() {
       const filteredWarehouses = filterWarehousesForUser(Array.isArray(warehousesData) ? warehousesData : [], user);
       setWarehouses(filteredWarehouses);
       const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses);
-      if (isAdmin && !selectedWarehouseId && defaultWarehouseId) {
+      if (isAdmin && !effectiveWarehouseId && defaultWarehouseId) {
         setSelectedWarehouseId(String(defaultWarehouseId));
       } else if (!isAdmin && filteredWarehouses[0]) {
         setSelectedWarehouseId(String(filteredWarehouses[0].id));
@@ -236,15 +237,29 @@ export default function ProductsView() {
     e.preventDefault();
     if (!selectedProduct) return;
     try {
-      await client.post(`/products/${selectedProduct.id}/transfer`, {
+      const targetWarehouseId = Number(transferData.toWarehouseId);
+      const response = await client.post(`/products/${selectedProduct.id}/transfer`, {
         fromWarehouseId: Number(transferData.fromWarehouseId),
-        toWarehouseId: Number(transferData.toWarehouseId),
+        toWarehouseId: targetWarehouseId,
         quantity: Number(transferData.quantity)
       });
-      toast.success('Товар успешно перенесён!');
+
       setShowTransferModal(false);
       setTransferData({ fromWarehouseId: '', toWarehouseId: '', quantity: '' });
-      fetchInitialData();
+      setSelectedProduct(null);
+
+      if (targetWarehouseId) {
+        setSelectedWarehouseId(String(targetWarehouseId));
+      }
+
+      await fetchInitialData(targetWarehouseId ? String(targetWarehouseId) : undefined);
+
+      const destinationProductName = response?.data?.destinationProduct?.name;
+      toast.success(
+        destinationProductName
+          ? `Товар перенесён: ${formatProductName(destinationProductName)}`
+          : 'Товар успешно перенесён!'
+      );
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Ошибка при переносе товара');
     }
@@ -936,15 +951,15 @@ export default function ProductsView() {
               setShowAddModal(false);
               setShowEditModal(false);
             }}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden"
+                className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-2xl"
             >
-              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-5">
                 <h3 className="text-lg font-black text-slate-900 flex items-center space-x-3">
                   <div className="p-2 bg-violet-500 text-white rounded-xl">
                     <Package size={20} />
@@ -955,7 +970,7 @@ export default function ProductsView() {
                   <X size={20} />
                 </button>
               </div>
-              <form onSubmit={showEditModal ? handleEditProduct : handleAddProduct} className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                <form onSubmit={showEditModal ? handleEditProduct : handleAddProduct} className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Название товара</label>
@@ -1114,7 +1129,7 @@ export default function ProductsView() {
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-end space-x-2 pt-4">
+                <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end sm:space-x-2 sm:gap-0">
                   <button type="button" onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="px-6 py-2 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all text-sm">Отмена</button>
                   <button type="submit" className="px-8 py-2 bg-violet-500 text-white rounded-xl font-bold shadow-xl shadow-violet-500/20 hover:bg-violet-600 transition-all active:scale-95 text-sm">
                     {showEditModal ? 'Сохранить' : 'Создать'}
@@ -1133,15 +1148,15 @@ export default function ProductsView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowTransferModal(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden"
+              className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
             >
-              <div className="p-5 border-b border-slate-100 bg-amber-50/50">
+              <div className="border-b border-slate-100 bg-amber-50/50 p-4 sm:p-5">
                 <h3 className="text-lg font-black text-slate-900 flex items-center space-x-3">
                   <div className="p-2 bg-amber-600 text-white rounded-xl">
                     <ArrowRightLeft size={20} />
@@ -1150,7 +1165,7 @@ export default function ProductsView() {
                 </h3>
                 <p className="text-slate-500 mt-1 font-bold text-sm">{selectedProduct?.name}</p>
               </div>
-              <form onSubmit={handleTransfer} className="p-5 space-y-4">
+              <form onSubmit={handleTransfer} className="space-y-4 p-4 sm:p-5">
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Из склада</label>
@@ -1192,7 +1207,7 @@ export default function ProductsView() {
                     />
                   </div>
                 </div>
-                <div className="flex justify-end space-x-2 pt-4">
+                <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end sm:space-x-2 sm:gap-0">
                   <button type="button" onClick={() => setShowTransferModal(false)} className="px-6 py-2 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all text-sm">Отмена</button>
                   <button type="submit" className="px-8 py-2 bg-amber-600 text-white rounded-xl font-bold shadow-xl shadow-amber-600/20 hover:bg-amber-700 transition-all active:scale-95 text-sm">Перенести</button>
                 </div>
@@ -1209,15 +1224,15 @@ export default function ProductsView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowRestockModal(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-[28rem] rounded-[2rem] shadow-2xl overflow-hidden"
+              className="w-full max-w-[28rem] overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]"
             >
-              <div className="border-b border-slate-100 bg-emerald-50/50 p-6">
+              <div className="border-b border-slate-100 bg-emerald-50/50 p-4 sm:p-6">
                 <h3 className="flex items-center space-x-3 text-xl font-black text-slate-900">
                   <div className="rounded-2xl bg-emerald-600 p-2.5 text-white">
                     <PlusCircle size={20} />
@@ -1226,7 +1241,7 @@ export default function ProductsView() {
                 </h3>
                 <p className="mt-2 text-sm font-bold text-slate-500">{selectedProduct?.name}</p>
               </div>
-              <form onSubmit={handleRestock} className="space-y-5 p-6">
+              <form onSubmit={handleRestock} className="space-y-5 p-4 sm:p-6">
                 <div className="space-y-4">
                   <div>
                     <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-700">Склад</label>
@@ -1240,7 +1255,7 @@ export default function ProductsView() {
                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-700">Количество</label>
                       <input 
@@ -1266,7 +1281,7 @@ export default function ProductsView() {
                     )}
                   </div>
                   {isAdmin && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-700">Расходы %</label>
                         <input
@@ -1300,7 +1315,7 @@ export default function ProductsView() {
                     />
                   </div>
                 </div>
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end sm:space-x-3 sm:gap-0">
                   <button type="button" onClick={() => setShowRestockModal(false)} className="rounded-2xl px-6 py-3 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50">Отмена</button>
                   <button type="submit" className="rounded-2xl bg-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-xl shadow-emerald-600/20 transition-all hover:bg-emerald-700 active:scale-95">Пополнить</button>
                 </div>
@@ -1317,20 +1332,20 @@ export default function ProductsView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setOcrResults(null)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-2 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="flex max-h-[96vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[2.5rem]"
             >
-              <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900">Результаты сканирования</h3>
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
+                <div className="min-w-0">
+                  <h3 className="text-xl font-black text-slate-900 sm:text-2xl">Результаты сканирования</h3>
                   <p className="text-slate-500 font-bold">Показываем все распознанные детали. На склад добавятся только нужные поля.</p>
                 </div>
-                <div className="flex items-center space-x-4 bg-sky-50 p-4 rounded-2xl border border-sky-100 shadow-sm">
+                <div className="ml-3 flex shrink-0 items-center space-x-3 rounded-2xl border border-sky-100 bg-sky-50 p-3 shadow-sm sm:space-x-4 sm:p-4">
                   <div className="text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Курс USD ($)</p>
                     <input 
@@ -1344,7 +1359,7 @@ export default function ProductsView() {
                   <DollarSign className="text-sky-300" size={20} />
                 </div>
               </div>
-              <div className="p-8 overflow-y-auto flex-1 space-y-4">
+              <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-8">
                 <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
                   <p className="text-xs font-black uppercase tracking-widest text-sky-600">Авторасчёт по накладной</p>
                   <p className="mt-2 text-sm font-medium text-slate-600">
@@ -1352,7 +1367,7 @@ export default function ProductsView() {
                     На склад добавляются только нужные поля: название, артикул, количество в шт, себестоимость за 1 шт и цена продажи.
                   </p>
                 </div>
-                <div className="grid grid-cols-12 gap-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <div className="hidden grid-cols-12 gap-4 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:grid">
                   <div className="col-span-4">Товар</div>
                   <div className="col-span-2 text-center">Кол-во</div>
                   <div className="col-span-2 text-right">Закупка</div>
@@ -1361,10 +1376,10 @@ export default function ProductsView() {
                 </div>
                 {ocrResults.map((item, i) => (
                   <div key={i} className={clsx(
-                    "grid grid-cols-12 gap-4 items-center p-4 rounded-2xl group transition-colors",
+                    "grid grid-cols-1 gap-4 rounded-2xl p-4 transition-colors sm:grid-cols-12 sm:items-center",
                     item.enabled === false ? "bg-slate-100 opacity-65" : "bg-sky-50 hover:bg-sky-100/50"
                   )}>
-                    <div className="col-span-4">
+                    <div className="sm:col-span-4">
                       <label className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-sky-500">
                         <input
                           type="checkbox"
@@ -1389,7 +1404,8 @@ export default function ProductsView() {
                       )}
                       {item.note && <p className="mt-1 text-[10px] text-slate-500">{item.note}</p>}
                     </div>
-                    <div className="col-span-2 text-center">
+                    <div className="sm:col-span-2 sm:text-center">
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Кол-во</p>
                       <div className="flex items-center justify-center gap-1">
                         <input
                           type="number"
@@ -1420,7 +1436,8 @@ export default function ProductsView() {
                       </p>
                       <p className="text-[10px] font-bold text-slate-400">итог для склада</p>
                     </div>
-                    <div className="col-span-2 text-right">
+                    <div className="sm:col-span-2 sm:text-right">
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Закупка</p>
                       <input
                         type="number"
                         min="0"
@@ -1435,7 +1452,8 @@ export default function ProductsView() {
                       />
                       <p className="text-[10px] font-bold text-slate-400">≈ {formatMoney(item.price * parseFloat(usdRate || '0'))} / мешок</p>
                     </div>
-                    <div className="col-span-2 text-right">
+                    <div className="sm:col-span-2 sm:text-right">
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">За 1 шт</p>
                       <p className="font-black text-slate-900">
                         {formatMoney(
                           item.unitsPerPackage > 0
@@ -1447,7 +1465,8 @@ export default function ProductsView() {
                       </p>
                       <p className="text-[10px] font-bold text-slate-400">за 1 шт</p>
                     </div>
-                    <div className="col-span-2 text-right">
+                    <div className="sm:col-span-2 sm:text-right">
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Цена продажи</p>
                       <input 
                         type="number"
                         placeholder="Укажите цену"
@@ -1463,7 +1482,7 @@ export default function ProductsView() {
                   </div>
                 ))}
               </div>
-              <div className="p-8 bg-sky-50/60 flex justify-end space-x-3 border-t border-slate-100">
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-sky-50/60 p-4 sm:flex-row sm:justify-end sm:space-x-3 sm:gap-0 sm:p-8">
                 <button onClick={() => setOcrResults(null)} className="px-8 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-200 transition-all">Отмена</button>
                 <button 
                   onClick={handleAddOcrToStock}
@@ -1500,16 +1519,16 @@ export default function ProductsView() {
         {showMergeModal && selectedProduct && (
           <motion.div
             onClick={() => setShowMergeModal(false)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl overflow-hidden rounded-[2rem] bg-white shadow-2xl"
+              className="w-full max-w-2xl overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 bg-fuchsia-50/50 p-6">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-fuchsia-50/50 p-4 sm:p-6">
                 <div className="flex items-center gap-3">
                   <div className="rounded-2xl bg-fuchsia-600 p-3 text-white">
                     <GitMerge size={20} />
@@ -1524,7 +1543,7 @@ export default function ProductsView() {
                 </button>
               </div>
 
-              <div className="space-y-5 p-6">
+              <div className="space-y-5 p-4 sm:p-6">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Объединяемый товар</p>
                   <p className="mt-2 text-base font-semibold text-slate-900">{formatProductName(selectedProduct.name)}</p>
@@ -1551,7 +1570,7 @@ export default function ProductsView() {
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 p-6">
+              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:justify-end sm:p-6">
                 <button
                   onClick={() => setShowMergeModal(false)}
                   className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50"

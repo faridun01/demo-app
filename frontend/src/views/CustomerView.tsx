@@ -500,7 +500,7 @@ export default function CustomerView() {
 
         <AnimatePresence>
           {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-6">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -512,9 +512,9 @@ export default function CustomerView() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="relative w-full max-w-lg overflow-hidden rounded-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
+                className="relative flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[2.5rem]"
               >
-                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-5 sm:px-10 sm:py-8">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-4 sm:px-10 sm:py-8">
                   <h2 className="text-2xl font-medium tracking-tight text-slate-900">
                     {selectedCustomer ? 'Редактировать клиента' : 'Новый клиент'}
                   </h2>
@@ -522,10 +522,10 @@ export default function CustomerView() {
                     <X />
                   </button>
                 </div>
-                <form onSubmit={handleSave} className="space-y-5 p-5 sm:space-y-6 sm:p-10">
+                <form onSubmit={handleSave} className="flex-1 space-y-4 overflow-y-auto p-4 sm:space-y-6 sm:p-10">
                   <div className="space-y-2">
                     <label className="ml-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Тип клиента</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <button
                         type="button"
                         onClick={() => setFormData({ ...formData, customerType: 'individual', companyName: '' })}
@@ -636,7 +636,7 @@ export default function CustomerView() {
 
         <AnimatePresence>
           {isStatementOpen && selectedCustomer && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-6">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -648,9 +648,9 @@ export default function CustomerView() {
                 initial={{ y: 50, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 50, opacity: 0 }}
-                className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl sm:rounded-[3rem]"
+                className="relative flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[3rem]"
               >
-                <div className="border-b border-slate-100 bg-slate-50/50 px-5 py-5 sm:px-10 sm:py-10">
+                <div className="border-b border-slate-100 bg-slate-50/50 px-4 py-4 sm:px-10 sm:py-10">
                   <div className="mb-5 flex items-start justify-between gap-4 sm:mb-6">
                     <div>
                       <h2 className="text-3xl font-medium tracking-tight text-slate-900">{selectedCustomer.name}</h2>
@@ -740,7 +740,7 @@ export default function CustomerView() {
 
         <AnimatePresence>
           {isInvoiceDetailsOpen && selectedInvoice && (
-            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
+            <div className="fixed inset-0 z-[60] flex items-end justify-center p-3 sm:items-center sm:p-6">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -752,7 +752,7 @@ export default function CustomerView() {
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
+                className="relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[2.5rem]"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-5 sm:p-8">
                   <h3 className="text-2xl font-medium text-slate-900">Накладная #{selectedInvoice.id}</h3>
