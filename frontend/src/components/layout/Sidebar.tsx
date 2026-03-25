@@ -119,7 +119,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-[#223041] bg-[#121a24] text-[#eaf1f8] transition-all duration-300 lg:sticky lg:top-0 lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex h-[100dvh] w-[min(86vw,320px)] flex-col border-r border-[#223041] bg-[#121a24] text-[#eaf1f8] shadow-2xl transition-all duration-300 lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0 lg:shadow-none',
           isCollapsed ? 'lg:w-[88px]' : 'lg:w-64',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -144,6 +144,15 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
             <button
               type="button"
+              onClick={onClose}
+              className="ml-auto flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a2533] text-[#c9d5e3] transition-all hover:bg-[#233243] hover:text-white lg:hidden"
+              title="Закрыть меню"
+            >
+              <ChevronLeft size={18} />
+            </button>
+
+            <button
+              type="button"
               onClick={onToggleCollapse}
               className={clsx(
                 'hidden h-9 w-9 items-center justify-center rounded-xl bg-[#1a2533] text-[#c9d5e3] transition-all hover:bg-[#233243] hover:text-white lg:flex',
@@ -156,7 +165,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </div>
         </div>
 
-        <nav className={clsx('flex-1 overflow-hidden', isCollapsed ? 'px-2' : 'px-3')}>
+        <nav className={clsx('custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-2', isCollapsed ? 'px-2' : 'px-3')}>
           <div className="space-y-3">
             {Object.entries(navSections).map(([section, items]) => (
               <div key={section}>
