@@ -19,6 +19,16 @@ import {
 
 const router = Router();
 
+const isReliableNameKey = (value: string) => {
+  const normalized = String(value || '').trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const letterCount = (normalized.match(/\p{L}/gu) || []).length;
+  return normalized.length >= 6 && letterCount >= 4;
+};
+
 const detectCategoryName = (name: string) => {
   const normalized = String(name || '').toLowerCase().replace(/[ё]/g, 'е');
 
@@ -164,13 +174,15 @@ router.post('/import-items', async (req: AuthRequest, res, next) => {
       const categoryId = await ensureCategoryId(productName);
       const nameKey = buildProductNameKey(productName);
 
-      let product = await prisma.product.findFirst({
-        where: {
-          warehouseId,
-          active: true,
-          nameKey,
-        },
-      });
+      let product = isReliableNameKey(nameKey)
+        ? await prisma.product.findFirst({
+            where: {
+              warehouseId,
+              active: true,
+              nameKey,
+            },
+          })
+        : null;
 
       if (!product) {
         product = await prisma.product.create({
@@ -347,13 +359,16 @@ router.post('/import-purchase-document', uploadRateLimit, ocrUpload.single('invo
           : linePrice;
       const effectiveCostPricePerBaseUnit = calculateEffectiveCostPrice(costPricePerBaseUnit, defaultExpensePercent);
 
-      let product = await prisma.product.findFirst({
-        where: {
-          warehouseId,
-          active: true,
-          nameKey: buildProductNameKey(normalized.name),
-        },
-      });
+      const normalizedNameKey = buildProductNameKey(normalized.name);
+      let product = isReliableNameKey(normalizedNameKey)
+        ? await prisma.product.findFirst({
+            where: {
+              warehouseId,
+              active: true,
+              nameKey: normalizedNameKey,
+            },
+          })
+        : null;
 
       if (!product) {
         product = await prisma.product.create({
@@ -362,7 +377,7 @@ router.post('/import-purchase-document', uploadRateLimit, ocrUpload.single('invo
             name: normalized.name,
             rawName: normalized.rawName,
             brand: item.brand ? String(item.brand).trim() : normalized.brand,
-            nameKey: buildProductNameKey(normalized.name),
+            nameKey: normalizedNameKey,
             unit: baseUnitName,
             baseUnitName,
             purchaseCostPrice: costPricePerBaseUnit > 0 ? costPricePerBaseUnit : 0,
@@ -382,7 +397,7 @@ router.post('/import-purchase-document', uploadRateLimit, ocrUpload.single('invo
           data: {
             rawName: normalized.rawName,
             brand: product.brand || (item.brand ? String(item.brand).trim() : normalized.brand),
-            nameKey: buildProductNameKey(normalized.name),
+            nameKey: normalizedNameKey,
             baseUnitName,
             unit: baseUnitName,
             purchaseCostPrice: costPricePerBaseUnit > 0 ? costPricePerBaseUnit : product.purchaseCostPrice,
@@ -432,7 +447,7 @@ router.post('/import-purchase-document', uploadRateLimit, ocrUpload.single('invo
           rawName: rawName,
           cleanName: normalized.name,
           brand: item.brand ? String(item.brand).trim() : normalized.brand,
-          nameKey: buildProductNameKey(normalized.name),
+          nameKey: normalizedNameKey,
           packageName: packageName || null,
           baseUnitName,
           unitsPerPackage: unitsPerPackage || null,

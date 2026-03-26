@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import client from '../api/client';
-import { getProducts, createProduct, updateProduct, deleteProduct, restockProduct, getProductHistory, mergeProduct } from '../api/products.api';
+import { getProducts, createProduct, updateProduct, deleteProduct, restockProduct, getProductHistory, mergeProduct, reverseIncomingTransaction } from '../api/products.api';
 import { 
   Plus, 
   PlusCircle,
@@ -633,6 +633,25 @@ export default function ProductsView() {
     }
   };
 
+  const handleReverseIncoming = async (transactionId: number) => {
+    if (!selectedProduct || !transactionId) return;
+
+    const confirmed = window.confirm('Отменить этот приход? Количество будет снято со склада, а в истории появится корректирующая запись.');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await reverseIncomingTransaction(transactionId);
+      const history = await getProductHistory(selectedProduct.id);
+      setProductHistory(history);
+      await fetchInitialData();
+      toast.success('Приход успешно отменён');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Не удалось отменить приход');
+    }
+  };
+
   const getMergeCandidates = (product: any) => {
     const sourceFamily = normalizeProductFamilyName(String(product?.name || ''));
     const sourceWarehouseId = Number(product?.warehouseId || selectedWarehouseId || 0);
@@ -811,7 +830,7 @@ export default function ProductsView() {
               : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
           )}>
             {isScanning ? <Loader2 size={16} className="animate-spin text-sky-600" /> : <Camera size={16} className={selectedWarehouseId ? "text-sky-600" : "text-slate-400"} />}
-            <span>{isScanning ? 'Сканирование...' : 'Сканировать'}</span>
+            <span>{isScanning ? 'Чтение накладной...' : 'Загрузить накладную'}</span>
             <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleScanInvoice} disabled={isScanning || !selectedWarehouseId} />
           </label>}
           {isAdmin && <button 
@@ -836,6 +855,47 @@ export default function ProductsView() {
           </button>}
         </div>
       </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1.35fr_0.95fr]">
+        <div className="rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-4 shadow-sm sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-sky-500 p-2.5 text-white shadow-lg shadow-sky-500/20">
+              <Camera size={18} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Как работать проще всего</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Сначала выберите склад, потом загрузите накладную или добавьте товар вручную. Система сама посчитает закупку и подберёт категорию.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-600">Шаг 1</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">Выберите склад</p>
+              <p className="mt-1 text-xs text-slate-500">Все товары сразу попадут в нужный склад.</p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-violet-600">Шаг 2</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">Загрузите документ</p>
+              <p className="mt-1 text-xs text-slate-500">Лучше всего одно чёткое фото или одна страница PDF.</p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-white/90 px-4 py-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-600">Шаг 3</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">Проверьте и сохраните</p>
+              <p className="mt-1 text-xs text-slate-500">Обычно достаточно проверить цену продажи и нажать одну кнопку.</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-[28px] border border-amber-100 bg-amber-50/80 p-4 shadow-sm sm:p-5">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-600">Подсказка</p>
+          <p className="mt-2 text-sm font-bold text-slate-900">Что лучше загружать</p>
+          <div className="mt-3 space-y-2 text-sm text-slate-600">
+            <p><span className="font-bold text-slate-900">Лучше всего:</span> одно чёткое фото или PNG страницы с товарами.</p>
+            <p><span className="font-bold text-slate-900">Тоже хорошо:</span> PDF на 1 страницу.</p>
+            <p><span className="font-bold text-slate-900">Хуже читается:</span> большой PDF с лишним текстом и несколькими страницами.</p>
+          </div>
+        </div>
+      </div>
       </div>
       
       <AnimatePresence>
@@ -858,7 +918,7 @@ export default function ProductsView() {
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">Идёт чтение накладной</h3>
                 <p className="mt-2 text-sm text-slate-500">
-                  Пожалуйста, подождите. OCR распознаёт все позиции, количество, цену и детали строки.
+                  Система сама распознаёт позиции, количество и закупку. Обычно лучше всего читается одна чёткая страница.
                 </p>
               </div>
             </motion.div>
@@ -1488,6 +1548,7 @@ export default function ProductsView() {
             onClose={closeHistoryModal}
             productName={selectedProduct?.name}
             productHistory={productHistory}
+            onReverseIncoming={handleReverseIncoming}
           />
           <ProductBatchesModal
             key={showBatchesModal ? `batches-${selectedProduct?.id || 'empty'}` : 'batches-closed'}

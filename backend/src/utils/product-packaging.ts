@@ -1,7 +1,8 @@
 const BRAND_PATTERN = /\bskif\b/iu;
-const QUOTED_BRAND_PATTERN = /[«"“”„‟']\s*([^«»"“”„‟'](?:.*?[^«»"“”„‟'])?)\s*[»"“”„‟']/u;
+const QUOTED_BRAND_PATTERN = /[«»"“”„‟']\s*([^«»"“”„‟'](?:.*?[^«»"“”„‟'])?)\s*[«»"“”„‟']/u;
 const PACKAGING_PATTERN =
-  /(?:(\d+(?:[.,]\d+)?)\s*)?(меш(?:ок|ка|ков)?|короб(?:ка|ки|ок)?|упаков(?:ка|ки|ок)?|пач(?:ка|ки|ек)?|блок(?:а|ов)?)[\s-]*(\d+)\s*(шт|штук|пач(?:ка|ки|ек)?|флакон(?:а|ов)?|емкост(?:ь|и|ей)|бут(?:ылка|ылки|ылок)?|бан(?:ка|ки|ок)?)/iu;
+  /(?:(\d+(?:[.,]\d+)?)\s*)?(меш(?:ок|ка|ков)?|короб(?:ка|ки|ок)?|упаков(?:ка|ки|ок)?|пач(?:ка|ки|ек)?|блок(?:а|ов)?)[\s-]*(\d+)\s*(шт|штук|пач(?:ка|ки|ек)?|флакон(?:а|ов)?|емкост(?:ь|и|ей)|ёмкост(?:ь|и|ей)|бут(?:ылка|ылки|ылок)?|бан(?:ка|ки|ок)?)/iu;
+
 const UNIT_ALIASES: Record<string, string> = {
   штук: 'шт',
   штука: 'шт',
@@ -13,9 +14,12 @@ const UNIT_ALIASES: Record<string, string> = {
   флакон: 'флакон',
   флакона: 'флакон',
   флаконов: 'флакон',
-  емкость: 'емкость',
-  емкости: 'емкость',
-  емкостей: 'емкость',
+  емкость: 'ёмкость',
+  емкости: 'ёмкость',
+  емкостей: 'ёмкость',
+  ёмкость: 'ёмкость',
+  ёмкости: 'ёмкость',
+  ёмкостей: 'ёмкость',
   бутылка: 'бутылка',
   бутылки: 'бутылка',
   бутылок: 'бутылка',
@@ -66,14 +70,18 @@ export function extractBrand(raw: string) {
 export function normalizeBaseUnitName(unit: string | null | undefined) {
   const normalized = stripQuotes(String(unit || ''))
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/ё/gu, 'е');
+
   return UNIT_ALIASES[normalized] || normalized || 'шт';
 }
 
 export function normalizePackageName(value: string | null | undefined) {
   const normalized = stripQuotes(String(value || ''))
     .trim()
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/ё/gu, 'е');
+
   return PACKAGE_ALIASES[normalized] || normalized || '';
 }
 
@@ -84,7 +92,7 @@ export function normalizeProductName(raw: string) {
   const withoutBracketPackaging = withoutQuotes.replace(/\([^)]*\)/gu, ' ');
   const withoutTrailingPackaging = withoutBracketPackaging
     .replace(/\/\s*[^/]*$/u, ' ')
-    .replace(/\/\s*\d+(?:[.,]\d+)?\s*(шт|штук|пач(?:ка|ки|ек)?|флакон(?:а|ов)?|емкост(?:ь|и|ей))\b/giu, ' ')
+    .replace(/\/\s*\d+(?:[.,]\d+)?\s*(шт|штук|пач(?:ка|ки|ек)?|флакон(?:а|ов)?|емкост(?:ь|и|ей)|ёмкост(?:ь|и|ей))\b/giu, ' ')
     .replace(PACKAGING_PATTERN, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -99,9 +107,10 @@ export function normalizeProductName(raw: string) {
 
 export function buildProductNameKey(name: string) {
   return normalizeSpacing(stripQuotes(String(name || '')))
+    .normalize('NFKC')
     .toLowerCase()
     .replace(/[ё]/gu, 'е')
-    .replace(/[^a-zа-я0-9]+/giu, '-')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
     .replace(/^-+|-+$/g, '');
 }
 

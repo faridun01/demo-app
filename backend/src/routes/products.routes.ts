@@ -552,14 +552,12 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const remainingStock = product.batches.reduce((sum: number, batch: any) => sum + Number(batch.remainingQuantity || 0), 0);
-    if (remainingStock > 0 || Number(product.stock || 0) > 0) {
-      return res.status(400).json({ error: 'Нельзя удалить товар, пока на складе есть запас' });
-    }
-
     await prisma.product.update({
       where: { id: productId },
-      data: { active: false }
+      data: {
+        active: false,
+        stock: 0,
+      }
     });
     res.json({ success: true });
   } catch (error) {
@@ -634,6 +632,38 @@ router.post('/:id/transfer', async (req: AuthRequest, res, next) => {
       quantity,
       userId
     );
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/history/:transactionId/reverse-incoming', async (req: AuthRequest, res, next) => {
+  try {
+    const access = await getAccessContext(req);
+    if (!ensureAdminProductAccess(access, res)) {
+      return;
+    }
+
+    const transactionId = Number(req.params.transactionId);
+    if (!Number.isFinite(transactionId) || transactionId <= 0) {
+      return res.status(400).json({ error: 'Некорректный приход для отмены' });
+    }
+
+    const transaction = await prisma.inventoryTransaction.findUnique({
+      where: { id: transactionId },
+      select: { warehouseId: true, type: true },
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ error: 'Приход не найден' });
+    }
+
+    if (!access.isAdmin && !ensureWarehouseAccess(access, transaction.warehouseId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const result = await StockService.reverseIncomingTransaction(transactionId, req.user!.id);
     res.json(result);
   } catch (error) {
     next(error);
@@ -798,6 +828,7 @@ router.get('/:id/history', async (req: AuthRequest, res, next) => {
 
     const transactionHistory = transactions.map((t: any) => ({
       id: `tx-${t.id}`,
+      transactionId: t.id,
       createdAt: t.createdAt,
       type: t.type,
       qtyChange: t.qtyChange,
@@ -805,6 +836,10 @@ router.get('/:id/history', async (req: AuthRequest, res, next) => {
       warehouseName: t.warehouse?.name || '---',
       username: t.user.username,
       reason: formatHistoryReason(t.reason),
+      canReverseIncoming:
+        access.isAdmin &&
+        t.type === 'incoming' &&
+        Number(t.qtyChange || 0) > 0,
     }));
 
     const priceEvents = priceHistory.map((p: any) => ({

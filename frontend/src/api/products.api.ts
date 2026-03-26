@@ -46,3 +46,8 @@ export const getProductBatches = async (id: number) => {
   const response = await client.get(`/products/${id}/batches`);
   return response.data;
 };
+
+export const reverseIncomingTransaction = async (transactionId: number) => {
+  const response = await client.post(`/products/history/${transactionId}/reverse-incoming`);
+  return response.data;
+};

@@ -403,6 +403,7 @@ export class StockService {
         qtyChange: quantity,
         type: 'incoming',
         reason: reason || 'Stock Arrival',
+        referenceId: batch.id,
         costAtTime: costPrice,
       },
     });
@@ -417,6 +418,76 @@ export class StockService {
     });
 
     return batch;
+  }
+
+  static async reverseIncomingTransaction(transactionId: number, userId: number) {
+    return prisma.$transaction(async (tx: any) => {
+      const transaction = await tx.inventoryTransaction.findUnique({
+        where: { id: transactionId },
+      });
+
+      if (!transaction) {
+        throw new Error('Приход не найден');
+      }
+
+      if (transaction.type !== 'incoming' || Number(transaction.qtyChange || 0) <= 0) {
+        throw new Error('Отменить можно только приход товара');
+      }
+
+      const quantity = Number(transaction.qtyChange || 0);
+
+      let batch = transaction.referenceId
+        ? await tx.productBatch.findUnique({
+            where: { id: Number(transaction.referenceId) },
+          })
+        : null;
+
+      if (!batch) {
+        batch = await tx.productBatch.findFirst({
+          where: {
+            productId: transaction.productId,
+            warehouseId: transaction.warehouseId,
+            quantity,
+            remainingQuantity: { gte: quantity },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+      }
+
+      if (!batch) {
+        throw new Error('Не удалось найти связанную партию для отмены прихода');
+      }
+
+      if (Number(batch.remainingQuantity || 0) < quantity) {
+        throw new Error('Нельзя отменить приход: часть этого количества уже была продана или перенесена');
+      }
+
+      if (Number(batch.quantity || 0) !== quantity) {
+        throw new Error('Нельзя безопасно отменить этот приход автоматически');
+      }
+
+      await tx.productBatch.delete({
+        where: { id: batch.id },
+      });
+
+      await tx.inventoryTransaction.create({
+        data: {
+          productId: transaction.productId,
+          warehouseId: transaction.warehouseId,
+          userId,
+          qtyChange: -quantity,
+          type: 'adjustment',
+          reason: `Отмена прихода #${transaction.id}`,
+          referenceId: transaction.id,
+          costAtTime: transaction.costAtTime,
+          sellingAtTime: transaction.sellingAtTime,
+        },
+      });
+
+      await this.updateProductStockCache(transaction.productId, tx);
+
+      return { success: true };
+    });
   }
 
   /**
