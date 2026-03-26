@@ -27,8 +27,10 @@ export const mergeProduct = async (id: number, targetProductId: number) => {
   return response.data;
 };
 
-export const deleteProduct = async (id: number) => {
-  const response = await client.delete(`/products/${id}`);
+export const deleteProduct = async (id: number, options?: { force?: boolean }) => {
+  const response = await client.delete(`/products/${id}`, {
+    params: options?.force ? { force: 'true' } : undefined,
+  });
   return response.data;
 };
 
@@ -44,6 +46,16 @@ export const getProductPriceHistory = async (id: number) => {
 
 export const getProductBatches = async (id: number) => {
   const response = await client.get(`/products/${id}/batches`);
+  return response.data;
+};
+
+export const zeroProductBatch = async (batchId: number) => {
+  const response = await client.post(`/products/batches/${batchId}/zero`);
+  return response.data;
+};
+
+export const deleteProductBatch = async (batchId: number) => {
+  const response = await client.delete(`/products/batches/${batchId}`);
   return response.data;
 };
 

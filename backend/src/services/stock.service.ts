@@ -490,6 +490,88 @@ export class StockService {
     });
   }
 
+  static async zeroBatchRemaining(batchId: number, userId: number) {
+    return prisma.$transaction(async (tx: any) => {
+      const batch = await tx.productBatch.findUnique({
+        where: { id: batchId },
+      });
+
+      if (!batch) {
+        throw new Error('Партия не найдена');
+      }
+
+      const remainingQuantity = Number(batch.remainingQuantity || 0);
+      if (remainingQuantity <= 0) {
+        throw new Error('У этой партии уже нет остатка');
+      }
+
+      await tx.productBatch.update({
+        where: { id: batchId },
+        data: {
+          remainingQuantity: 0,
+        },
+      });
+
+      await tx.inventoryTransaction.create({
+        data: {
+          productId: batch.productId,
+          warehouseId: batch.warehouseId,
+          userId,
+          qtyChange: -remainingQuantity,
+          type: 'adjustment',
+          reason: `Обнуление остатка партии #${batchId}`,
+          referenceId: batchId,
+          costAtTime: batch.costPrice,
+        },
+      });
+
+      await this.updateProductStockCache(batch.productId, tx);
+
+      return { success: true };
+    });
+  }
+
+  static async deleteBatch(batchId: number) {
+    return prisma.$transaction(async (tx: any) => {
+      const batch = await tx.productBatch.findUnique({
+        where: { id: batchId },
+        include: {
+          saleAllocations: {
+            select: { id: true },
+          },
+        },
+      });
+
+      if (!batch) {
+        throw new Error('Партия не найдена');
+      }
+
+      const initialQuantity = Number(batch.quantity || 0);
+      const remainingQuantity = Number(batch.remainingQuantity || 0);
+
+      if (batch.saleAllocations.length > 0 || remainingQuantity !== initialQuantity) {
+        throw new Error('Эта партия уже участвовала в списании. Её нельзя удалить, можно только обнулить остаток.');
+      }
+
+      await tx.inventoryTransaction.deleteMany({
+        where: {
+          productId: batch.productId,
+          warehouseId: batch.warehouseId,
+          type: 'incoming',
+          referenceId: batch.id,
+        },
+      });
+
+      await tx.productBatch.delete({
+        where: { id: batchId },
+      });
+
+      await this.updateProductStockCache(batch.productId, tx);
+
+      return { success: true };
+    });
+  }
+
   /**
    * Updates the cached stock value in the Product model.
    */

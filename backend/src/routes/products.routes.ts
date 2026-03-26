@@ -552,6 +552,52 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    const forceDelete = String(req.query.force || '').toLowerCase() === 'true';
+
+    if (forceDelete) {
+      const [invoiceItemCount, purchaseItemCount] = await Promise.all([
+        prisma.invoiceItem.count({ where: { productId } }),
+        prisma.purchaseDocumentItem.count({ where: { matchedProductId: productId } }),
+      ]);
+
+      if (invoiceItemCount > 0) {
+        return res.status(400).json({
+          error: 'Нельзя удалить навсегда: товар уже участвовал в продажах. Используйте скрытие товара вместо полного удаления.',
+        });
+      }
+
+      await prisma.$transaction(async (tx: any) => {
+        if (purchaseItemCount > 0) {
+          await tx.purchaseDocumentItem.updateMany({
+            where: { matchedProductId: productId },
+            data: { matchedProductId: null },
+          });
+        }
+
+        await tx.inventoryTransaction.deleteMany({
+          where: { productId },
+        });
+
+        await tx.productBatch.deleteMany({
+          where: { productId },
+        });
+
+        await tx.productPackaging.deleteMany({
+          where: { productId },
+        });
+
+        await tx.priceHistory.deleteMany({
+          where: { productId },
+        });
+
+        await tx.product.delete({
+          where: { id: productId },
+        });
+      });
+
+      return res.json({ success: true, hardDeleted: true });
+    }
+
     await prisma.product.update({
       where: { id: productId },
       data: {
@@ -880,13 +926,87 @@ router.get('/:id/batches', async (req: AuthRequest, res, next) => {
     const batches = await prisma.productBatch.findMany({
       where: { 
         productId: Number(req.params.id),
-        ...(product.warehouseId ? { warehouseId: product.warehouseId } : {}),
-        remainingQuantity: { gt: 0 }
+        ...(product.warehouseId ? { warehouseId: product.warehouseId } : {})
       },
-      include: { warehouse: true },
+      include: { warehouse: true, saleAllocations: { select: { id: true } } },
       orderBy: { createdAt: 'asc' }
     });
-    res.json(batches);
+    res.json(
+      batches.map((batch: any) => ({
+        ...batch,
+        canDelete:
+          access.isAdmin &&
+          Number(batch.remainingQuantity || 0) === Number(batch.quantity || 0) &&
+          (batch.saleAllocations?.length || 0) === 0,
+        canZeroRemaining:
+          access.isAdmin &&
+          Number(batch.remainingQuantity || 0) > 0,
+      }))
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/batches/:batchId/zero', async (req: AuthRequest, res, next) => {
+  try {
+    const access = await getAccessContext(req);
+    if (!ensureAdminProductAccess(access, res)) {
+      return;
+    }
+
+    const batchId = Number(req.params.batchId);
+    if (!Number.isFinite(batchId) || batchId <= 0) {
+      return res.status(400).json({ error: 'Некорректная партия' });
+    }
+
+    const batch = await prisma.productBatch.findUnique({
+      where: { id: batchId },
+      select: { warehouseId: true },
+    });
+
+    if (!batch) {
+      return res.status(404).json({ error: 'Партия не найдена' });
+    }
+
+    if (!access.isAdmin && !ensureWarehouseAccess(access, batch.warehouseId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const result = await StockService.zeroBatchRemaining(batchId, req.user!.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/batches/:batchId', async (req: AuthRequest, res, next) => {
+  try {
+    const access = await getAccessContext(req);
+    if (!ensureAdminProductAccess(access, res)) {
+      return;
+    }
+
+    const batchId = Number(req.params.batchId);
+    if (!Number.isFinite(batchId) || batchId <= 0) {
+      return res.status(400).json({ error: 'Некорректная партия' });
+    }
+
+    const batch = await prisma.productBatch.findUnique({
+      where: { id: batchId },
+      select: { warehouseId: true },
+    });
+
+    if (!batch) {
+      return res.status(404).json({ error: 'Партия не найдена' });
+    }
+
+    if (!access.isAdmin && !ensureWarehouseAccess(access, batch.warehouseId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const result = await StockService.deleteBatch(batchId);
+    res.json(result);
   } catch (error) {
     next(error);
   }

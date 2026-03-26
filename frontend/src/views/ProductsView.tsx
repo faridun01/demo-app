@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import client from '../api/client';
-import { getProducts, createProduct, updateProduct, deleteProduct, restockProduct, getProductHistory, mergeProduct, reverseIncomingTransaction } from '../api/products.api';
+import { getProducts, createProduct, updateProduct, deleteProduct, restockProduct, getProductHistory, mergeProduct, reverseIncomingTransaction, zeroProductBatch, deleteProductBatch } from '../api/products.api';
 import { 
   Plus, 
   PlusCircle,
@@ -141,6 +141,10 @@ export default function ProductsView() {
   const [showRestockModal, setShowRestockModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [batchActionConfirm, setBatchActionConfirm] = useState<null | {
+    type: 'zero' | 'delete';
+    batchId: number;
+  }>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showBatchesModal, setShowBatchesModal] = useState(false);
   const [productHistory, setProductHistory] = useState<any[]>([]);
@@ -333,6 +337,48 @@ export default function ProductsView() {
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Ошибка при загрузке партий');
     }
+  };
+
+  const refreshSelectedProductBatches = async () => {
+    if (!selectedProduct?.id) {
+      return;
+    }
+
+    const batches = await getProductBatches(selectedProduct.id);
+    setProductBatches(batches);
+  };
+
+  const handleZeroBatch = async (batchId: number) => {
+    try {
+      await zeroProductBatch(batchId);
+      await Promise.all([refreshSelectedProductBatches(), fetchInitialData()]);
+      toast.success('Остаток партии обнулён');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка при обнулении партии');
+    }
+  };
+
+  const handleDeleteBatch = async (batchId: number) => {
+    try {
+      await deleteProductBatch(batchId);
+      await Promise.all([refreshSelectedProductBatches(), fetchInitialData()]);
+      toast.success('Партия удалена');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка при удалении партии');
+    }
+  };
+
+  const confirmBatchAction = async () => {
+    if (!batchActionConfirm) {
+      return;
+    }
+
+    if (batchActionConfirm.type === 'zero') {
+      await handleZeroBatch(batchActionConfirm.batchId);
+      return;
+    }
+
+    await handleDeleteBatch(batchActionConfirm.batchId);
   };
 
   const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -625,8 +671,10 @@ export default function ProductsView() {
   const handleDeleteProduct = async () => {
     if (!selectedProduct) return;
     try {
-      await deleteProduct(selectedProduct.id);
+      await deleteProduct(selectedProduct.id, { force: true });
       toast.success('Товар успешно удалён!');
+      setShowDeleteConfirm(false);
+      setSelectedProduct(null);
       fetchInitialData();
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Ошибка при удалении товара');
@@ -1556,6 +1604,9 @@ export default function ProductsView() {
             onClose={closeBatchesModal}
             selectedProduct={selectedProduct}
             productBatches={productBatches}
+            canManage={isAdmin}
+            onZeroBatch={(batchId) => setBatchActionConfirm({ type: 'zero', batchId })}
+            onDeleteBatch={(batchId) => setBatchActionConfirm({ type: 'delete', batchId })}
           />
       </React.Suspense>
 
@@ -1633,15 +1684,29 @@ export default function ProductsView() {
         )}
       </AnimatePresence>
 
-      <React.Suspense fallback={null}>
-        <ConfirmationModal 
-          isOpen={showDeleteConfirm}
+        <React.Suspense fallback={null}>
+          <ConfirmationModal 
+            isOpen={showDeleteConfirm}
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={handleDeleteProduct}
-          title="Удалить товар?"
-          message={`Вы уверены, что хотите удалить товар "${formatProductName(selectedProduct?.name)}"? Это действие нельзя отменить.`}
-        />
-      </React.Suspense>
+          title="Удалить товар навсегда?"
+            message={`Товар "${formatProductName(selectedProduct?.name)}" будет удалён навсегда. Если он уже участвовал в продажах, система не даст удалить его полностью.`}
+          />
+          <ConfirmationModal
+            isOpen={Boolean(batchActionConfirm)}
+            onClose={() => setBatchActionConfirm(null)}
+            onConfirm={confirmBatchAction}
+            title={batchActionConfirm?.type === 'zero' ? 'Обнулить остаток партии?' : 'Удалить партию?'}
+            message={
+              batchActionConfirm?.type === 'zero'
+                ? 'Остаток выбранной партии станет равным нулю. История сохранится, но эта партия больше не будет участвовать в остатках.'
+                : 'Партия будет удалена полностью. Это доступно только для нетронутой партии, которая ещё не участвовала в списании.'
+            }
+            confirmText={batchActionConfirm?.type === 'zero' ? 'Обнулить остаток' : 'Удалить партию'}
+            cancelText="Отмена"
+            type={batchActionConfirm?.type === 'zero' ? 'warning' : 'danger'}
+          />
+        </React.Suspense>
 
       <div className="overflow-hidden rounded-[28px] border border-white bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 bg-white p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
@@ -1812,10 +1877,6 @@ export default function ProductsView() {
                   </button>
                   <button
                     onClick={() => {
-                      if (Number(product.stock || 0) > 0) {
-                        toast.error('Нельзя удалить товар, пока на складе есть запас');
-                        return;
-                      }
                       setSelectedProduct(product);
                       setShowDeleteConfirm(true);
                     }}
@@ -2021,10 +2082,6 @@ export default function ProductsView() {
                         {isAdmin && (
                           <button 
                             onClick={() => {
-                              if (Number(product.stock || 0) > 0) {
-                                toast.error('Нельзя удалить товар, пока на складе есть запас');
-                                return;
-                              }
                               setSelectedProduct(product);
                               setShowDeleteConfirm(true);
                             }}

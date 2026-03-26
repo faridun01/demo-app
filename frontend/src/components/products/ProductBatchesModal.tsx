@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { clsx } from 'clsx';
-import { Layers, X } from 'lucide-react';
+import { Ban, Layers, Trash2, X } from 'lucide-react';
 import { formatMoney } from '../../utils/format';
 
 interface ProductBatchesModalProps {
@@ -9,6 +9,9 @@ interface ProductBatchesModalProps {
   onClose: () => void;
   selectedProduct: any;
   productBatches: any[];
+  canManage?: boolean;
+  onZeroBatch?: (batchId: number) => void;
+  onDeleteBatch?: (batchId: number) => void;
 }
 
 export default function ProductBatchesModal({
@@ -16,6 +19,9 @@ export default function ProductBatchesModal({
   onClose,
   selectedProduct,
   productBatches,
+  canManage = false,
+  onZeroBatch,
+  onDeleteBatch,
 }: ProductBatchesModalProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -45,7 +51,7 @@ export default function ProductBatchesModal({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.96, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[94vh] w-full max-w-[52rem] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]"
+            className="flex max-h-[94vh] w-full max-w-[58rem] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]"
           >
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-violet-50/50 p-5 sm:p-6">
               <h3 className="flex items-center space-x-3 text-xl font-black text-slate-900">
@@ -64,6 +70,10 @@ export default function ProductBatchesModal({
                 Система списывает товар из самых старых партий в первую очередь по FIFO.
               </div>
 
+              <div className="mb-5 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-sm text-slate-600">
+                Обнуление оставляет партию в истории, но убирает её текущий остаток. Удаление доступно только для нетронутой партии, которая ещё не участвовала в списании.
+              </div>
+
               <div className="space-y-3 sm:hidden">
                 {productBatches.map((b, i) => (
                   <div key={b.id} className={clsx('rounded-3xl border border-slate-100 p-4', i === 0 ? 'bg-violet-50/60' : 'bg-slate-50')}>
@@ -76,6 +86,7 @@ export default function ProductBatchesModal({
                         <span className="rounded-md bg-violet-500 px-2 py-1 text-[8px] uppercase text-white">След. на списание</span>
                       )}
                     </div>
+
                     <div className="mt-4 grid grid-cols-2 gap-3">
                       <div className="rounded-2xl bg-white px-3 py-3">
                         <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Нач. кол-во</p>
@@ -86,14 +97,39 @@ export default function ProductBatchesModal({
                         <p className="mt-1 text-sm font-black text-slate-900">{b.remainingQuantity} {selectedProduct.unit}</p>
                       </div>
                     </div>
+
                     <div className="mt-3 rounded-2xl bg-white px-3 py-3">
                       <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Цена закупки</p>
                       <p className="mt-1 text-sm font-black text-emerald-600">{formatMoney(b.costPrice)}</p>
                     </div>
+
+                    {canManage && (
+                      <div className="mt-3 flex flex-col gap-2">
+                        <button
+                          type="button"
+                          disabled={!b.canZeroRemaining}
+                          onClick={() => onZeroBatch?.(b.id)}
+                          className="flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Ban size={14} />
+                          <span>Обнулить остаток</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!b.canDelete}
+                          onClick={() => onDeleteBatch?.(b.id)}
+                          className="flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Trash2 size={14} />
+                          <span>Удалить партию</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
+
                 {productBatches.length === 0 && (
-                  <div className="rounded-3xl bg-slate-50 px-4 py-10 text-center text-sm font-bold text-slate-400">Активных партий не найдено</div>
+                  <div className="rounded-3xl bg-slate-50 px-4 py-10 text-center text-sm font-bold text-slate-400">Партий не найдено</div>
                 )}
               </div>
 
@@ -105,6 +141,7 @@ export default function ProductBatchesModal({
                     <th className="pb-4 text-right">Начальное кол-во</th>
                     <th className="pb-4 text-right">Остаток</th>
                     <th className="pb-4 text-right">Цена закупки</th>
+                    {canManage && <th className="pb-4 text-right">Действия</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -118,11 +155,36 @@ export default function ProductBatchesModal({
                       <td className="py-3 text-right font-bold text-slate-400">{b.quantity} {selectedProduct.unit}</td>
                       <td className="py-3 text-right font-black text-slate-900">{b.remainingQuantity} {selectedProduct.unit}</td>
                       <td className="py-3 text-right font-black text-emerald-600">{formatMoney(b.costPrice)}</td>
+                      {canManage && (
+                        <td className="py-3">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={!b.canZeroRemaining}
+                              onClick={() => onZeroBatch?.(b.id)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Ban size={12} />
+                              <span>Обнулить</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!b.canDelete}
+                              onClick={() => onDeleteBatch?.(b.id)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Trash2 size={12} />
+                              <span>Удалить</span>
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
+
                   {productBatches.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-20 text-center font-bold text-slate-400">Активных партий не найдено</td>
+                      <td colSpan={canManage ? 6 : 5} className="py-20 text-center font-bold text-slate-400">Партий не найдено</td>
                     </tr>
                   )}
                 </tbody>
