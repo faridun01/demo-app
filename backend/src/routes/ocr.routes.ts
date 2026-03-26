@@ -19,6 +19,21 @@ import {
 
 const router = Router();
 
+const detectCategoryName = (name: string) => {
+  const normalized = String(name || '').toLowerCase().replace(/[ё]/g, 'е');
+
+  if (normalized.includes('порошок') && normalized.includes('автомат')) return 'Стиральные порошки';
+  if (normalized.includes('порошок')) return 'Стиральные средства';
+  if (normalized.includes('жидк') && normalized.includes('стира')) return 'Жидкие средства для стирки';
+  if (normalized.includes('гель') && normalized.includes('посуд')) return 'Гели для посуды';
+  if (normalized.includes('капля') && normalized.includes('посуд')) return 'Средства для мытья посуды';
+  if (normalized.includes('посуд')) return 'Средства для мытья посуды';
+  if (normalized.includes('чистящее средство')) return 'Чистящие средства';
+
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return words.slice(0, 2).join(' ') || 'Прочее';
+};
+
 const uploadRateLimit = createRateLimit({
   windowMs: securityConfig.rateLimit.uploadWindowMs,
   maxAttempts: securityConfig.rateLimit.uploadMaxAttempts,
@@ -81,6 +96,176 @@ router.post('/invoice', uploadRateLimit, ocrUpload.single('image'), async (req, 
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
+  }
+});
+
+router.post('/import-items', async (req: AuthRequest, res, next) => {
+  try {
+    const access = await getAccessContext(req);
+    const requestedWarehouseId = Number(req.body?.warehouseId);
+    const warehouseId = access.isAdmin ? requestedWarehouseId : access.warehouseId;
+    const items = Array.isArray(req.body?.items) ? req.body.items : [];
+
+    if (!warehouseId) {
+      return res.status(400).json({ error: 'Warehouse ID is required' });
+    }
+
+    if (!items.length) {
+      return res.status(400).json({ error: 'Нет товаров для добавления' });
+    }
+
+    const categoryCache = new Map<string, { id: number; name: string }>();
+    const importedItems: Array<{ productId: number; name: string; quantity: number }> = [];
+
+    const ensureCategoryId = async (productName: string) => {
+      const categoryName = detectCategoryName(productName);
+      const categoryKey = categoryName.trim().toLowerCase();
+      const cached = categoryCache.get(categoryKey);
+      if (cached?.id) {
+        return cached.id;
+      }
+
+      let category = await prisma.category.findFirst({
+        where: { name: categoryName },
+        select: { id: true, name: true },
+      });
+
+      if (!category) {
+        category = await prisma.category.create({
+          data: { name: categoryName },
+          select: { id: true, name: true },
+        });
+      }
+
+      categoryCache.set(categoryKey, category);
+      return category.id;
+    };
+
+    for (const item of items) {
+      const rawName = String(item?.rawName || item?.name || '').trim();
+      const normalized = normalizeProductName(rawName || String(item?.name || ''));
+      const productName = normalized.name;
+      const quantity = Number(item?.quantity || item?.totalBaseUnits || 0);
+      const purchaseCostPrice = Number(item?.purchaseCostPrice ?? item?.costPricePerPieceTJS ?? item?.costPrice ?? 0);
+      const expensePercent = Number(item?.expensePercent || 0);
+      const effectiveCostPrice = Number(
+        item?.effectiveCostPricePerPieceTJS ?? calculateEffectiveCostPrice(purchaseCostPrice, expensePercent)
+      );
+      const sellingPrice = Number(item?.sellingPrice || 0);
+      const brand = String(item?.brand || normalized.brand || '').trim();
+      const packageName = normalizePackageName(item?.packageName || '');
+      const baseUnitName = normalizeBaseUnitName(item?.baseUnitName || item?.unit || 'шт');
+      const unitsPerPackage = Number(item?.unitsPerPackage || 0);
+
+      if (!productName || !Number.isFinite(quantity) || quantity <= 0) {
+        continue;
+      }
+
+      const categoryId = await ensureCategoryId(productName);
+      const nameKey = buildProductNameKey(productName);
+
+      let product = await prisma.product.findFirst({
+        where: {
+          warehouseId,
+          active: true,
+          nameKey,
+        },
+      });
+
+      if (!product) {
+        product = await prisma.product.create({
+          data: {
+            categoryId,
+            name: productName,
+            rawName: normalized.rawName,
+            brand: brand || null,
+            nameKey,
+            unit: baseUnitName,
+            baseUnitName,
+            purchaseCostPrice,
+            expensePercent,
+            costPrice: effectiveCostPrice,
+            sellingPrice: sellingPrice > 0 ? sellingPrice : effectiveCostPrice * 1.2,
+            minStock: 0,
+            initialStock: 0,
+            totalIncoming: 0,
+            stock: 0,
+            warehouseId,
+          },
+        });
+      } else {
+        product = await prisma.product.update({
+          where: { id: product.id },
+          data: {
+            rawName: normalized.rawName,
+            brand: brand || product.brand,
+            baseUnitName,
+            unit: baseUnitName,
+            purchaseCostPrice,
+            expensePercent,
+            costPrice: effectiveCostPrice,
+            ...(sellingPrice > 0 ? { sellingPrice } : {}),
+          },
+        });
+      }
+
+      if (packageName && unitsPerPackage > 0) {
+        const existingPackaging = await prisma.productPackaging.findFirst({
+          where: {
+            productId: product.id,
+            packageName,
+            unitsPerPackage,
+          },
+        });
+
+        if (!existingPackaging) {
+          await prisma.productPackaging.create({
+            data: {
+              productId: product.id,
+              warehouseId,
+              packageName,
+              baseUnitName,
+              unitsPerPackage,
+              packageSellingPrice: null,
+              active: true,
+              isDefault: true,
+            },
+          });
+
+          await prisma.productPackaging.updateMany({
+            where: {
+              productId: product.id,
+              packageName: { not: packageName },
+            },
+            data: { isDefault: false },
+          });
+        }
+      }
+
+      await StockService.addStock(
+        product.id,
+        warehouseId,
+        quantity,
+        effectiveCostPrice,
+        req.user!.id,
+        'OCR Restock',
+        purchaseCostPrice,
+        expensePercent
+      );
+
+      importedItems.push({
+        productId: product.id,
+        name: product.name,
+        quantity,
+      });
+    }
+
+    return res.status(201).json({
+      importedCount: importedItems.length,
+      items: importedItems,
+    });
+  } catch (error) {
+    next(error);
   }
 });
 

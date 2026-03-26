@@ -397,27 +397,6 @@ export default function ProductsView() {
     const sharedExpensePercent = Math.max(0, Number(scanExpensePercent || 0));
     try {
       setIsLoading(true);
-      const categoryCache = new Map(
-        categories.map((category) => [String(category.name || '').trim().toLowerCase(), category])
-      );
-
-      const ensureCategoryId = async (productName: string) => {
-        const categoryName = detectCategoryName(productName);
-        const categoryKey = categoryName.trim().toLowerCase();
-        const existingCategory = categoryCache.get(categoryKey);
-        if (existingCategory?.id) {
-          return Number(existingCategory.id);
-        }
-
-        const createdCategory = await client.post('/settings/categories', { name: categoryName }).then((res) => res.data);
-        categoryCache.set(categoryKey, createdCategory);
-        setCategories((prev) => {
-          const hasSame = prev.some((item) => String(item.name || '').trim().toLowerCase() === categoryKey);
-          return hasSame ? prev : [...prev, createdCategory].sort((a, b) => String(a.name).localeCompare(String(b.name)));
-        });
-        return Number(createdCategory.id);
-      };
-
       const preparedResults = ocrResults
         .map((item) => {
           if (item.enabled === false) {
@@ -510,129 +489,28 @@ export default function ProductsView() {
         toast.error('После сканирования не осталось корректных товаров для добавления');
         return;
       }
-      const currentProducts = [...products];
-      for (const item of importRows) {
-        const purchaseCostPriceTJS = item.costPricePerPieceTJS;
-        const costPriceTJS = item.effectiveCostPricePerPieceTJS;
-        const normalizedItemName = normalizeCatalogName(item.name);
-        const familyKey = normalizeProductFamilyName(item.name);
-        const massKey = extractMassKey(item.name);
-        const categoryId = await ensureCategoryId(item.name);
-        const product = currentProducts.find((p) => {
-          const productName = normalizeCatalogName(String(p.name || ''));
-          const productFamilyKey = normalizeProductFamilyName(String(p.name || ''));
-          const productMassKey = extractMassKey(String(p.name || ''));
-          const productWarehouseId = Number(p.warehouseId || 0);
-          const targetWarehouseId = Number(selectedWarehouseId);
-
-          if (productWarehouseId && productWarehouseId !== targetWarehouseId) {
-            return false;
-          }
-
-          return productName === normalizedItemName || (productFamilyKey === familyKey && productMassKey === massKey);
-        });
-        if (product) {
-          await restockProduct(product.id, {
-            warehouseId: Number(selectedWarehouseId),
-            quantity: Number(item.quantity),
-            costPrice: costPriceTJS,
-            purchaseCostPrice: purchaseCostPriceTJS,
-            expensePercent: Number(item.expensePercent || 0),
-            reason: 'OCR Restock'
-          });
-          if (item.sellingPrice || item.rawName || item.brand || item.packageName) {
-            const productUpdatePayload: Record<string, unknown> = {
-              rawName: item.rawName,
-              brand: item.brand || undefined,
-              baseUnitName: item.baseUnitName,
-              unit: item.baseUnitName,
-              packaging: item.packageName && Number(item.unitsPerPackage || 0) > 0
-                ? {
-                    packageName: item.packageName,
-                    baseUnitName: item.baseUnitName,
-                    unitsPerPackage: Number(item.unitsPerPackage || 0),
-                    isDefault: true,
-                  }
-                : undefined,
-            };
-            if (Number(item.sellingPrice || 0) > 0) {
-              productUpdatePayload.sellingPrice = Number(item.sellingPrice);
-            }
-            await updateProduct(product.id, {
-              ...productUpdatePayload,
-            });
-          }
-          continue;
-        }
-        try {
-          const createdProduct = await createProduct({
+      await client.post(
+        '/ocr/import-items',
+        {
+          warehouseId: Number(selectedWarehouseId),
+          items: importRows.map((item) => ({
+            lineIndex: item.lineIndex,
             name: item.name,
             rawName: item.rawName,
-            brand: item.brand || undefined,
+            brand: item.brand,
+            packageName: item.packageName,
             baseUnitName: item.baseUnitName,
-            unit: item.baseUnitName,
-            categoryId,
-            warehouseId: Number(selectedWarehouseId),
-            costPrice: costPriceTJS,
-            purchaseCostPrice: purchaseCostPriceTJS,
-            expensePercent: Number(item.expensePercent || 0),
-            sellingPrice: Number(item.sellingPrice) || costPriceTJS * 1.2,
-            initialStock: Number(item.quantity),
-            minStock: 0,
-            packaging: item.packageName && Number(item.unitsPerPackage || 0) > 0
-              ? {
-                  packageName: item.packageName,
-                  baseUnitName: item.baseUnitName,
-                  unitsPerPackage: Number(item.unitsPerPackage || 0),
-                  isDefault: true,
-                }
-              : undefined,
-          });
-          currentProducts.push(createdProduct);
-        } catch (createErr: any) {
-          const duplicateByName = currentProducts.find((p) => {
-            const productName = normalizeCatalogName(String(p.name || ''));
-            const sameWarehouse = Number(p.warehouseId || 0) === Number(selectedWarehouseId);
-            return sameWarehouse && productName === normalizedItemName;
-          });
-
-          if (!duplicateByName) {
-            throw createErr;
-          }
-
-          await restockProduct(duplicateByName.id, {
-            warehouseId: Number(selectedWarehouseId),
+            unitsPerPackage: item.unitsPerPackage,
             quantity: Number(item.quantity),
-            costPrice: costPriceTJS,
-            purchaseCostPrice: purchaseCostPriceTJS,
+            purchaseCostPrice: Number(item.costPricePerPieceTJS),
+            effectiveCostPricePerPieceTJS: Number(item.effectiveCostPricePerPieceTJS),
             expensePercent: Number(item.expensePercent || 0),
-            reason: 'OCR Restock'
-          });
+            sellingPrice: Number(item.sellingPrice || 0),
+          })),
+        },
+        { timeout: 300000 }
+      );
 
-          if (item.sellingPrice || item.rawName || item.brand || item.packageName) {
-            const duplicateUpdatePayload: Record<string, unknown> = {
-              rawName: item.rawName,
-              brand: item.brand || undefined,
-              baseUnitName: item.baseUnitName,
-              unit: item.baseUnitName,
-              packaging: item.packageName && Number(item.unitsPerPackage || 0) > 0
-                ? {
-                    packageName: item.packageName,
-                    baseUnitName: item.baseUnitName,
-                    unitsPerPackage: Number(item.unitsPerPackage || 0),
-                    isDefault: true,
-                  }
-                : undefined,
-            };
-            if (Number(item.sellingPrice || 0) > 0) {
-              duplicateUpdatePayload.sellingPrice = Number(item.sellingPrice);
-            }
-            await updateProduct(duplicateByName.id, {
-              ...duplicateUpdatePayload,
-            });
-          }
-        }
-      }
       toast.success(`Все товары успешно добавлены на склад: ${importRows.length} строк`);
       setOcrResults(null);
       fetchInitialData();
