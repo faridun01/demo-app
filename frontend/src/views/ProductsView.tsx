@@ -153,6 +153,7 @@ export default function ProductsView() {
   const [ocrResults, setOcrResults] = useState<any[] | null>(null);
   const [usdRate, setUsdRate] = useState<string>('10.95'); // Default rate
   const [scanExpensePercent, setScanExpensePercent] = useState<string>('0');
+  const [isCategoryManual, setIsCategoryManual] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
 
@@ -206,6 +207,29 @@ export default function ProductsView() {
   useEffect(() => {
     fetchInitialData();
   }, [selectedWarehouseId, isAdmin, userWarehouseId]);
+
+  useEffect(() => {
+    if (!showAddModal || showEditModal || isCategoryManual) {
+      return;
+    }
+
+    const suggestedCategoryName = detectCategoryName(formData.name);
+    const suggestedCategory = categories.find(
+      (category) => String(category.name || '').trim().toLowerCase() === suggestedCategoryName.trim().toLowerCase()
+    );
+
+    setFormData((prev) => {
+      const nextCategoryId = suggestedCategory?.id ? String(suggestedCategory.id) : '';
+      if (prev.categoryId === nextCategoryId) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        categoryId: nextCategoryId,
+      };
+    });
+  }, [categories, formData.name, isCategoryManual, showAddModal, showEditModal]);
 
   const fetchInitialData = async (warehouseIdOverride?: string) => {
     setIsLoading(true);
@@ -701,6 +725,7 @@ export default function ProductsView() {
       initialStock: '0',
       photoUrl: ''
     });
+    setIsCategoryManual(false);
     setSelectedProduct(null);
   };
 
@@ -876,7 +901,10 @@ export default function ProductsView() {
                       type="text" 
                       required 
                       value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
+                      onChange={e => {
+                        setIsCategoryManual(false);
+                        setFormData({...formData, name: e.target.value});
+                      }}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all font-bold text-sm" 
                       placeholder="Напр: iPhone 15 Pro Max"
                     />
@@ -897,12 +925,18 @@ export default function ProductsView() {
                     <select 
                       required
                       value={formData.categoryId}
-                      onChange={e => setFormData({...formData, categoryId: e.target.value})}
+                      onChange={e => {
+                        setIsCategoryManual(Boolean(e.target.value));
+                        setFormData({...formData, categoryId: e.target.value});
+                      }}
                       className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all font-bold text-sm appearance-none bg-white"
                     >
                       <option value="">Выберите категорию</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                    <p className="mt-1 text-[11px] font-medium text-slate-400">
+                      Категория подставляется автоматически по названию, при необходимости можно выбрать вручную.
+                    </p>
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Склад по умолчанию</label>
