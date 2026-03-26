@@ -362,6 +362,7 @@ export default function ProductsView() {
           lineTotal: Number(item.lineTotal || 0),
           note: item.note || '',
           sellingPrice: item.sellingPrice || '',
+          expensePercent: Number(item.expensePercent || 0),
         }))
         .filter((item: any) => item.rawName || item.name)
         .sort((a: any, b: any) => a.lineIndex - b.lineIndex);
@@ -434,6 +435,7 @@ export default function ProductsView() {
           const price = Number(item.price || 0);
           const lineTotal = Number(item.lineTotal || 0);
           const sellingPrice = item.sellingPrice ? Number(item.sellingPrice) : 0;
+          const expensePercent = Number(item.expensePercent || 0);
           const costPricePerPieceTJS =
             lineTotal > 0 && quantity > 0
               ? (lineTotal * rate) / quantity
@@ -442,6 +444,8 @@ export default function ProductsView() {
               : quantity > 0
                 ? (price * rate) / quantity
                 : 0;
+          const effectiveCostPricePerPieceTJS =
+            costPricePerPieceTJS + (costPricePerPieceTJS * Math.max(0, expensePercent) / 100);
 
           if (
             !normalizedName ||
@@ -450,7 +454,9 @@ export default function ProductsView() {
             !Number.isFinite(price) ||
             price < 0 ||
             !Number.isFinite(costPricePerPieceTJS) ||
-            costPricePerPieceTJS < 0
+            costPricePerPieceTJS < 0 ||
+            !Number.isFinite(effectiveCostPricePerPieceTJS) ||
+            effectiveCostPricePerPieceTJS < 0
           ) {
             return null;
           }
@@ -467,7 +473,9 @@ export default function ProductsView() {
             quantity,
             price,
             lineTotal,
+            expensePercent,
             costPricePerPieceTJS,
+            effectiveCostPricePerPieceTJS,
             sellingPrice,
             rawQuantity: String(item.rawQuantity || '').trim(),
             note: String(item.note || '').trim(),
@@ -485,7 +493,9 @@ export default function ProductsView() {
           quantity: number;
           price: number;
           lineTotal: number;
+          expensePercent: number;
           costPricePerPieceTJS: number;
+          effectiveCostPricePerPieceTJS: number;
           sellingPrice: number;
           rawQuantity: string;
           note: string;
@@ -499,7 +509,8 @@ export default function ProductsView() {
       }
       const currentProducts = [...products];
       for (const item of importRows) {
-        const costPriceTJS = item.costPricePerPieceTJS;
+        const purchaseCostPriceTJS = item.costPricePerPieceTJS;
+        const costPriceTJS = item.effectiveCostPricePerPieceTJS;
         const normalizedItemName = normalizeCatalogName(item.name);
         const familyKey = normalizeProductFamilyName(item.name);
         const massKey = extractMassKey(item.name);
@@ -522,6 +533,8 @@ export default function ProductsView() {
             warehouseId: Number(selectedWarehouseId),
             quantity: Number(item.quantity),
             costPrice: costPriceTJS,
+            purchaseCostPrice: purchaseCostPriceTJS,
+            expensePercent: Number(item.expensePercent || 0),
             reason: 'OCR Restock'
           });
           if (item.sellingPrice || item.rawName || item.brand || item.packageName) {
@@ -558,6 +571,8 @@ export default function ProductsView() {
             categoryId,
             warehouseId: Number(selectedWarehouseId),
             costPrice: costPriceTJS,
+            purchaseCostPrice: purchaseCostPriceTJS,
+            expensePercent: Number(item.expensePercent || 0),
             sellingPrice: Number(item.sellingPrice) || costPriceTJS * 1.2,
             initialStock: Number(item.quantity),
             minStock: 0,
@@ -586,6 +601,8 @@ export default function ProductsView() {
             warehouseId: Number(selectedWarehouseId),
             quantity: Number(item.quantity),
             costPrice: costPriceTJS,
+            purchaseCostPrice: purchaseCostPriceTJS,
+            expensePercent: Number(item.expensePercent || 0),
             reason: 'OCR Restock'
           });
 
@@ -1381,7 +1398,7 @@ export default function ProductsView() {
                   <div className="col-span-4">Товар</div>
                   <div className="col-span-2 text-center">Кол-во</div>
                   <div className="col-span-2 text-right">Закупка</div>
-                  <div className="col-span-2 text-right">За 1 шт</div>
+                  <div className="col-span-2 text-right">Наша закупка</div>
                   <div className="col-span-2 text-right">Цена продажи</div>
                 </div>
                 {ocrResults.map((item, i) => (
@@ -1469,16 +1486,49 @@ export default function ProductsView() {
                     </div>
                     <div className="sm:col-span-2 sm:text-right">
                       <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">За 1 шт</p>
-                      <p className="font-black text-slate-900">
-                        {formatMoney(
-                          item.unitsPerPackage > 0
-                            ? (item.price * parseFloat(usdRate || '0')) / item.unitsPerPackage
-                            : item.quantity > 0
-                              ? (item.price * parseFloat(usdRate || '0')) / item.quantity
-                              : 0
-                        )}
-                      </p>
-                      <p className="text-[10px] font-bold text-slate-400">за 1 шт</p>
+                      {(() => {
+                        const quantity =
+                          item.packageCount > 0 && item.unitsPerPackage > 0
+                            ? item.packageCount * item.unitsPerPackage
+                            : Number(item.quantity || 0);
+                        const baseCostPerPiece =
+                          item.lineTotal > 0 && quantity > 0
+                            ? (item.lineTotal * parseFloat(usdRate || '0')) / quantity
+                            : item.unitsPerPackage > 0
+                              ? (item.price * parseFloat(usdRate || '0')) / item.unitsPerPackage
+                              : quantity > 0
+                                ? (item.price * parseFloat(usdRate || '0')) / quantity
+                                : 0;
+                        const expensePercent = Number(item.expensePercent || 0);
+                        const effectiveCostPerPiece = baseCostPerPiece + (baseCostPerPiece * Math.max(0, expensePercent) / 100);
+
+                        return (
+                          <>
+                            <p className="font-black text-slate-900">
+                              {formatMoney(effectiveCostPerPiece)}
+                            </p>
+                            <p className="mt-1 text-[10px] font-bold text-slate-400">
+                              база: {formatMoney(baseCostPerPiece)}
+                            </p>
+                            <div className="mt-2 flex items-center justify-end gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Расходы</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.expensePercent ?? 0}
+                                onChange={(e) => {
+                                  const newResults = [...ocrResults];
+                                  newResults[i].expensePercent = Number(e.target.value || 0);
+                                  setOcrResults(newResults);
+                                }}
+                                className="w-20 rounded-xl border border-sky-200 bg-white px-2.5 py-1.5 text-right text-xs font-black text-slate-900 outline-none focus:border-sky-500"
+                              />
+                              <span className="text-xs font-black text-slate-400">%</span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="sm:col-span-2 sm:text-right">
                       <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Цена продажи</p>

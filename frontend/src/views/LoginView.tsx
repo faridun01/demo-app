@@ -32,7 +32,7 @@ export default function LoginView() {
       setAuthSession(result.token, result.user);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Login failed');
+      setError(err.response?.data?.error || err.message || 'Ошибка входа');
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +51,7 @@ export default function LoginView() {
       setAuthSession(result.token, result.user);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Two-factor verification failed');
+      setError(err.response?.data?.error || err.message || 'Ошибка проверки двухфакторной аутентификации');
     } finally {
       setIsLoading(false);
     }
@@ -78,16 +78,16 @@ export default function LoginView() {
             </div>
             <div>
               <h1 className="text-2xl font-semibold">Wholesale CRM</h1>
-              <p className="text-sm text-slate-300">Secure inventory workspace</p>
+              <p className="text-sm text-slate-300">Безопасная рабочая зона склада</p>
             </div>
           </div>
 
           <h2 className="mb-4 text-3xl font-semibold leading-tight">
-            Safe access to warehouse, sales and customer operations
+            Безопасный доступ к складу, продажам и работе с клиентами
           </h2>
 
           <p className="text-sm leading-7 text-slate-300">
-            Sign in with your account and, if enabled, confirm the session with a code from your authenticator app.
+            Войдите в систему под своей учётной записью и, если включена защита, подтвердите вход кодом из приложения-аутентификатора.
           </p>
         </section>
 
@@ -98,12 +98,12 @@ export default function LoginView() {
                 <Warehouse size={26} />
               </div>
               <h2 className="text-3xl font-semibold text-slate-900">
-                {twoFactorToken ? 'Two-factor verification' : 'Sign in'}
+                {twoFactorToken ? 'Подтверждение входа' : 'Вход в систему'}
               </h2>
               <p className="mt-2 text-sm text-slate-500">
                 {twoFactorToken
-                  ? 'Enter the code from your authenticator app or one backup code.'
-                  : 'Enter your username and password to continue.'}
+                  ? 'Введите код из приложения-аутентификатора или один из резервных кодов.'
+                  : 'Введите логин и пароль, чтобы продолжить.'}
               </p>
             </div>
 
@@ -116,7 +116,7 @@ export default function LoginView() {
             {!twoFactorToken ? (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-600">Username</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-600">Логин</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
@@ -124,14 +124,14 @@ export default function LoginView() {
                       required
                       value={username}
                       onChange={(event) => setUsername(event.target.value)}
-                      placeholder="Enter username"
+                      placeholder="Введите логин"
                       className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-12 pr-4 text-sm text-slate-800 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-600">Password</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-600">Пароль</label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
@@ -139,7 +139,7 @@ export default function LoginView() {
                       required
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      placeholder="Enter password"
+                      placeholder="Введите пароль"
                       className="w-full rounded-xl border border-slate-300 bg-white py-3 pl-12 pr-4 text-sm text-slate-800 outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
                     />
                   </div>
@@ -153,11 +153,11 @@ export default function LoginView() {
                   {isLoading ? (
                     <>
                       <Loader2 className="animate-spin" size={18} />
-                      <span>Signing in...</span>
+                      <span>Входим...</span>
                     </>
                   ) : (
                     <>
-                      <span>Continue</span>
+                      <span>Продолжить</span>
                       <ArrowRight size={16} />
                     </>
                   )}
@@ -166,11 +166,11 @@ export default function LoginView() {
             ) : (
               <form onSubmit={handleTwoFactorSubmit} className="space-y-5">
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
-                  Two-factor protection is enabled for <span className="font-bold">{twoFactorUsername}</span>.
+                  Для пользователя <span className="font-bold">{twoFactorUsername}</span> включена двухфакторная защита.
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-600">Authenticator code or backup code</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-600">Код из приложения или резервный код</label>
                   <div className="relative">
                     <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
@@ -191,7 +191,7 @@ export default function LoginView() {
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
                   >
                     <ArrowLeft size={16} />
-                    <span>Back</span>
+                    <span>Назад</span>
                   </button>
                   <button
                     type="submit"
@@ -201,11 +201,11 @@ export default function LoginView() {
                     {isLoading ? (
                       <>
                         <Loader2 className="animate-spin" size={18} />
-                        <span>Verifying...</span>
+                        <span>Проверяем...</span>
                       </>
                     ) : (
                       <>
-                        <span>Confirm sign in</span>
+                        <span>Подтвердить вход</span>
                         <ArrowRight size={16} />
                       </>
                     )}

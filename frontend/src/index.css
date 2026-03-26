@@ -14,8 +14,7 @@
 
 @layer base {
   html {
-    overflow-y: scroll;
-    scrollbar-gutter: stable;
+    height: 100%;
   }
 
   body {
@@ -24,6 +23,12 @@
     color: var(--color-shopify-text);
     selection-background-color: #b9f0dc;
     min-width: 320px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root {
+    height: 100%;
   }
 
   .custom-scrollbar::-webkit-scrollbar {

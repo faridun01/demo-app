@@ -128,11 +128,30 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           <div className={clsx('flex items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
             <button
               type="button"
-              onClick={() => navigate('/')}
-              className={clsx('flex items-center text-left', isCollapsed ? 'justify-center' : 'gap-3')}
+              onClick={() => {
+                if (window.innerWidth >= 1024) {
+                  onToggleCollapse();
+                  return;
+                }
+
+                navigate('/');
+                onClose();
+              }}
+              className={clsx(
+                'flex items-center text-left transition-all duration-200',
+                isCollapsed
+                  ? 'justify-center rounded-full border border-[#223041] bg-[#182331] p-2.5 shadow-[0_8px_20px_rgba(8,15,26,0.28)] hover:bg-[#1d2a3b]'
+                  : 'gap-3',
+              )}
+              title={isCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a2533] text-white">
-                <Warehouse size={18} />
+              <div
+                className={clsx(
+                  'flex items-center justify-center text-white',
+                  isCollapsed ? 'h-8 w-8 rounded-full bg-[#0f1722]' : 'h-9 w-9 rounded-xl bg-[#1a2533]',
+                )}
+              >
+                <Warehouse size={isCollapsed ? 16 : 18} />
               </div>
               {!isCollapsed && (
                 <div className="flex flex-col">
@@ -151,17 +170,6 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
               <ChevronLeft size={18} />
             </button>
 
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className={clsx(
-                'hidden h-9 w-9 items-center justify-center rounded-xl bg-[#1a2533] text-[#c9d5e3] transition-all hover:bg-[#233243] hover:text-white lg:flex',
-                isCollapsed ? 'mt-3' : 'ml-auto',
-              )}
-              title={isCollapsed ? 'Развернуть меню' : 'Свернуть меню'}
-            >
-              {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            </button>
           </div>
         </div>
 
@@ -229,9 +237,14 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </div>
         </nav>
 
-        <div className={clsx('mt-auto pb-3 pt-3', isCollapsed ? 'px-2' : 'px-3')}>
-          <div className="relative rounded-[18px] border border-[#223041] bg-[#182331] p-3">
-            <div className={clsx('flex items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
+        <div className={clsx('mt-auto pb-4 pt-3', isCollapsed ? 'px-3' : 'px-3')}>
+          <div
+            className={clsx(
+              'relative rounded-[18px] border border-[#223041] bg-[#182331]',
+              isCollapsed ? 'p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]' : 'p-3',
+            )}
+          >
+            <div className={clsx('flex items-center', isCollapsed ? 'flex-col gap-2' : 'gap-3')}>
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#263447] text-[11px] font-semibold text-white">
                 {user.username?.[0]?.toUpperCase()}
               </div>
@@ -247,7 +260,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                 onClick={() => navigate('/reminders')}
                 className={clsx(
                   'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#233243] text-[#c9d5e3] transition-all duration-200 hover:bg-[#2b3c50] hover:text-white',
-                  isCollapsed && 'absolute right-3 top-3',
+                  isCollapsed && 'mx-auto',
                 )}
                 title="Напоминания"
               >
@@ -263,8 +276,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             <button
               onClick={handleLogout}
               className={clsx(
-                'mt-3 flex w-full items-center justify-center rounded-xl bg-[#233243] py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#c9d5e3] transition-all duration-200 hover:bg-[#3a2430] hover:text-[#fecdd3]',
-                isCollapsed ? 'px-0' : 'gap-2',
+                'flex w-full items-center justify-center rounded-xl bg-[#233243] text-[10px] font-semibold uppercase tracking-[0.14em] text-[#c9d5e3] transition-all duration-200 hover:bg-[#3a2430] hover:text-[#fecdd3]',
+                isCollapsed ? 'mt-2 px-0 py-2.5' : 'mt-3 gap-2 py-2',
               )}
               title="Выйти"
             >
