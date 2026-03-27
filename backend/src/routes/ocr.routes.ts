@@ -30,6 +30,57 @@ const isReliableNameKey = (value: string) => {
   return normalized.length >= 6 && letterCount >= 4;
 };
 
+const buildComparableTextKey = (value: string | null | undefined) =>
+  buildProductNameKey(
+    String(value || '')
+      .replace(/[«»“”„‟"']/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+
+const normalizeComparableBrand = (value: string | null | undefined) =>
+  buildComparableTextKey(String(value || '').replace(/[ё]/gu, 'е'));
+
+const buildOcrLineConflictReason = (existingProductName: string) =>
+  `Строка похожа на "${existingProductName}", но отличается по названию. Проверьте её отдельно, чтобы не смешать разные товары.`;
+
+const canSafelyMergeOcrIntoProduct = (input: {
+  existingProduct: {
+    name: string;
+    rawName?: string | null;
+    brand?: string | null;
+    baseUnitName?: string | null;
+    unit?: string | null;
+  };
+  incomingRawName: string;
+  incomingName: string;
+  incomingBrand: string;
+  incomingBaseUnitName: string;
+}) => {
+  const existingComparableName = buildComparableTextKey(
+    input.existingProduct.rawName || input.existingProduct.name
+  );
+  const incomingComparableName = buildComparableTextKey(input.incomingRawName || input.incomingName);
+
+  if (!existingComparableName || !incomingComparableName || existingComparableName !== incomingComparableName) {
+    return false;
+  }
+
+  const existingBrand = normalizeComparableBrand(input.existingProduct.brand);
+  const incomingBrand = normalizeComparableBrand(input.incomingBrand);
+
+  if (existingBrand && incomingBrand && existingBrand !== incomingBrand) {
+    return false;
+  }
+
+  const existingBaseUnit = normalizeBaseUnitName(
+    input.existingProduct.baseUnitName || input.existingProduct.unit || 'шт'
+  );
+  const incomingBaseUnit = normalizeBaseUnitName(input.incomingBaseUnitName || 'шт');
+
+  return existingBaseUnit === incomingBaseUnit;
+};
+
 const detectCategoryName = (name: string) => {
   const normalized = String(name || '').toLowerCase().replace(/[ё]/g, 'е');
 
@@ -128,7 +179,8 @@ router.post('/import-items', async (req: AuthRequest, res, next) => {
     }
 
     const categoryCache = new Map<string, { id: number; name: string }>();
-    const importedItems: Array<{ productId: number; name: string; quantity: number }> = [];
+    const importedItems: Array<{ productId: number; name: string; quantity: number; lineIndex: number }> = [];
+    const failedItems: Array<{ lineIndex: number; reason: string; name: string; rawName: string }> = [];
 
     const ensureCategoryId = async (productName: string) => {
       const categoryName = detectCategoryName(productName);
@@ -155,6 +207,7 @@ router.post('/import-items', async (req: AuthRequest, res, next) => {
     };
 
     for (const item of items) {
+      const lineIndex = Number(item?.lineIndex || 0);
       const rawName = String(item?.rawName || item?.name || '').trim();
       const normalized = normalizeProductName(rawName || String(item?.name || ''));
       const productName = normalized.name;
@@ -171,6 +224,12 @@ router.post('/import-items', async (req: AuthRequest, res, next) => {
       const unitsPerPackage = Number(item?.unitsPerPackage || 0);
 
       if (!productName || !Number.isFinite(quantity) || quantity <= 0) {
+        failedItems.push({
+          lineIndex,
+          reason: 'В строке не хватает названия или количества.',
+          name: productName || String(item?.name || '').trim(),
+          rawName,
+        });
         continue;
       }
 
@@ -186,6 +245,25 @@ router.post('/import-items', async (req: AuthRequest, res, next) => {
             },
           })
         : null;
+
+      if (
+        product &&
+        !canSafelyMergeOcrIntoProduct({
+          existingProduct: product,
+          incomingRawName: rawName || normalized.rawName,
+          incomingName: productName,
+          incomingBrand: brand,
+          incomingBaseUnitName: baseUnitName,
+        })
+      ) {
+        failedItems.push({
+          lineIndex,
+          reason: buildOcrLineConflictReason(product.name),
+          name: productName,
+          rawName,
+        });
+        continue;
+      }
 
       if (!product) {
         product = await prisma.product.create({
@@ -272,12 +350,15 @@ router.post('/import-items', async (req: AuthRequest, res, next) => {
         productId: product.id,
         name: product.name,
         quantity,
+        lineIndex,
       });
     }
 
     return res.status(201).json({
       importedCount: importedItems.length,
       items: importedItems,
+      importedLineIndexes: importedItems.map((entry) => entry.lineIndex).filter((entry) => entry > 0),
+      failedItems,
     });
   } catch (error) {
     next(error);

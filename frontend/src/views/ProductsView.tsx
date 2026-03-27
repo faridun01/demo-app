@@ -272,6 +272,15 @@ const getOcrValidationReason = (item: any, rateValue: unknown, expensePercentVal
   return null;
 };
 
+const getOcrProblemReason = (item: any, rateValue: unknown, expensePercentValue: unknown) => {
+  const serverError = String(item?.serverError || '').trim();
+  if (serverError) {
+    return serverError;
+  }
+
+  return getOcrValidationReason(item, rateValue, expensePercentValue);
+};
+
 export default function ProductsView() {
   const ConfirmationModal = React.lazy(() => import('../components/common/ConfirmationModal'));
   const ProductHistoryModal = React.lazy(() => import('../components/products/ProductHistoryModal'));
@@ -413,12 +422,12 @@ export default function ProductsView() {
       ? restockPackageQuantity * selectedRestockPackaging.unitsPerPackage
       : Number(restockData.quantity || 0);
   const invalidOcrRowsCount = Array.isArray(ocrResults)
-    ? ocrResults.filter((item) => item.enabled !== false && getOcrValidationReason(item, usdRate, scanExpensePercent)).length
+    ? ocrResults.filter((item) => item.enabled !== false && getOcrProblemReason(item, usdRate, scanExpensePercent)).length
     : 0;
   const visibleOcrResults = Array.isArray(ocrResults)
     ? ocrResults.filter((item) =>
         showOnlyProblematicOcrRows
-          ? item.enabled !== false && Boolean(getOcrValidationReason(item, usdRate, scanExpensePercent))
+          ? item.enabled !== false && Boolean(getOcrProblemReason(item, usdRate, scanExpensePercent))
           : true
       )
     : [];
@@ -427,7 +436,7 @@ export default function ProductsView() {
         .filter((item) => item.enabled !== false)
         .map((item) => ({
           lineIndex: Number(item.lineIndex || 0),
-          reason: getOcrValidationReason(item, usdRate, scanExpensePercent),
+          reason: getOcrProblemReason(item, usdRate, scanExpensePercent),
         }))
         .filter((item): item is { lineIndex: number; reason: string } => Boolean(item.reason))
         .sort((a, b) => a.lineIndex - b.lineIndex)
@@ -766,7 +775,7 @@ export default function ProductsView() {
           }
 
           const lineIndex = Number(item.lineIndex || 0);
-          const validationReason = getOcrValidationReason(item, rate, sharedExpensePercent);
+          const validationReason = getOcrProblemReason(item, rate, sharedExpensePercent);
           const normalizedName = normalizeOcrProductName(item.name || '');
           const rawName = String(item.rawName || item.name || '').trim();
           const brand = String(item.brand || '').trim();
@@ -840,7 +849,6 @@ export default function ProductsView() {
         }>;
 
       const importRows = [...preparedResults].sort((a, b) => a.lineIndex - b.lineIndex);
-      const importLineIndexes = new Set(importRows.map((item) => item.lineIndex));
 
       if (invalidRows.length > 0) {
         const invalidRowsText = invalidRows
@@ -871,7 +879,7 @@ export default function ProductsView() {
           items: importRows.map((item) => ({
             lineIndex: item.lineIndex,
             name: item.name,
-            rawName: item.rawName,
+            rawName: item.name || item.rawName,
             brand: item.brand,
             packageName: item.packageName,
             baseUnitName: item.baseUnitName,
@@ -888,25 +896,43 @@ export default function ProductsView() {
 
       const importedCount = Number(response.data?.importedCount || 0);
 
-      if (importedCount !== importRows.length || importedCount !== enabledRowsCount) {
-        toast.error(
-          `Добавление выполнено не полностью: ожидалось ${enabledRowsCount}, добавлено ${importedCount}. Проверьте строки накладной перед повтором.`
-        );
-        await fetchInitialData();
-        return;
-      }
+      const importedLineIndexes = new Set(
+        Array.isArray(response.data?.importedLineIndexes)
+          ? response.data.importedLineIndexes.map((value: unknown) => Number(value)).filter((value: number) => value > 0)
+          : importRows.slice(0, importedCount).map((item) => item.lineIndex)
+      );
+      const failedItems = Array.isArray(response.data?.failedItems) ? response.data.failedItems : [];
+      const failedPairs = failedItems
+        .map((entry: any): [number, string] => [Number(entry?.lineIndex || 0), String(entry?.reason || '').trim()])
+        .filter((entry: [number, string]): entry is [number, string] => entry[0] > 0 && Boolean(entry[1]));
+      const failedByLineIndex = new Map<number, string>(failedPairs);
 
-      const remainingRows = ocrResults.filter((item) => {
-        if (item.enabled === false) {
-          return true;
-        }
+      const remainingRows = ocrResults
+        .filter((item) => {
+          if (item.enabled === false) {
+            return true;
+          }
 
-        return !importLineIndexes.has(Number(item.lineIndex || 0));
-      });
+          return !importedLineIndexes.has(Number(item.lineIndex || 0));
+        })
+        .map((item) => ({
+          ...item,
+          serverError: failedByLineIndex.get(Number(item.lineIndex || 0)) || '',
+        }));
 
       setOcrImportedCount((prev) => prev + importedCount);
 
-      if (remainingRows.length > 0) {
+      if (failedByLineIndex.size > 0) {
+        setOcrResults(remainingRows);
+        setShowOnlyProblematicOcrRows(true);
+        const firstFailedLineIndex = Array.from(failedByLineIndex.keys()).sort((a, b) => a - b)[0];
+        if (firstFailedLineIndex) {
+          jumpToOcrLine(firstFailedLineIndex);
+        }
+        toast.error(
+          `Добавлено ${ocrImportedCount + importedCount} из ${ocrOriginalCount}. Осталось проверить ${failedByLineIndex.size} строк.`
+        );
+      } else if (remainingRows.length > 0) {
         setOcrResults(remainingRows);
         setShowOnlyProblematicOcrRows(false);
         setHighlightedOcrLine(null);
@@ -1837,7 +1863,7 @@ export default function ProductsView() {
                   <div className="col-span-2 text-right">Цена продажи</div>
                 </div>
                 {visibleOcrResults.map((item, i) => {
-                  const validationReason = getOcrValidationReason(item, usdRate, scanExpensePercent);
+                  const validationReason = getOcrProblemReason(item, usdRate, scanExpensePercent);
                   const sourceIndex = ocrResults.findIndex((entry) => entry === item);
 
                   return (
@@ -1867,6 +1893,9 @@ export default function ProductsView() {
                               const newResults = [...ocrResults];
                               if (sourceIndex >= 0) {
                                 newResults[sourceIndex].enabled = e.target.checked;
+                                if (e.target.checked) {
+                                  newResults[sourceIndex].serverError = '';
+                                }
                               }
                               setOcrResults(newResults);
                             }}
@@ -1885,7 +1914,24 @@ export default function ProductsView() {
                           </span>
                         </div>
                       </div>
-                      <p className="font-bold text-slate-900 break-words whitespace-normal">{formatProductName(item.name || item.rawName)}</p>
+                      <input
+                        type="text"
+                        value={item.name || ''}
+                        onChange={(e) => {
+                          const newResults = [...ocrResults];
+                          if (sourceIndex >= 0) {
+                            newResults[sourceIndex].name = e.target.value;
+                            newResults[sourceIndex].serverError = '';
+                          }
+                          setOcrResults(newResults);
+                        }}
+                        className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none focus:border-sky-500"
+                      />
+                      {item.rawName && item.rawName !== item.name && (
+                        <p className="mt-1 text-[10px] font-bold text-slate-400">
+                          OCR: {formatProductName(item.rawName)}
+                        </p>
+                      )}
                       {validationReason && item.enabled !== false && (
                         <p className="mt-2 rounded-xl bg-white/80 px-3 py-2 text-[11px] font-bold text-rose-600 ring-1 ring-rose-200">
                           Нужно проверить: {validationReason}
@@ -1912,6 +1958,7 @@ export default function ProductsView() {
                             const newResults = [...ocrResults];
                             if (sourceIndex >= 0) {
                               newResults[sourceIndex].packageCount = Number(e.target.value || 0);
+                              newResults[sourceIndex].serverError = '';
                             }
                             setOcrResults(newResults);
                           }}
@@ -1926,6 +1973,7 @@ export default function ProductsView() {
                             const newResults = [...ocrResults];
                             if (sourceIndex >= 0) {
                               newResults[sourceIndex].unitsPerPackage = Number(e.target.value || 0);
+                              newResults[sourceIndex].serverError = '';
                             }
                             setOcrResults(newResults);
                           }}
@@ -1953,6 +2001,7 @@ export default function ProductsView() {
                           const newResults = [...ocrResults];
                           if (sourceIndex >= 0) {
                             newResults[sourceIndex].price = Number(e.target.value || 0);
+                            newResults[sourceIndex].serverError = '';
                           }
                           setOcrResults(newResults);
                         }}
@@ -1998,6 +2047,7 @@ export default function ProductsView() {
                           const newResults = [...ocrResults];
                           if (sourceIndex >= 0) {
                             newResults[sourceIndex].sellingPrice = e.target.value;
+                            newResults[sourceIndex].serverError = '';
                           }
                           setOcrResults(newResults);
                         }}
