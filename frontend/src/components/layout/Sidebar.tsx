@@ -123,7 +123,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className={clsx('pb-3 pt-4', isCollapsed ? 'px-3' : 'px-4')}>
+        <div className={clsx('pb-2 pt-3', isCollapsed ? 'px-2.5' : 'px-3.5')}>
           <div className={clsx('flex items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
             <button
               type="button"
@@ -182,17 +182,17 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </div>
         </div>
 
-        <nav className={clsx('custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-2', isCollapsed ? 'px-2' : 'px-3')}>
-          <div className="space-y-3">
+        <nav className={clsx('custom-scrollbar flex-1 overflow-y-auto overflow-x-hidden pb-1', isCollapsed ? 'px-2' : 'px-3')}>
+          <div className="space-y-2">
             {Object.entries(navSections).map(([section, items]) => (
               <div key={section}>
                 {!isCollapsed && (
-                  <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7f92a8]">
+                  <p className="mb-1 px-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#7f92a8]">
                     {section}
                   </p>
                 )}
 
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {items.map((item) => (
                     <NavLink
                       key={item.to}
@@ -204,7 +204,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                       className={({ isActive }) =>
                         clsx(
                           'relative flex overflow-hidden rounded-2xl border transition-all duration-200',
-                          isCollapsed ? 'justify-center px-2 py-2.5' : 'items-center gap-3 px-3 py-2.5',
+                          isCollapsed ? 'justify-center px-2 py-2' : 'items-center gap-3 px-3 py-2',
                           item.primary && !isActive && 'border-[#202d3d] bg-[#182331] text-[#eef4fb]',
                           isActive
                             ? 'border-white/10 bg-white text-[#111827] shadow-sm'
@@ -215,7 +215,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                       {({ isActive }) => (
                         <>
                           <item.icon size={16} className="relative z-10 shrink-0" />
-                          {!isCollapsed && <span className="relative z-10 text-[15px] font-medium">{item.label}</span>}
+                          {!isCollapsed && <span className="relative z-10 text-[14px] font-medium">{item.label}</span>}
 
                           {item.to === '/reminders' && remindersCount > 0 && !isActive && !isCollapsed && (
                             <span className="relative z-10 ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ef4444] px-1 text-[9px] font-semibold text-white">
@@ -246,11 +246,11 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </div>
         </nav>
 
-        <div className="mt-auto px-3 pb-4 pt-3">
+        <div className="mt-auto px-2.5 pb-3 pt-2">
           <div
             className={clsx(
               'relative rounded-[18px] border border-[#223041] bg-[#182331]',
-              isCollapsed ? 'p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]' : 'p-3',
+              isCollapsed ? 'p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]' : 'p-2.5',
             )}
           >
             <div className={clsx('flex items-center', isCollapsed ? 'flex-col gap-2' : 'gap-3')}>
@@ -286,7 +286,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
               onClick={handleLogout}
               className={clsx(
                 'flex w-full items-center justify-center rounded-xl bg-[#233243] text-[10px] font-semibold uppercase tracking-[0.14em] text-[#c9d5e3] transition-all duration-200 hover:bg-[#3a2430] hover:text-[#fecdd3]',
-                isCollapsed ? 'mt-2 px-0 py-2.5' : 'mt-3 gap-2 py-2',
+                isCollapsed ? 'mt-2 px-0 py-2' : 'mt-2.5 gap-2 py-2',
               )}
               title="Выйти"
             >

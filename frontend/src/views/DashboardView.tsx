@@ -2,7 +2,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
-  Bell,
   Boxes,
   ChevronRight,
   Clock3,
@@ -89,7 +88,6 @@ export default function DashboardView() {
   const overviewSales = summary?.overviewSales || [];
   const topProducts = summary?.topProducts || [];
   const lowStock = summary?.lowStock || [];
-  const reminders = summary?.reminders || [];
   const searchQuery = search.trim().toLowerCase();
 
   const metrics = [
@@ -523,17 +521,14 @@ export default function DashboardView() {
             <div className="rounded-3xl border border-white bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[11px] text-slate-500">Напоминания</p>
-                  <p className="mt-2 text-xl font-semibold tracking-tight text-slate-900">
-                    {formatCount(reminders.length || 0)}
+                  <p className="text-[11px] text-slate-500">Сумма товаров на складе</p>
+                  <p className="mt-2 wrap-break-word text-[clamp(1rem,1.35vw,1.35rem)] font-semibold leading-none tracking-tight text-slate-900">
+                    {formatMoney(summary?.inventoryValue || 0)}
                   </p>
                 </div>
-                <button
-                  onClick={() => navigate('/reminders')}
-                  className="rounded-full bg-violet-100 p-4 text-violet-600 transition-colors hover:bg-violet-200"
-                >
-                  <Bell size={22} />
-                </button>
+                <div className="rounded-full bg-violet-100 p-4 text-violet-600">
+                  <Package size={22} />
+                </div>
               </div>
             </div>
           </section>

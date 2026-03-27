@@ -74,6 +74,7 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
     const [
       salesToday,
       totalProductsRaw,
+      inventoryBatches,
       totalCustomers,
       totalWarehouses,
       totalOrders,
@@ -95,6 +96,16 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       prisma.product.findMany({
         where: productWhere,
         select: { id: true, name: true, createdAt: true },
+      }),
+      prisma.productBatch.findMany({
+        where: {
+          warehouseId: selectedWarehouseId ?? (isAdmin ? undefined : (access.warehouseId ?? -1)),
+          remainingQuantity: { gt: 0 },
+        },
+        select: {
+          remainingQuantity: true,
+          costPrice: true,
+        },
       }),
       prisma.customer.count({ where: customerWhere }),
       prisma.warehouse.count({ where: warehouseWhere }),
@@ -193,6 +204,10 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
     const totalProducts = selectedWarehouseId
       ? totalProductsRaw.length
       : new Set(totalProductsRaw.map((product: { name: string }) => normalizeProductKey(product.name))).size;
+
+    const inventoryValue = inventoryBatches.reduce((sum, batch) => {
+      return sum + Number(batch.remainingQuantity || 0) * Number(batch.costPrice || 0);
+    }, 0);
 
     const currentMonthProducts = selectedWarehouseId
       ? currentMonthProductsRaw.length
@@ -305,6 +320,7 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       totalOrders,
       selectedWarehouseId,
       totalRevenue,
+      inventoryValue,
       totalProfit: isAdmin ? totalProfit : null,
       totalDebts,
       lowStock,
