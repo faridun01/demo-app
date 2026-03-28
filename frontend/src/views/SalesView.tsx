@@ -37,6 +37,7 @@ import { getProducts } from '../api/products.api';
 type EditInvoiceItem = {
   key: string;
   productId: number | '';
+  productSearch: string;
   quantity: string;
   sellingPrice: string;
   unit: string;
@@ -155,7 +156,7 @@ export default function SalesView() {
       const effectiveWarehouseId = !isAdmin && userWarehouseId ? String(userWarehouseId) : selectedWarehouseId;
       const query = effectiveWarehouseId ? `?warehouseId=${effectiveWarehouseId}` : '';
       const res = await client.get(`/invoices${query}`);
-      setInvoices(res.data);
+      setInvoices(Array.isArray(res.data) ? res.data.filter((invoice) => !invoice?.cancelled) : []);
     } catch (err) {
       toast.error('Ошибка при загрузке накладных');
     } finally {
@@ -195,9 +196,16 @@ export default function SalesView() {
     try {
       await client.delete(`/invoices/${id}`);
       toast.success('Накладная удалена');
-      await Promise.all([fetchInvoices(), refreshSelectedInvoice(selectedInvoice.id)]);
-    } catch (err) {
-      toast.error('Ошибка при удалении накладной');
+      if (Number(selectedInvoice?.id) === Number(id)) {
+        closeDetailsModal();
+        closeEditModal();
+        closePaymentModal();
+        closeReturnModal();
+        setSelectedInvoice(null);
+      }
+      await fetchInvoices();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Ошибка при удалении накладной');
     }
   };
 
@@ -258,6 +266,10 @@ export default function SalesView() {
   };
 
   const filteredInvoices = invoices.filter((inv) => {
+    if (inv?.cancelled) {
+      return false;
+    }
+
     const matchesSearch =
       inv.id.toString().includes(search) ||
       inv.customer_name.toLowerCase().includes(search.toLowerCase());
@@ -351,6 +363,7 @@ export default function SalesView() {
   const createEditInvoiceItem = (item?: any): EditInvoiceItem => ({
     key: `${item?.id || 'new'}-${Math.random().toString(36).slice(2, 9)}`,
     productId: item?.productId ? Number(item.productId) : '',
+    productSearch: String(item?.product_name || item?.productNameSnapshot || item?.product?.name || ''),
     quantity: item?.quantity !== undefined && item?.quantity !== null ? String(Number(item.quantity)) : '',
     sellingPrice:
       item?.sellingPrice !== undefined && item?.sellingPrice !== null ? toFixedNumber(Number(item.sellingPrice)) : '',
@@ -359,6 +372,19 @@ export default function SalesView() {
 
   const getEditProductMeta = (productId: number | '') =>
     editProducts.find((product) => Number(product.id) === Number(productId));
+
+  const findEditProductBySearch = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+
+    return (
+      editProducts.find((product) => String(product.name || '').trim().toLowerCase() === normalized) ||
+      editProducts.find((product) => String(product.name || '').toLowerCase().includes(normalized)) ||
+      null
+    );
+  };
 
   const updateEditInvoiceItem = (key: string, patch: Partial<EditInvoiceItem>) => {
     setEditInvoiceItems((current) =>
@@ -374,6 +400,7 @@ export default function SalesView() {
         firstProduct
           ? {
               productId: firstProduct.id,
+              product_name: firstProduct.name,
               quantity: 1,
               sellingPrice: Number(firstProduct.sellingPrice || 0),
               unit: firstProduct.baseUnitName || firstProduct.unit || 'шт',
@@ -1251,26 +1278,29 @@ export default function SalesView() {
                           </div>
 
                           <div className="grid gap-3 md:grid-cols-[minmax(0,1.8fr)_110px_130px]">
-                            <select
-                              value={item.productId}
-                              onChange={(e) => {
-                                const nextProductId = e.target.value ? Number(e.target.value) : '';
-                                const nextProduct = getEditProductMeta(nextProductId);
-                                updateEditInvoiceItem(item.key, {
-                                  productId: nextProductId,
-                                  sellingPrice: nextProduct ? toFixedNumber(Number(nextProduct.sellingPrice || 0)) : '',
-                                  unit: nextProduct?.baseUnitName || nextProduct?.unit || 'шт',
-                                });
-                              }}
-                              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
-                            >
-                              <option value="">Выберите товар</option>
-                              {editProducts.map((product) => (
-                                <option key={product.id} value={product.id}>
-                                  {formatProductName(product.name)}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="space-y-2">
+                              <input
+                                list={`invoice-edit-products-${item.key}`}
+                                value={item.productSearch}
+                                onChange={(e) => {
+                                  const nextSearch = e.target.value;
+                                  const nextProduct = findEditProductBySearch(nextSearch);
+                                  updateEditInvoiceItem(item.key, {
+                                    productSearch: nextSearch,
+                                    productId: nextProduct ? Number(nextProduct.id) : '',
+                                    sellingPrice: nextProduct ? toFixedNumber(Number(nextProduct.sellingPrice || 0)) : item.sellingPrice,
+                                    unit: nextProduct?.baseUnitName || nextProduct?.unit || item.unit || 'шт',
+                                  });
+                                }}
+                                placeholder="Найдите товар по названию"
+                                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                              />
+                              <datalist id={`invoice-edit-products-${item.key}`}>
+                                {editProducts.map((product) => (
+                                  <option key={product.id} value={formatProductName(product.name)} />
+                                ))}
+                              </datalist>
+                            </div>
 
                             <input
                               type="number"

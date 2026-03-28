@@ -20,6 +20,7 @@ router.get('/', async (req: AuthRequest, res, next) => {
     const warehouseId = getScopedWarehouseId(access, req.query.warehouseId);
     const invoices = await prisma.invoice.findMany({
       where: {
+        cancelled: false,
         warehouseId: warehouseId ?? undefined,
         userId: access.isAdmin ? undefined : (access.userId ?? -1),
       },

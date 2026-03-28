@@ -350,18 +350,20 @@ router.get('/returns', authorize(['ADMIN']), async (req: AuthRequest, res, next)
       orderBy: { createdAt: 'asc' },
     });
 
-    const report = transactions.map((t: any) => ({
-      return_id: t.referenceId || t.id,
-      date: t.createdAt.toISOString().split('T')[0],
-      warehouse_name: t.warehouse?.name || '',
-      staff_name: t.user?.username || '',
-      product_name: t.product.name,
-      unit: t.product.unit || '',
-      quantity: Math.abs(t.qtyChange),
-      selling_price: Number(t.sellingAtTime || 0),
-      total_value: Math.abs(t.qtyChange) * Number(t.sellingAtTime || 0),
-      reason: t.reason,
-    }));
+    const report = transactions
+      .map((t: any) => ({
+        return_id: t.referenceId || t.id,
+        date: t.createdAt.toISOString().split('T')[0],
+        warehouse_name: t.warehouse?.name || '',
+        staff_name: t.user?.username || '',
+        product_name: t.product.name,
+        unit: t.product.unit || '',
+        quantity: Math.abs(t.qtyChange),
+        selling_price: Number(t.sellingAtTime || 0),
+        total_value: Math.abs(t.qtyChange) * Number(t.sellingAtTime || 0),
+        reason: t.reason,
+      }))
+      .filter((row) => !/^Invoice #\d+ Cancelled$/i.test(String(row.reason || '').trim()));
 
     res.json(report);
   } catch (error) {

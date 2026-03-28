@@ -460,11 +460,27 @@ export class InvoiceService {
     return await prisma.$transaction(async (tx: any) => {
       const invoice = await tx.invoice.findUnique({
         where: { id: invoiceId },
-        include: { items: true },
+        include: {
+          items: true,
+          payments: {
+            select: { id: true },
+          },
+          returns: {
+            select: { id: true },
+          },
+        },
       });
 
       if (!invoice || invoice.cancelled) {
         throw new Error('Invoice not found or already cancelled');
+      }
+
+      if ((invoice.payments?.length || 0) > 0 || Number(invoice.paidAmount || 0) > PAYMENT_EPSILON) {
+        throw new Error('Нельзя удалить накладную, по которой уже есть оплата');
+      }
+
+      if ((invoice.returns?.length || 0) > 0 || Number(invoice.returnedAmount || 0) > PAYMENT_EPSILON) {
+        throw new Error('Нельзя удалить накладную, по которой уже есть возврат');
       }
 
       // 1. Return stock for each item
@@ -480,19 +496,19 @@ export class InvoiceService {
       });
 
       // 3. Record transaction
-      for (const item of invoice.items) {
-        await tx.inventoryTransaction.create({
-          data: {
-            productId: item.productId,
-            warehouseId: invoice.warehouseId,
-            userId,
-            qtyChange: item.quantity,
-            type: 'return',
-            reason: `Invoice #${invoiceId} Cancelled`,
-            referenceId: invoiceId,
-          },
-        });
-      }
+        for (const item of invoice.items) {
+          await tx.inventoryTransaction.create({
+            data: {
+              productId: item.productId,
+              warehouseId: invoice.warehouseId,
+              userId,
+              qtyChange: item.quantity,
+              type: 'adjustment',
+              reason: `Invoice #${invoiceId} Cancelled`,
+              referenceId: invoiceId,
+            },
+          });
+        }
 
       return { success: true };
     }, TRANSACTION_OPTIONS);
