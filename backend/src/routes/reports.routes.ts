@@ -199,7 +199,14 @@ router.get('/sales', authorize(['ADMIN']), async (req: AuthRequest, res, next) =
             quantity: true,
             returnedQty: true,
             sellingPrice: true,
+            costPrice: true,
             product: { select: { name: true, unit: true } },
+            saleAllocations: {
+              select: {
+                quantity: true,
+                batch: { select: { costPrice: true } },
+              },
+            },
           },
         },
       },
@@ -212,6 +219,9 @@ router.get('/sales', authorize(['ADMIN']), async (req: AuthRequest, res, next) =
           const quantity = getRemainingQuantity(item);
           if (quantity <= 0) return null;
 
+          const revenue = getLineNetRevenue(inv, item);
+          const cost = getLineCost(item);
+
           return {
             invoice_id: inv.id,
             date: inv.createdAt.toISOString().split('T')[0],
@@ -223,7 +233,9 @@ router.get('/sales', authorize(['ADMIN']), async (req: AuthRequest, res, next) =
             selling_price: Number(item.sellingPrice),
             gross_sales: Number(item.sellingPrice) * quantity,
             discount_percent: Number(inv.discount || 0),
-            total_sales: getLineNetRevenue(inv, item),
+            total_sales: revenue,
+            cost_price: quantity > 0 ? cost / quantity : 0,
+            profit: revenue - cost,
           };
         })
         .filter(Boolean)

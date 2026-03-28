@@ -130,44 +130,45 @@ export function printSalesInvoice({
         <meta charset="utf-8" />
         <title>Накладная</title>
         <style>
-          @page { size: A4 portrait; margin: 10mm; }
+          @page { size: A4 portrait; margin: 8mm; }
           * { box-sizing: border-box; }
-          body { margin: 0; padding: 12px; font-family: Arial, sans-serif; color: #0f172a; background: #ffffff; }
+          body { margin: 0; padding: 8px; font-family: Arial, sans-serif; color: #0f172a; background: #ffffff; }
           .sheet { max-width: 920px; margin: 0 auto; }
-          .header { display: flex; justify-content: space-between; align-items: stretch; gap: 14px; border-bottom: 1px solid #dbe3ef; padding-bottom: 10px; margin-bottom: 10px; }
-          .party-block { min-width: 0; border: 1px solid #dbe3ef; border-radius: 12px; padding: 10px 12px; background: #f8fafc; }
+          .header { display: flex; justify-content: space-between; align-items: stretch; gap: 10px; border-bottom: 1px solid #dbe3ef; padding-bottom: 8px; margin-bottom: 8px; }
+          .party-block { min-width: 0; border: 1px solid #dbe3ef; border-radius: 10px; padding: 8px 10px; background: #f8fafc; }
           .seller-block { flex: 1; }
-          .client-block { width: 280px; }
-          .label { margin: 0 0 6px; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
-          .party-name { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.2; color: #0f172a; }
-          .party-line { margin: 4px 0 0; color: #334155; font-size: 12px; line-height: 1.35; }
-          .section { margin-top: 10px; }
-          .section h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #334155; }
+          .client-block { width: 250px; }
+          .label { margin: 0 0 5px; color: #64748b; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+          .party-name { margin: 0; font-size: 14px; font-weight: 700; line-height: 1.15; color: #0f172a; }
+          .party-line { margin: 3px 0 0; color: #334155; font-size: 10.5px; line-height: 1.25; }
+          .section { margin-top: 8px; }
+          .section h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #334155; }
           table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-          th, td { border: 1px solid #e2e8f0; padding: 6px 8px; font-size: 12px; text-align: left; vertical-align: top; line-height: 1.25; }
-          th { background: #f8fafc; font-weight: 700; font-size: 11px; }
-          .col-number { width: 42px; }
-          .col-product { width: 265px; }
-          .col-quantity { width: 112px; }
-          .col-package-price { width: 108px; }
-          .col-unit-price { width: 102px; }
-          .col-total { width: 96px; }
-          .product-cell { width: 265px; }
+          th, td { border: 1px solid #e2e8f0; padding: 5px 6px; font-size: 10.5px; text-align: left; vertical-align: top; line-height: 1.15; }
+          th { background: #f8fafc; font-weight: 700; font-size: 10px; }
+          .col-number { width: 30px; }
+          .col-product { width: 325px; }
+          .col-quantity { width: 76px; }
+          .col-package-price { width: 82px; }
+          .col-unit-price { width: 74px; }
+          .col-total { width: 74px; }
+          .product-cell { width: 325px; }
           .product-name {
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
-            line-height: 1.22;
-            max-height: 2.44em;
+            line-height: 1.12;
+            max-height: 2.24em;
             overflow: hidden;
             word-break: break-word;
+            font-size: 10px;
           }
-          .quantity-cell { line-height: 1.2; }
+          .quantity-cell { line-height: 1.1; }
           .quantity-line { display: block; }
-          .quantity-line + .quantity-line { margin-top: 2px; font-size: 11px; color: #475569; }
-          .summary { margin-left: auto; margin-top: 10px; width: 260px; }
-          .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
-          .summary-row.total { font-size: 16px; font-weight: 700; border-top: 1px solid #cbd5e1; margin-top: 4px; padding-top: 8px; }
+          .quantity-line + .quantity-line { margin-top: 1px; font-size: 9px; color: #475569; }
+          .summary { margin-left: auto; margin-top: 8px; width: 240px; }
+          .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
+          .summary-row.total { font-size: 14px; font-weight: 700; border-top: 1px solid #cbd5e1; margin-top: 4px; padding-top: 6px; }
           @media print {
             body { padding: 0; }
             .sheet { max-width: none; }

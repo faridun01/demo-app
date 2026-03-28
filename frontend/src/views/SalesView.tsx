@@ -32,6 +32,15 @@ import { formatProductName } from '../utils/productName';
 import { getDefaultWarehouseId } from '../utils/warehouse';
 import { getCustomers } from '../api/customers.api';
 import { getWarehouses } from '../api/warehouses.api';
+import { getProducts } from '../api/products.api';
+
+type EditInvoiceItem = {
+  key: string;
+  productId: number | '';
+  quantity: string;
+  sellingPrice: string;
+  unit: string;
+};
 
 export default function SalesView() {
   const PAYMENT_EPSILON = 0.01;
@@ -57,6 +66,9 @@ export default function SalesView() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [editCustomerId, setEditCustomerId] = useState<number | ''>('');
+  const [editInvoiceItems, setEditInvoiceItems] = useState<EditInvoiceItem[]>([]);
+  const [editProducts, setEditProducts] = useState<any[]>([]);
+  const [editInvoiceSearch, setEditInvoiceSearch] = useState('');
   const [returnReason, setReturnReason] = useState('');
   const [returnItems, setReturnItems] = useState<any[]>([]);
   const [isPaying, setIsPaying] = useState(false);
@@ -71,6 +83,9 @@ export default function SalesView() {
   const closeEditModal = () => {
     setShowEditModal(false);
     setEditCustomerId('');
+    setEditInvoiceItems([]);
+    setEditProducts([]);
+    setEditInvoiceSearch('');
   };
 
   const closePaymentModal = () => {
@@ -333,26 +348,125 @@ export default function SalesView() {
     }
   };
 
+  const createEditInvoiceItem = (item?: any): EditInvoiceItem => ({
+    key: `${item?.id || 'new'}-${Math.random().toString(36).slice(2, 9)}`,
+    productId: item?.productId ? Number(item.productId) : '',
+    quantity: item?.quantity !== undefined && item?.quantity !== null ? String(Number(item.quantity)) : '',
+    sellingPrice:
+      item?.sellingPrice !== undefined && item?.sellingPrice !== null ? toFixedNumber(Number(item.sellingPrice)) : '',
+    unit: String(item?.unit || item?.baseUnitNameSnapshot || item?.product?.baseUnitName || item?.product?.unit || 'шт'),
+  });
+
+  const getEditProductMeta = (productId: number | '') =>
+    editProducts.find((product) => Number(product.id) === Number(productId));
+
+  const updateEditInvoiceItem = (key: string, patch: Partial<EditInvoiceItem>) => {
+    setEditInvoiceItems((current) =>
+      current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const addEditInvoiceItem = () => {
+    const firstProduct = editProducts[0];
+    setEditInvoiceItems((current) => [
+      ...current,
+      createEditInvoiceItem(
+        firstProduct
+          ? {
+              productId: firstProduct.id,
+              quantity: 1,
+              sellingPrice: Number(firstProduct.sellingPrice || 0),
+              unit: firstProduct.baseUnitName || firstProduct.unit || 'шт',
+            }
+          : undefined,
+      ),
+    ]);
+  };
+
+  const removeEditInvoiceItem = (key: string) => {
+    setEditInvoiceItems((current) => current.filter((item) => item.key !== key));
+  };
+
+  const filteredEditInvoiceItems = editInvoiceItems.filter((item) => {
+    const query = editInvoiceSearch.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+
+    const product = getEditProductMeta(item.productId);
+    const productName = String(product?.name || '').toLowerCase();
+    return productName.includes(query) || String(item.productId || '').includes(query);
+  });
+
   const openEditInvoiceModal = async (invoice: any) => {
     try {
       const res = await client.get(`/invoices/${invoice.id}`);
+      const products = await getProducts(Number(res.data.warehouseId));
       setSelectedInvoice(res.data);
       setEditCustomerId(res.data.customerId || '');
+      setEditProducts(Array.isArray(products) ? products : []);
+      setEditInvoiceItems(
+        Array.isArray(res.data.items) && res.data.items.length
+          ? res.data.items.map((item: any) => createEditInvoiceItem(item))
+          : [],
+      );
       setShowEditModal(true);
     } catch (err) {
       toast.error('Ошибка при загрузке накладной');
     }
   };
 
-  const handleUpdateInvoiceCustomer = async () => {
+  const handleUpdateInvoice = async () => {
     if (!selectedInvoice) return;
+    if (editInvoiceItems.length === 0) {
+      toast.error('Добавьте хотя бы один товар в накладную');
+      return;
+    }
+
+    let payloadItems: any[] = [];
+
+    try {
+      payloadItems = editInvoiceItems.map((item) => {
+        const quantity = Number(item.quantity);
+        const sellingPrice = Number(item.sellingPrice);
+        const product = getEditProductMeta(item.productId);
+
+        if (!item.productId || !product) {
+          throw new Error('Выберите товар для каждой строки');
+        }
+
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          throw new Error(`Укажите корректное количество для "${product.name}"`);
+        }
+
+        if (!Number.isFinite(sellingPrice) || sellingPrice < 0) {
+          throw new Error(`Укажите корректную цену продажи для "${product.name}"`);
+        }
+
+        return {
+          productId: Number(item.productId),
+          quantity,
+          totalBaseUnits: quantity,
+          sellingPrice,
+          baseUnitName: product.baseUnitName || product.unit || item.unit || 'шт',
+          productName: product.name,
+          rawName: product.rawName || null,
+          brand: product.brand || null,
+        };
+      });
+    } catch (error: any) {
+      toast.error(error.message || 'Проверьте строки накладной');
+      return;
+    }
+
     setIsSavingEdit(true);
     try {
       await client.put(`/invoices/${selectedInvoice.id}`, {
         customerId: editCustomerId || null,
+        items: payloadItems,
       });
       toast.success('Клиент продажи обновлён');
-      setShowEditModal(false);
+      closeEditModal();
       await Promise.all([fetchInvoices(), refreshSelectedInvoice(selectedInvoice.id)]);
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Ошибка при обновлении продажи');
@@ -1053,7 +1167,7 @@ export default function SalesView() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-xl overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
+              className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[2.5rem]"
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
                 <div className="flex items-center space-x-4">
@@ -1070,7 +1184,7 @@ export default function SalesView() {
                 </button>
               </div>
 
-              <div className="space-y-5 p-4 sm:space-y-6 sm:p-8">
+              <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:space-y-6 sm:p-8">
                 <div>
                   <label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Клиент</label>
                   <select
@@ -1089,6 +1203,118 @@ export default function SalesView() {
                     При смене клиента все связанные оплаты и возвраты этой накладной будут перенесены к новому клиенту.
                   </p>
                 </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Товары в накладной</p>
+                      <p className="mt-1 text-sm text-slate-500">Удалите неверную строку, выберите другой товар и сохраните накладную.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addEditInvoiceItem}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition-all hover:bg-violet-50"
+                    >
+                      <Plus size={16} />
+                      <span>Добавить товар</span>
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={editInvoiceSearch}
+                      onChange={(e) => setEditInvoiceSearch(e.target.value)}
+                      placeholder="Поиск товара внутри накладной..."
+                      className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    {filteredEditInvoiceItems.map((item) => {
+                      const index = editInvoiceItems.findIndex((entry) => entry.key === item.key);
+                      const selectedProduct = getEditProductMeta(item.productId);
+
+                      return (
+                        <div key={item.key} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <p className="text-sm font-black text-slate-900">Строка #{index + 1}</p>
+                            <button
+                              type="button"
+                              onClick={() => removeEditInvoiceItem(item.key)}
+                              disabled={editInvoiceItems.length === 1}
+                              className="inline-flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Trash2 size={14} />
+                              <span>Убрать</span>
+                            </button>
+                          </div>
+
+                          <div className="grid gap-3 md:grid-cols-[minmax(0,1.8fr)_110px_130px]">
+                            <select
+                              value={item.productId}
+                              onChange={(e) => {
+                                const nextProductId = e.target.value ? Number(e.target.value) : '';
+                                const nextProduct = getEditProductMeta(nextProductId);
+                                updateEditInvoiceItem(item.key, {
+                                  productId: nextProductId,
+                                  sellingPrice: nextProduct ? toFixedNumber(Number(nextProduct.sellingPrice || 0)) : '',
+                                  unit: nextProduct?.baseUnitName || nextProduct?.unit || 'шт',
+                                });
+                              }}
+                              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                            >
+                              <option value="">Выберите товар</option>
+                              {editProducts.map((product) => (
+                                <option key={product.id} value={product.id}>
+                                  {formatProductName(product.name)}
+                                </option>
+                              ))}
+                            </select>
+
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.quantity}
+                              onChange={(e) => updateEditInvoiceItem(item.key, { quantity: e.target.value })}
+                              placeholder="Кол-во"
+                              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                            />
+
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.sellingPrice}
+                              onChange={(e) => updateEditInvoiceItem(item.key, { sellingPrice: e.target.value })}
+                              placeholder="Цена продажи"
+                              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                            />
+                          </div>
+
+                          <div className="mt-3 rounded-2xl bg-slate-50 px-4 py-3">
+                            <p className="break-words text-sm font-semibold leading-6 text-slate-900">
+                              {selectedProduct ? formatProductName(selectedProduct.name) : 'Название товара появится после выбора'}
+                            </p>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                            <span>Ед.: {selectedProduct?.baseUnitName || selectedProduct?.unit || item.unit || 'шт'}</span>
+                            {selectedProduct ? (
+                              <span>Остаток сейчас: {selectedProduct.stock} {selectedProduct.baseUnitName || selectedProduct.unit || 'шт'}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {!filteredEditInvoiceItems.length && (
+                      <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                        По этому поиску товары в накладной не найдены.
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:p-8">
@@ -1099,7 +1325,7 @@ export default function SalesView() {
                   Отмена
                 </button>
                 <button
-                  onClick={handleUpdateInvoiceCustomer}
+                  onClick={handleUpdateInvoice}
                   disabled={isSavingEdit}
                   className="flex-1 rounded-2xl bg-violet-600 py-4 font-black uppercase tracking-widest text-white shadow-lg shadow-violet-600/20 transition-all hover:bg-violet-700 disabled:opacity-50"
                 >

@@ -274,7 +274,183 @@ export class InvoiceService {
           items: true,
         },
       });
+      }, TRANSACTION_OPTIONS);
+  }
+
+  static async updateInvoice(invoiceId: number, data: {
+    customerId: number;
+    userId: number;
+    items: {
+      productId: number;
+      quantity: number;
+      totalBaseUnits?: number;
+      sellingPrice: number;
+      packageQuantity?: number | null;
+      extraUnitQuantity?: number | null;
+      packagingId?: number | null;
+      packageName?: string | null;
+      baseUnitName?: string | null;
+      unitsPerPackage?: number | null;
+      productName?: string | null;
+      rawName?: string | null;
+      brand?: string | null;
+    }[];
+  }) {
+    const { customerId, items } = data;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new Error('Invoice must contain at least one item');
+    }
+
+    await prisma.$transaction(async (tx: any) => {
+      const invoice = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          items: true,
+          payments: true,
+          returns: true,
+        },
+      });
+
+      if (!invoice) {
+        throw new Error('Invoice not found');
+      }
+
+      if (invoice.cancelled) {
+        throw new Error('Cancelled invoice cannot be edited');
+      }
+
+      if (
+        (Array.isArray(invoice.payments) && invoice.payments.length > 0) ||
+        (Array.isArray(invoice.returns) && invoice.returns.length > 0) ||
+        Number(invoice.paidAmount || 0) > PAYMENT_EPSILON ||
+        Number(invoice.returnedAmount || 0) > PAYMENT_EPSILON
+      ) {
+        throw new Error('Нельзя менять товары в накладной после оплаты или возврата');
+      }
+
+      const customer = await tx.customer.findUnique({ where: { id: customerId } });
+      if (!customer) {
+        throw new Error('Customer not found');
+      }
+
+      const products = await tx.product.findMany({
+        where: {
+          id: { in: items.map((item) => Number(item.productId)) },
+          warehouseId: invoice.warehouseId,
+          active: true,
+        },
+        include: {
+          packagings: {
+            where: { active: true },
+          },
+        },
+      }) as any[];
+
+      const productsById = new Map<number, any>(products.map((product: any) => [product.id, product]));
+
+      if (products.length !== items.length) {
+        throw new Error('Один или несколько товаров не принадлежат выбранному складу');
+      }
+
+      let totalAmount = 0;
+      for (const item of items) {
+        const quantity = normalizeNonNegativeNumber(item.totalBaseUnits ?? item.quantity, 'Item quantity');
+        const sellingPrice = normalizeMoney(normalizeNonNegativeNumber(item.sellingPrice, 'Item price'), 'Item price');
+
+        if (quantity <= 0) {
+          throw new Error('Item quantity must be greater than zero');
+        }
+
+        totalAmount += roundMoney(quantity * sellingPrice);
+      }
+
+      totalAmount = roundMoney(totalAmount);
+      const normalizedDiscount = normalizeMoney(normalizeNonNegativeNumber(Number(invoice.discount || 0), 'Discount'), 'Discount');
+      const normalizedTax = normalizeMoney(normalizeNonNegativeNumber(Number(invoice.tax || 0), 'Tax'), 'Tax');
+      const netAmount = roundMoney(totalAmount - (totalAmount * normalizedDiscount / 100) + normalizedTax);
+      const affectedProductIds = new Set<number>();
+
+      for (const existingItem of invoice.items) {
+        affectedProductIds.add(Number(existingItem.productId));
+        await StockService.deallocateStock(existingItem.id, undefined, undefined, tx, false);
+      }
+
+      await tx.invoiceItem.deleteMany({
+        where: { invoiceId },
+      });
+
+      for (const item of items) {
+        const quantity = normalizeNonNegativeNumber(item.totalBaseUnits ?? item.quantity, 'Item quantity');
+        const sellingPrice = normalizeMoney(normalizeNonNegativeNumber(item.sellingPrice, 'Item price'), 'Item price');
+        const product = productsById.get(Number(item.productId));
+
+        if (!product) {
+          throw new Error(`Product ${item.productId} not found`);
+        }
+
+        const packaging = item.packagingId
+          ? product.packagings.find((entry: any) => entry.id === Number(item.packagingId))
+          : product.packagings.find((entry: any) => entry.isDefault) || product.packagings[0] || null;
+
+        const packageQuantity =
+          item.packageQuantity !== undefined && item.packageQuantity !== null
+            ? normalizeNonNegativeNumber(item.packageQuantity, 'Package quantity')
+            : null;
+        const extraUnitQuantity =
+          item.extraUnitQuantity !== undefined && item.extraUnitQuantity !== null
+            ? normalizeNonNegativeNumber(item.extraUnitQuantity, 'Extra unit quantity')
+            : 0;
+        const baseUnitName = normalizeBaseUnitName(item.baseUnitName || packaging?.baseUnitName || product.baseUnitName || product.unit);
+
+        const invoiceItem = await tx.invoiceItem.create({
+          data: {
+            invoiceId,
+            productId: Number(item.productId),
+            quantity,
+            totalBaseUnits: quantity,
+            packageQuantity,
+            extraUnitQuantity,
+            packagingId: packaging?.id || null,
+            packageNameSnapshot: item.packageName || packaging?.packageName || null,
+            baseUnitNameSnapshot: baseUnitName,
+            unitsPerPackageSnapshot: item.unitsPerPackage || packaging?.unitsPerPackage || null,
+            productNameSnapshot: item.productName || product.name,
+            rawNameSnapshot: item.rawName || product.rawName || null,
+            brandSnapshot: item.brand || product.brand || null,
+            sellingPrice,
+            totalPrice: roundMoney(quantity * sellingPrice),
+          },
+        });
+
+        const avgCost = await StockService.allocateStock(Number(item.productId), Number(invoice.warehouseId), quantity, invoiceItem.id, tx);
+        await tx.invoiceItem.update({
+          where: { id: invoiceItem.id },
+          data: { costPrice: avgCost },
+        });
+
+        affectedProductIds.add(Number(item.productId));
+      }
+
+      for (const productId of affectedProductIds) {
+        await StockService.updateProductStockCache(productId, tx);
+      }
+
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          customerId,
+          customerNameSnapshot: customer.name,
+          customerPhoneSnapshot: customer.phone || null,
+          customerAddressSnapshot: buildCustomerAddressSnapshot(customer),
+          totalAmount,
+          netAmount,
+          status: getInvoiceStatus(Number(invoice.paidAmount || 0), Number(netAmount)),
+        },
+      });
     }, TRANSACTION_OPTIONS);
+
+    return this.getInvoiceDetails(invoiceId);
   }
 
   /**

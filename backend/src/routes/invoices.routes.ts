@@ -126,7 +126,14 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
       return res.status(400).json({ error: 'Customer not found' });
     }
 
-    const invoice = await InvoiceService.reassignCustomer(invoiceId, customerId);
+    const hasItemsUpdate = Array.isArray(req.body.items);
+    const invoice = hasItemsUpdate
+      ? await InvoiceService.updateInvoice(invoiceId, {
+          customerId,
+          userId: req.user!.id,
+          items: req.body.items,
+        })
+      : await InvoiceService.reassignCustomer(invoiceId, customerId);
     res.json(invoice);
   } catch (error) {
     next(error);

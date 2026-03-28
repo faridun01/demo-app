@@ -55,6 +55,37 @@ function normalizeSheetName(value: string) {
     .slice(0, 31) || 'Лист';
 }
 
+function applyTotalRowStyle(
+  XLSX: typeof import('xlsx'),
+  worksheet: import('xlsx').WorkSheet,
+  rowIndex: number,
+  columnCount: number
+) {
+  for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
+    const cell = worksheet[cellAddress];
+    if (!cell) {
+      continue;
+    }
+
+    cell.s = {
+      ...(cell.s || {}),
+      font: {
+        ...(cell.s?.font || {}),
+        bold: true,
+      },
+      fill: {
+        patternType: 'solid',
+        fgColor: { rgb: 'E5E7EB' },
+      },
+      border: {
+        top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+        bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+      },
+    };
+  }
+}
+
 function formatDateInputValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -70,6 +101,10 @@ function getMonthRange(year: number, monthIndex: number) {
     start: formatDateInputValue(start),
     end: formatDateInputValue(end),
   };
+}
+
+function getReportMonthKey(startDate: string) {
+  return startDate.slice(0, 7);
 }
 
 const reportMeta: Record<
@@ -318,13 +353,17 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
   const buildReportRows = (rows: ReportRow[]) => {
     const detailHeaders =
       reportType === 'sales'
-        ? ['Дата', 'Накладная', 'Склад', 'Клиент', 'Товар', 'Ед.', 'Кол-во', 'Цена продажи', 'Сумма без скидки', 'Скидка %', 'Сумма после скидки']
+        ? ['Дата', 'Накладная', 'Склад', 'Клиент', 'Товар', 'Ед.', 'Кол-во', 'Себестоимость за 1 шт', 'Цена продажи за 1 шт', 'Прибыль за 1 шт', 'Выручка', 'Общая прибыль']
         : reportType === 'profit'
-          ? ['Дата', 'Накладная', 'Склад', 'Клиент', 'Товар', 'Ед.', 'Кол-во', 'Цена продажи', 'Сумма без скидки', 'Скидка %', 'Чистая выручка', 'Себестоимость за ед.', 'Прибыль']
+          ? ['Дата', 'Накладная', 'Склад', 'Клиент', 'Товар', 'Ед.', 'Кол-во', 'Себестоимость за 1 шт', 'Цена продажи за 1 шт', 'Прибыль за 1 шт', 'Чистая выручка', 'Общая прибыль']
           : ['Дата', 'Возврат', 'Склад', 'Сотрудник', 'Товар', 'Ед.', 'Кол-во', 'Цена продажи', 'Сумма возврата', 'Причина'];
 
     const detailRows = rows.map((row) => {
       if (reportType === 'sales') {
+        const quantity = Number(row.quantity || 0);
+        const totalProfit = Number(row.profit || 0);
+        const profitPerUnit = quantity > 0 ? totalProfit / quantity : 0;
+
         return [
           new Date(row.date).toLocaleDateString('ru-RU'),
           row.invoice_id ? '#' + row.invoice_id : '',
@@ -333,14 +372,19 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           formatProductName(row.product_name),
           row.unit || '',
           formatCount(row.quantity),
+          toFixedNumber(row.cost_price || 0),
           toFixedNumber(row.selling_price || 0),
-          toFixedNumber(row.gross_sales || 0),
-          toFixedNumber(row.discount_percent || 0),
+          toFixedNumber(profitPerUnit),
           toFixedNumber(row.total_sales || 0),
+          toFixedNumber(totalProfit),
         ];
       }
 
       if (reportType === 'profit') {
+        const quantity = Number(row.quantity || 0);
+        const totalProfit = Number(row.profit || 0);
+        const profitPerUnit = quantity > 0 ? totalProfit / quantity : 0;
+
         return [
           new Date(row.date).toLocaleDateString('ru-RU'),
           row.invoice_id ? '#' + row.invoice_id : '',
@@ -349,12 +393,11 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           formatProductName(row.product_name),
           row.unit || '',
           formatCount(row.quantity),
-          toFixedNumber(row.selling_price || 0),
-          toFixedNumber(row.gross_sales || 0),
-          toFixedNumber(row.discount_percent || 0),
-          toFixedNumber(row.net_sales || 0),
           toFixedNumber(row.cost_price || 0),
-          toFixedNumber(row.profit || 0),
+          toFixedNumber(row.selling_price || 0),
+          toFixedNumber(profitPerUnit),
+          toFixedNumber(row.net_sales || 0),
+          toFixedNumber(totalProfit),
         ];
       }
 
@@ -388,8 +431,9 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
 
       return sum + Number(row.quantity || 0);
     }, 0);
+    const totalProfit = rows.reduce((sum, row) => sum + Number(row.profit || 0), 0);
 
-    return [
+    const baseRows = [
       ['Отчёт', currentMeta.title],
       ['Период с', dateRange.start],
       ['Период по', dateRange.end],
@@ -398,41 +442,99 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
       ['Общее количество', formatCount(totalQuantity)],
       ['Сумма периода', reportType === 'returns' ? formatCount(totalQuantity) : toFixedNumber(totalValue)],
     ];
+
+    if (reportType === 'sales' || reportType === 'profit') {
+      baseRows.push(['Общая прибыль', toFixedNumber(totalProfit)]);
+    }
+
+    return baseRows;
   };
+
+  const buildDetailTotalRow = (rows: ReportRow[]) => {
+    const totalRevenue = rows.reduce((sum, row) => {
+      if (reportType === 'sales') {
+        return sum + Number(row.total_sales || 0);
+      }
+
+      if (reportType === 'profit') {
+        return sum + Number(row.net_sales || 0);
+      }
+
+      return sum + Number(row.total_value || 0);
+    }, 0);
+    const totalProfit = rows.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+
+    if (reportType === 'sales' || reportType === 'profit') {
+      return [
+        'ИТОГО',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        toFixedNumber(totalRevenue),
+        toFixedNumber(totalProfit),
+      ];
+    }
+
+    return [
+      'ИТОГО',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      toFixedNumber(totalRevenue),
+      '',
+    ];
+  };
+
+  const buildProductProfitTotalRow = (rows: Array<{ name: string; quantity: number; revenue: number; profit: number }>) => [
+    'ИТОГО',
+    formatCount(rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)),
+    toFixedNumber(rows.reduce((sum, row) => sum + Number(row.revenue || 0), 0)),
+    toFixedNumber(rows.reduce((sum, row) => sum + Number(row.profit || 0), 0)),
+  ];
 
   const exportToExcel = async () => {
     const XLSX = await import('xlsx');
-    const { detailHeaders, detailRows } = buildReportRows(reportData);
     const warehouseName =
       warehouses.find((warehouse) => String(warehouse.id) === selectedWarehouseId)?.name || 'Все склады';
+    const summaryRows = buildSummaryRows(reportData, warehouseName);
+    const { detailHeaders, detailRows } = buildReportRows(reportData);
     const workbook = XLSX.utils.book_new();
 
     const overallRows: unknown[][] = [
-      ...buildSummaryRows(reportData, warehouseName),
+      ...summaryRows,
       [],
       detailHeaders,
       ...detailRows,
+      buildDetailTotalRow(reportData),
     ];
+    const overallDetailTotalRowIndex = overallRows.length - 1;
 
     if (reportType === 'profit' && productProfitData.length) {
       overallRows.push(
         [],
         ['Прибыль по товарам'],
         ['Товар', 'Количество', 'Чистая выручка', 'Прибыль'],
-        ...productProfitData.map((row) => [
-          row.name,
-          formatCount(row.quantity),
-          toFixedNumber(row.revenue),
-          toFixedNumber(row.profit),
-        ])
+        ...productProfitData.map((row) => [row.name, formatCount(row.quantity), toFixedNumber(row.revenue), toFixedNumber(row.profit)]),
+        buildProductProfitTotalRow(productProfitData)
       );
     }
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.aoa_to_sheet(overallRows),
-      normalizeSheetName('Общий отчёт')
-    );
+    const overallSheet = XLSX.utils.aoa_to_sheet(overallRows);
+    applyTotalRowStyle(XLSX, overallSheet, overallDetailTotalRowIndex, detailHeaders.length);
+    if (reportType === 'profit' && productProfitData.length) {
+      applyTotalRowStyle(XLSX, overallSheet, overallRows.length - 1, 4);
+    }
+    XLSX.utils.book_append_sheet(workbook, overallSheet, normalizeSheetName('Общий отчёт'));
 
     const groupedByWarehouse = reportData.reduce((acc, row) => {
       const key = row.warehouse_name || 'Без склада';
@@ -444,13 +546,16 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     }, new Map<string, ReportRow[]>());
 
     groupedByWarehouse.forEach((rows, name) => {
+      const warehouseSummaryRows = buildSummaryRows(rows, name);
       const { detailRows: warehouseDetailRows } = buildReportRows(rows);
       const sheetRows: unknown[][] = [
-        ...buildSummaryRows(rows, name),
+        ...warehouseSummaryRows,
         [],
         detailHeaders,
         ...warehouseDetailRows,
+        buildDetailTotalRow(rows),
       ];
+      const warehouseDetailTotalRowIndex = sheetRows.length - 1;
 
       if (reportType === 'profit' && productProfitData.length) {
         const warehouseProfitData = rows
@@ -482,19 +587,28 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
               formatCount(row.quantity),
               toFixedNumber(row.revenue),
               toFixedNumber(row.profit),
-            ])
+            ]),
+            buildProductProfitTotalRow(warehouseProfitData)
           );
         }
       }
 
-      XLSX.utils.book_append_sheet(
-        workbook,
-        XLSX.utils.aoa_to_sheet(sheetRows),
-        normalizeSheetName(name)
-      );
+      const warehouseSheet = XLSX.utils.aoa_to_sheet(sheetRows);
+      applyTotalRowStyle(XLSX, warehouseSheet, warehouseDetailTotalRowIndex, detailHeaders.length);
+      if (reportType === 'profit') {
+        const hasWarehouseProfitBlock = sheetRows.some(
+          (row) => Array.isArray(row) && row[0] === 'ИТОГО' && row.length === 4
+        );
+        if (hasWarehouseProfitBlock) {
+          applyTotalRowStyle(XLSX, warehouseSheet, sheetRows.length - 1, 4);
+        }
+      }
+      XLSX.utils.book_append_sheet(workbook, warehouseSheet, normalizeSheetName(name));
     });
 
-    XLSX.writeFile(workbook, `otchet_${reportType}_${dateRange.start}_${dateRange.end}.xlsx`);
+    const downloadedAt = formatDateInputValue(new Date());
+    const reportMonth = getReportMonthKey(dateRange.start);
+    XLSX.writeFile(workbook, `otchet_${reportType}_${reportMonth}_skachano_${downloadedAt}.xlsx`);
   };
 
   return (
