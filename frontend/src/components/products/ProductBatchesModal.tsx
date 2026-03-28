@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { clsx } from 'clsx';
 import { Layers, Trash2, X } from 'lucide-react';
@@ -15,11 +15,20 @@ interface ProductBatchesModalProps {
 
 const normalizePackageName = (value: string) => {
   const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return 'упаковка';
-  if (['мешок', 'мешка', 'мешков', 'bag'].includes(normalized)) return 'мешок';
-  if (['коробка', 'коробки', 'коробок', 'box'].includes(normalized)) return 'коробка';
-  if (['упаковка', 'упаковки', 'упаковок', 'pack'].includes(normalized)) return 'упаковка';
-  if (['пачка', 'пачки', 'пачек'].includes(normalized)) return 'пачка';
+  if (!normalized) return 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°';
+  if (['Ð¼ÐµÑˆÐ¾Ðº', 'Ð¼ÐµÑˆÐºÐ°', 'Ð¼ÐµÑˆÐºÐ¾Ð²', 'bag'].includes(normalized)) return 'Ð¼ÐµÑˆÐ¾Ðº';
+  if (['ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°', 'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ¸', 'ÐºÐ¾Ñ€Ð¾Ð±Ð¾Ðº', 'box'].includes(normalized)) return 'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°';
+  if (['ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ¸', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²Ð¾Ðº', 'pack'].includes(normalized)) return 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°';
+  if (['Ð¿Ð°Ñ‡ÐºÐ°', 'Ð¿Ð°Ñ‡ÐºÐ¸', 'Ð¿Ð°Ñ‡ÐµÐº'].includes(normalized)) return 'Ð¿Ð°Ñ‡ÐºÐ°';
+  return normalized;
+};
+
+const normalizeDisplayBaseUnit = (value: string) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '\u0448\u0442';
+  if (['\u043f\u0430\u0447\u043a\u0430', '\u043f\u0430\u0447\u043a\u0438', '\u043f\u0430\u0447\u0435\u043a', '\u0448\u0442', '\u0448\u0442\u0443\u043a', '\u0448\u0442\u0443\u043a\u0430', '\u0448\u0442\u0443\u043a\u0438', 'pcs', 'piece', 'pieces'].includes(normalized)) {
+    return '\u0448\u0442';
+  }
   return normalized;
 };
 
@@ -36,16 +45,16 @@ const pluralizeRu = (count: number, forms: [string, string, string]) => {
 const formatCountWithUnit = (count: number, unit: string) => {
   const normalized = String(unit || '').trim().toLowerCase();
   const formsMap: Record<string, [string, string, string]> = {
-    'шт': ['шт', 'шт', 'шт'],
-    'штука': ['штука', 'штуки', 'штук'],
-    'пачка': ['пачка', 'пачки', 'пачек'],
-    'мешок': ['мешок', 'мешка', 'мешков'],
-    'коробка': ['коробка', 'коробки', 'коробок'],
-    'упаковка': ['упаковка', 'упаковки', 'упаковок'],
-    'флакон': ['флакон', 'флакона', 'флаконов'],
-    'ёмкость': ['ёмкость', 'ёмкости', 'ёмкостей'],
-    'емкость': ['ёмкость', 'ёмкости', 'ёмкостей'],
-    'бутылка': ['бутылка', 'бутылки', 'бутылок'],
+    'ÑˆÑ‚': ['ÑˆÑ‚', 'ÑˆÑ‚', 'ÑˆÑ‚'],
+    'ÑˆÑ‚ÑƒÐºÐ°': ['ÑˆÑ‚ÑƒÐºÐ°', 'ÑˆÑ‚ÑƒÐºÐ¸', 'ÑˆÑ‚ÑƒÐº'],
+    'Ð¿Ð°Ñ‡ÐºÐ°': ['Ð¿Ð°Ñ‡ÐºÐ°', 'Ð¿Ð°Ñ‡ÐºÐ¸', 'Ð¿Ð°Ñ‡ÐµÐº'],
+    'Ð¼ÐµÑˆÐ¾Ðº': ['Ð¼ÐµÑˆÐ¾Ðº', 'Ð¼ÐµÑˆÐºÐ°', 'Ð¼ÐµÑˆÐºÐ¾Ð²'],
+    'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°': ['ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°', 'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ¸', 'ÐºÐ¾Ñ€Ð¾Ð±Ð¾Ðº'],
+    'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°': ['ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ¸', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²Ð¾Ðº'],
+    'Ñ„Ð»Ð°ÐºÐ¾Ð½': ['Ñ„Ð»Ð°ÐºÐ¾Ð½', 'Ñ„Ð»Ð°ÐºÐ¾Ð½Ð°', 'Ñ„Ð»Ð°ÐºÐ¾Ð½Ð¾Ð²'],
+    'Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÑŒ': ['Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÑŒ', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚Ð¸', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÐµÐ¹'],
+    'ÐµÐ¼ÐºÐ¾ÑÑ‚ÑŒ': ['Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÑŒ', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚Ð¸', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÐµÐ¹'],
+    'Ð±ÑƒÑ‚Ñ‹Ð»ÐºÐ°': ['Ð±ÑƒÑ‚Ñ‹Ð»ÐºÐ°', 'Ð±ÑƒÑ‚Ñ‹Ð»ÐºÐ¸', 'Ð±ÑƒÑ‚Ñ‹Ð»Ð¾Ðº'],
   };
 
   const forms = formsMap[normalized] || [unit, unit, unit];
@@ -65,8 +74,8 @@ const getQuantityBreakdown = (quantityValue: unknown, product: any) => {
   const totalUnits = Number(quantityValue || 0);
   const preferredPackaging = getPreferredPackaging(product);
   const unitsPerPackage = Number(preferredPackaging?.unitsPerPackage || 0);
-  const packageName = normalizePackageName(preferredPackaging?.packageName || preferredPackaging?.name || 'упаковка');
-  const baseUnitName = product?.unit || 'шт';
+  const packageName = normalizePackageName(preferredPackaging?.packageName || preferredPackaging?.name || 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°');
+  const baseUnitName = normalizeDisplayBaseUnit(product?.unit || '\u0448\u0442');
 
   if (!preferredPackaging || unitsPerPackage <= 1 || !Number.isFinite(totalUnits)) {
     return {
@@ -83,7 +92,7 @@ const getQuantityBreakdown = (quantityValue: unknown, product: any) => {
       remainderUnits > 0
         ? `${formatCountWithUnit(packageCount, packageName)}\n${formatCountWithUnit(remainderUnits, baseUnitName)}`
         : formatCountWithUnit(packageCount, packageName),
-    secondary: `${formatCountWithUnit(totalUnits, baseUnitName)} всего`,
+    secondary: `${formatCountWithUnit(totalUnits, baseUnitName)} Ð²ÑÐµÐ³Ð¾`,
   };
 };
 
@@ -130,7 +139,7 @@ export default function ProductBatchesModal({
                 <div className="rounded-2xl bg-violet-500 p-2.5 text-white">
                   <Layers size={20} />
                 </div>
-                <span>Партии товара (FIFO): {selectedProduct.name}</span>
+                <span>ÐŸÐ°Ñ€Ñ‚Ð¸Ð¸ Ñ‚Ð¾Ð²Ð°Ñ€Ð° (FIFO): {selectedProduct.name}</span>
               </h3>
               <button type="button" onClick={onClose} className="text-slate-400 transition-colors hover:text-slate-600">
                 <X size={24} />
@@ -139,7 +148,7 @@ export default function ProductBatchesModal({
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="mb-5 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm font-medium text-amber-800">
-                Система списывает товар из самых старых партий в первую очередь по FIFO.
+                Ð¡Ð¸ÑÑ‚ÐµÐ¼Ð° ÑÐ¿Ð¸ÑÑ‹Ð²Ð°ÐµÑ‚ Ñ‚Ð¾Ð²Ð°Ñ€ Ð¸Ð· ÑÐ°Ð¼Ñ‹Ñ… ÑÑ‚Ð°Ñ€Ñ‹Ñ… Ð¿Ð°Ñ€Ñ‚Ð¸Ð¹ Ð² Ð¿ÐµÑ€Ð²ÑƒÑŽ Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ Ð¿Ð¾ FIFO.
               </div>
 
               <div className="space-y-3 sm:hidden">
@@ -155,20 +164,20 @@ export default function ProductBatchesModal({
                           <p className="mt-1 text-sm text-slate-500">{b.warehouse?.name || '---'}</p>
                         </div>
                         {i === 0 && (
-                          <span className="rounded-md bg-violet-500 px-2 py-1 text-[8px] uppercase text-white">След. на списание</span>
+                          <span className="rounded-md bg-violet-500 px-2 py-1 text-[8px] uppercase text-white">Ð¡Ð»ÐµÐ´. Ð½Ð° ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ðµ</span>
                         )}
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-white px-3 py-3">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Нач. кол-во</p>
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">ÐÐ°Ñ‡. ÐºÐ¾Ð»-Ð²Ð¾</p>
                           <p className="mt-1 whitespace-pre-line text-sm font-semibold text-slate-900">{quantityInfo.primary}</p>
                           {quantityInfo.secondary && (
                             <p className="mt-1 text-[11px] font-medium text-slate-500">{quantityInfo.secondary}</p>
                           )}
                         </div>
                         <div className="rounded-2xl bg-white px-3 py-3">
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">ÐžÑÑ‚Ð°Ñ‚Ð¾Ðº</p>
                           <p className="mt-1 whitespace-pre-line text-sm font-black text-slate-900">{remainingInfo.primary}</p>
                           {remainingInfo.secondary && (
                             <p className="mt-1 text-[11px] font-medium text-slate-500">{remainingInfo.secondary}</p>
@@ -177,7 +186,7 @@ export default function ProductBatchesModal({
                       </div>
 
                       <div className="mt-3 rounded-2xl bg-white px-3 py-3">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Цена закупки</p>
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Ð¦ÐµÐ½Ð° Ð·Ð°ÐºÑƒÐ¿ÐºÐ¸</p>
                         <p className="mt-1 text-sm font-black text-emerald-600">{formatMoney(b.costPrice)}</p>
                       </div>
 
@@ -190,7 +199,7 @@ export default function ProductBatchesModal({
                             className="flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <Trash2 size={14} />
-                            <span>Удалить партию</span>
+                            <span>Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ Ð¿Ð°Ñ€Ñ‚Ð¸ÑŽ</span>
                           </button>
                         </div>
                       )}
@@ -199,19 +208,19 @@ export default function ProductBatchesModal({
                 })}
 
                 {productBatches.length === 0 && (
-                  <div className="rounded-3xl bg-slate-50 px-4 py-10 text-center text-sm font-bold text-slate-400">Партий не найдено</div>
+                  <div className="rounded-3xl bg-slate-50 px-4 py-10 text-center text-sm font-bold text-slate-400">ÐŸÐ°Ñ€Ñ‚Ð¸Ð¹ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½Ð¾</div>
                 )}
               </div>
 
               <table className="hidden w-full text-left sm:table">
                 <thead>
                   <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    <th className="pb-4">Дата закупки</th>
-                    <th className="pb-4">Склад</th>
-                    <th className="pb-4 text-right">Начальное кол-во</th>
-                    <th className="pb-4 text-right">Остаток</th>
-                    <th className="pb-4 text-right">Цена закупки</th>
-                    {canManage && <th className="pb-4 text-right">Действия</th>}
+                    <th className="pb-4">Ð”Ð°Ñ‚Ð° Ð·Ð°ÐºÑƒÐ¿ÐºÐ¸</th>
+                    <th className="pb-4">Ð¡ÐºÐ»Ð°Ð´</th>
+                    <th className="pb-4 text-right">ÐÐ°Ñ‡Ð°Ð»ÑŒÐ½Ð¾Ðµ ÐºÐ¾Ð»-Ð²Ð¾</th>
+                    <th className="pb-4 text-right">ÐžÑÑ‚Ð°Ñ‚Ð¾Ðº</th>
+                    <th className="pb-4 text-right">Ð¦ÐµÐ½Ð° Ð·Ð°ÐºÑƒÐ¿ÐºÐ¸</th>
+                    {canManage && <th className="pb-4 text-right">Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ñ</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -223,7 +232,7 @@ export default function ProductBatchesModal({
                       <tr key={b.id} className={clsx('text-[13px]', i === 0 && 'bg-violet-50/40')}>
                         <td className="py-3 font-bold text-slate-500">
                           {new Date(b.createdAt).toLocaleDateString('ru-RU')}
-                          {i === 0 && <span className="ml-2 rounded-md bg-violet-500 px-2 py-0.5 text-[8px] uppercase text-white">След. на списание</span>}
+                          {i === 0 && <span className="ml-2 rounded-md bg-violet-500 px-2 py-0.5 text-[8px] uppercase text-white">Ð¡Ð»ÐµÐ´. Ð½Ð° ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ðµ</span>}
                         </td>
                         <td className="py-3 font-bold text-slate-600">{b.warehouse?.name || '---'}</td>
                         <td className="py-3 text-right font-bold text-slate-400">
@@ -249,7 +258,7 @@ export default function ProductBatchesModal({
                                 className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 <Trash2 size={12} />
-                                <span>Удалить</span>
+                                <span>Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ</span>
                               </button>
                             </div>
                           </td>
@@ -260,7 +269,7 @@ export default function ProductBatchesModal({
 
                   {productBatches.length === 0 && (
                     <tr>
-                      <td colSpan={canManage ? 6 : 5} className="py-20 text-center font-bold text-slate-400">Партий не найдено</td>
+                      <td colSpan={canManage ? 6 : 5} className="py-20 text-center font-bold text-slate-400">ÐŸÐ°Ñ€Ñ‚Ð¸Ð¹ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½Ð¾</td>
                     </tr>
                   )}
                 </tbody>
@@ -269,7 +278,7 @@ export default function ProductBatchesModal({
 
             <div className="flex justify-end border-t border-slate-100 bg-slate-50 p-4 sm:p-6">
               <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white px-8 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50">
-                Закрыть
+                Ð—Ð°ÐºÑ€Ñ‹Ñ‚ÑŒ
               </button>
             </div>
           </motion.div>

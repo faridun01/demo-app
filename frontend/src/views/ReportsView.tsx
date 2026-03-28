@@ -55,6 +55,15 @@ function normalizeSheetName(value: string) {
     .slice(0, 31) || 'Лист';
 }
 
+function normalizeDisplayBaseUnit(value: unknown) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'шт';
+  if (['пачка', 'пачки', 'пачек', 'шт', 'штук', 'штука', 'штуки', 'pcs', 'piece', 'pieces'].includes(normalized)) {
+    return 'шт';
+  }
+  return normalized;
+}
+
 function applyTotalRowStyle(
   XLSX: typeof import('xlsx'),
   worksheet: import('xlsx').WorkSheet,
@@ -370,7 +379,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           row.warehouse_name || '',
           row.customer_name || '',
           formatProductName(row.product_name),
-          row.unit || '',
+          normalizeDisplayBaseUnit(row.unit),
           formatCount(row.quantity),
           toFixedNumber(row.cost_price || 0),
           toFixedNumber(row.selling_price || 0),
@@ -391,7 +400,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           row.warehouse_name || '',
           row.customer_name || '',
           formatProductName(row.product_name),
-          row.unit || '',
+          normalizeDisplayBaseUnit(row.unit),
           formatCount(row.quantity),
           toFixedNumber(row.cost_price || 0),
           toFixedNumber(row.selling_price || 0),
@@ -407,7 +416,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
         row.warehouse_name || '',
         row.staff_name || '',
         formatProductName(row.product_name),
-        row.unit || '',
+        normalizeDisplayBaseUnit(row.unit),
         formatCount(row.quantity),
         toFixedNumber(row.selling_price || 0),
         toFixedNumber(row.total_value || 0),

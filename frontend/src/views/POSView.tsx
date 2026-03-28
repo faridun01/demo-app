@@ -1,4 +1,4 @@
-import React, { startTransition, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react';
+﻿import React, { startTransition, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Banknote,
@@ -93,7 +93,7 @@ const normalizePackagings = (product: any): PackagingOption[] =>
         .map((entry: any) => ({
           id: Number(entry.id),
           packageName: String(entry.packageName || '').trim(),
-          baseUnitName: String(entry.baseUnitName || product?.baseUnitName || product?.unit || 'шт').trim() || 'шт',
+          baseUnitName: normalizeDisplayBaseUnit(String(entry.baseUnitName || product?.baseUnitName || product?.unit || '\u0448\u0442')),
           unitsPerPackage: Number(entry.unitsPerPackage || 0),
           isDefault: Boolean(entry.isDefault),
         }))
@@ -102,6 +102,15 @@ const normalizePackagings = (product: any): PackagingOption[] =>
 
 const getDefaultPackaging = (packagings: PackagingOption[]) =>
   packagings.find((entry) => entry.isDefault) || packagings[0] || null;
+
+const normalizeDisplayBaseUnit = (value: string) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return '\u0448\u0442';
+  if (['\u043f\u0430\u0447\u043a\u0430', '\u043f\u0430\u0447\u043a\u0438', '\u043f\u0430\u0447\u0435\u043a', '\u0448\u0442', '\u0448\u0442\u0443\u043a', '\u0448\u0442\u0443\u043a\u0430', '\u0448\u0442\u0443\u043a\u0438', 'pcs', 'piece', 'pieces'].includes(normalized)) {
+    return '\u0448\u0442';
+  }
+  return normalized;
+};
 
 export default function POSView() {
   const cartStorageKey = 'pos_cart_session';
@@ -188,7 +197,7 @@ export default function POSView() {
   const createCartItemFromProduct = (product: any): CartItem => {
     const packagings = normalizePackagings(product);
     const defaultPackaging = getDefaultPackaging(packagings);
-    const baseUnitName = String(product.baseUnitName || product.unit || defaultPackaging?.baseUnitName || 'шт').trim() || 'шт';
+    const baseUnitName = normalizeDisplayBaseUnit(String(product.baseUnitName || product.unit || defaultPackaging?.baseUnitName || '\u0448\u0442'));
     const initialItem: CartItem = {
       ...product,
       quantity: defaultPackaging && Number(product.stock || 0) >= defaultPackaging.unitsPerPackage ? defaultPackaging.unitsPerPackage : 1,
@@ -262,7 +271,7 @@ export default function POSView() {
 
         const packagings = normalizePackagings(product);
         const fallbackPackaging = getDefaultPackaging(packagings);
-        const baseUnitName = String(product.baseUnitName || product.unit || item.baseUnitName || fallbackPackaging?.baseUnitName || 'шт').trim() || 'шт';
+        const baseUnitName = normalizeDisplayBaseUnit(String(product.baseUnitName || product.unit || item.baseUnitName || fallbackPackaging?.baseUnitName || '\u0448\u0442'));
 
         return normalizeCartItem({
           ...item,
@@ -365,7 +374,7 @@ export default function POSView() {
 
     if (showToast) {
       toast('Склад изменён. Черновик продажи сброшен автоматически.', {
-        icon: '↺',
+        icon: 'â†º',
       });
     }
   };
@@ -745,13 +754,13 @@ export default function POSView() {
         <div className="space-y-5 px-5 py-5">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="text-4xl font-semibold tracking-tight text-slate-900">{'POS Терминал'}</h1>
-              <p className="mt-1 text-sm text-slate-500">{'Оформление продаж, выбор клиента и создание накладной.'}</p>
+              <h1 className="text-4xl font-semibold tracking-tight text-slate-900">POS Терминал</h1>
+              <p className="mt-1 text-sm text-slate-500">Оформление продаж, выбор клиента и создание накладной.</p>
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-400">
-              <span>{'Главная'}</span>
+              <span>Главная</span>
               <span>/</span>
-              <span className="text-slate-600">{'POS Терминал'}</span>
+              <span className="text-slate-600">POS Терминал</span>
             </div>
           </div>
 
@@ -763,7 +772,7 @@ export default function POSView() {
                 activeTab === 'products' ? posTheme.products.tab : 'bg-sky-50 text-sky-700'
               )}
             >
-              {'Товары'}
+              Товары
             </button>
             <button
               onClick={() => setActiveTab('cart')}
@@ -772,7 +781,7 @@ export default function POSView() {
                 activeTab === 'cart' ? posTheme.cart.tab : 'bg-emerald-50 text-emerald-700'
               )}
             >
-              {'Корзина'} {cart.length ? `(${cart.length})` : ''}
+              Корзина {cart.length ? `(${cart.length})` : ''}
             </button>
           </div>
 
@@ -782,8 +791,8 @@ export default function POSView() {
                 <div className="border-b border-slate-200 px-5 py-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <h2 className="text-2xl font-semibold text-slate-900">{'Товары'}</h2>
-                      <p className="mt-1 text-sm text-slate-500">{filteredProducts.length} {'доступных позиций'}</p>
+                      <h2 className="text-2xl font-semibold text-slate-900">Товары</h2>
+                      <p className="mt-1 text-sm text-slate-500">{filteredProducts.length} доступных позиций</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 shadow-sm">
@@ -794,7 +803,7 @@ export default function POSView() {
                           disabled={!isAdmin}
                           className="min-w-[170px] appearance-none bg-transparent text-sm text-slate-700 outline-none"
                         >
-                          <option value="">{'Выберите склад'}</option>
+                          <option value="">Выберите склад</option>
                           {warehouses.map((warehouse) => (
                             <option key={warehouse.id} value={warehouse.id}>
                               {warehouse.name}
@@ -824,7 +833,7 @@ export default function POSView() {
                             setProductSearch(value);
                           });
                         }}
-                        placeholder={'Поиск товара или ID...'}
+                        placeholder="Поиск товара или ID..."
                         className="w-full rounded-[24px] border border-sky-100 bg-sky-50 py-4 pl-12 pr-5 text-sm text-slate-700 outline-none transition-colors focus:border-sky-300"
                       />
                     </div>
@@ -832,16 +841,16 @@ export default function POSView() {
 
                   {isAdmin && !warehouseId && (
                     <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                      {'Перед добавлением товара выберите склад.'}
+                      Перед добавлением товара выберите склад.
                     </div>
                   )}
                 </div>
 
                 <div className="hidden grid-cols-[minmax(0,1.7fr)_90px_110px_110px] bg-sky-50 px-5 py-4 text-sm text-slate-500 md:grid">
-                  <div>{'Товар'}</div>
-                  <div className="text-center">{'Остаток'}</div>
-                  <div className="text-center">{'Цена'}</div>
-                  <div className="text-right">{'Действие'}</div>
+                  <div>Товар</div>
+                  <div className="text-center">Остаток</div>
+                  <div className="text-center">Цена</div>
+                  <div className="text-right">Действие</div>
                 </div>
 
                 <div ref={productListRef} className="h-[560px] overflow-y-auto">
@@ -870,11 +879,11 @@ export default function POSView() {
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           <div className="rounded-xl bg-sky-50 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">{'Остаток'}</p>
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Остаток</p>
                             <p className="mt-1 text-sm text-slate-900">{product.stock}</p>
                           </div>
                           <div className="rounded-xl bg-sky-50 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">{'Цена'}</p>
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Цена</p>
                             <p className="mt-1 break-words text-sm text-slate-900">{formatMoney(product.sellingPrice)}</p>
                           </div>
                         </div>
@@ -885,7 +894,7 @@ export default function POSView() {
                           className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-xl bg-sky-500 px-3 py-2.5 text-sm text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Plus size={15} />
-                          <span>{'Добавить'}</span>
+                          <span>Добавить</span>
                         </button>
                       </div>
                     ))}
@@ -929,7 +938,7 @@ export default function POSView() {
                           className="inline-flex items-center gap-1 rounded-xl bg-sky-500 px-3 py-2 text-sm text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Plus size={15} />
-                          <span>{'Добавить'}</span>
+                          <span>Добавить</span>
                         </button>
                       </div>
                     </div>
@@ -940,7 +949,7 @@ export default function POSView() {
                       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-300">
                         <Search size={28} />
                       </div>
-                      <p className="text-sm text-slate-500">{'Товары не найдены'}</p>
+                      <p className="text-sm text-slate-500">Товары не найдены</p>
                     </div>
                   )}
                 </div>
@@ -951,8 +960,8 @@ export default function POSView() {
               <div className="flex h-full flex-col overflow-hidden rounded-[24px] border border-white bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                   <div>
-                    <h2 className="text-2xl font-semibold text-slate-900">{'Корзина'}</h2>
-                    <p className="mt-1 text-sm text-slate-500">{'Выбрано позиций:'} {cart.length}</p>
+                    <h2 className="text-2xl font-semibold text-slate-900">Корзина</h2>
+                    <p className="mt-1 text-sm text-slate-500">Выбрано позиций: {cart.length}</p>
                   </div>
                   <div className="flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-2 text-emerald-700">
                     <ShoppingCart size={18} />
@@ -963,7 +972,7 @@ export default function POSView() {
                 <div className="space-y-3 border-b border-slate-200 px-4 py-4 md:px-5">
                   <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 md:hidden">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium">{'Сумма корзины'}</span>
+                      <span className="font-medium">Сумма корзины</span>
                       <span className="text-base font-semibold text-slate-900">{formatMoney(total)}</span>
                     </div>
                   </div>
@@ -1030,7 +1039,7 @@ export default function POSView() {
                   </div>
                   {!customerId && (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                      {'Выберите клиента, иначе оформить продажу нельзя.'}
+                      Выберите клиента, иначе оформить продажу нельзя.
                     </div>
                   )}
                 </div>
@@ -1089,7 +1098,7 @@ export default function POSView() {
                                 onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
                                 className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700 outline-none"
                               >
-                                <option value="">Только {item.baseUnitName}</option>
+                                <option value="">{'\u0422\u043e\u043b\u044c\u043a\u043e'} {item.baseUnitName}</option>
                                 {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
                                   <option key={packaging.id} value={packaging.id}>
                                     {packaging.packageName} x {packaging.unitsPerPackage}
@@ -1104,7 +1113,7 @@ export default function POSView() {
                                 onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
                                 onBlur={() => commitPackageQuantityInput(item.id)}
                                 disabled={!item.selectedPackagingId}
-                                placeholder="Упак."
+                                placeholder={'\u0423\u043f\u0430\u043a.'}
                                 className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-center text-sm text-slate-900 outline-none disabled:cursor-not-allowed disabled:opacity-50"
                               />
 
@@ -1122,11 +1131,11 @@ export default function POSView() {
                             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
                               <span>
                                 {item.selectedPackagingId
-                                  ? `${getCartPackaging(item)?.packageName || 'Упаковка'}: ${item.packageQuantity}`
-                                  : `Штучно: ${item.extraUnitQuantity}`}
+                                  ? `${getCartPackaging(item)?.packageName || '\u0423\u043f\u0430\u043a\u043e\u0432\u043a\u0430'}: ${item.packageQuantity}`
+                                  : `\u041f\u043e\u0448\u0442\u0443\u0447\u043d\u043e: ${item.extraUnitQuantity}`}
                               </span>
                               <span>
-                                Итого: {item.quantity} шт
+                                {'\u0418\u0442\u043e\u0433\u043e'}: {item.quantity} {'\u0448\u0442'}
                               </span>
                             </div>
                           </div>
@@ -1140,7 +1149,7 @@ export default function POSView() {
                       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-300">
                         <ShoppingCart size={28} />
                       </div>
-                      <p className="text-sm text-slate-500">{'Корзина пуста'}</p>
+                      <p className="text-sm text-slate-500">Корзина пуста</p>
                     </div>
                   )}
                 </div>
@@ -1152,7 +1161,7 @@ export default function POSView() {
                       min={0}
                       value={discount === 0 ? '' : discount}
                       onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
-                      placeholder={'Скидка %'}
+                      placeholder="Скидка %"
                       className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-amber-300 focus:bg-white"
                     />
                     <input
@@ -1163,7 +1172,7 @@ export default function POSView() {
                         const value = e.target.value;
                         setPaidAmount(value === '' ? '' : String(Math.max(0, Number(value) || 0)));
                       }}
-                      placeholder={'Оплачено'}
+                      placeholder="Оплачено"
                       className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-emerald-300 focus:bg-white"
                     />
                   </div>
@@ -1191,11 +1200,11 @@ export default function POSView() {
 
                   <div className="space-y-3 rounded-[20px] bg-amber-50 px-4 py-4 text-sm shadow-[0_12px_28px_rgba(245,158,11,0.08)]">
                     <div className="flex items-center justify-between text-slate-500">
-                      <span>{'Подытог'}</span>
+                      <span>Подытог</span>
                       <span className="text-slate-900">{formatMoney(subtotal)}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-500">
-                      <span>{'Скидка'}</span>
+                      <span>Скидка</span>
                       <span className="text-slate-900">-{formatMoney(discountAmount)}</span>
                     </div>
                     {paidAmount && (
@@ -1229,3 +1238,5 @@ export default function POSView() {
     </div>
   );
 }
+
+

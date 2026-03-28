@@ -121,6 +121,15 @@ const normalizeOcrPackageName = (value: string) => {
   return normalized;
 };
 
+const normalizeDisplayBaseUnit = (value: string) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'шт';
+  if (['пачка', 'пачки', 'пачек', 'шт', 'штук', 'штука', 'штуки', 'pcs', 'piece', 'pieces'].includes(normalized)) {
+    return 'шт';
+  }
+  return normalized;
+};
+
 const formatPriceInput = (value: unknown) => {
   if (value === '' || value === null || value === undefined) {
     return '';
@@ -197,17 +206,18 @@ const getStockBreakdown = (product: any) => {
   const preferredPackaging = getPreferredPackaging(product);
   const unitsPerPackage = Number(preferredPackaging?.unitsPerPackage || 0);
   const packageName = preferredPackaging?.packageName || preferredPackaging?.name || '';
+  const displayBaseUnit = normalizeDisplayBaseUnit(product?.unit || 'шт');
 
   if (!preferredPackaging || unitsPerPackage <= 1 || totalUnits <= 0) {
     return {
-      primary: formatCountWithUnit(totalUnits, product?.unit || 'шт'),
+      primary: formatCountWithUnit(totalUnits, displayBaseUnit),
       secondary: null,
     };
   }
 
   const packageCount = Math.floor(totalUnits / unitsPerPackage);
   const remainderUnits = totalUnits % unitsPerPackage;
-  const piecesLabel = product?.unit || 'шт';
+  const piecesLabel = displayBaseUnit;
   const normalizedPackageName = normalizeOcrPackageName(packageName || 'упаковка');
 
   return {
@@ -307,6 +317,7 @@ export default function ProductsView() {
   const [productBatches, setProductBatches] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>('');
+  const [isMergingDuplicates, setIsMergingDuplicates] = useState(false);
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>(userWarehouseId ? String(userWarehouseId) : '');
   const [transferData, setTransferData] = useState({ fromWarehouseId: '', toWarehouseId: '', quantity: '' });
   const [restockData, setRestockData] = useState({
@@ -1150,6 +1161,13 @@ export default function ProductsView() {
     }
   };
 
+  const getExactDuplicateKey = (product: any) => {
+    const warehouseId = Number(product?.warehouseId || selectedWarehouseId || 0);
+    const categoryId = Number(product?.categoryId || 0);
+    const normalizedName = normalizeCatalogName(String(product?.name || ''));
+    return `${warehouseId}::${categoryId}::${normalizedName}`;
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -1235,6 +1253,59 @@ export default function ProductsView() {
     
     return matchesSearch && matchesWarehouse;
   });
+
+  const exactDuplicateGroups = React.useMemo(() => {
+    const groups = new Map<string, any[]>();
+
+    filteredProducts.forEach((product) => {
+      const key = getExactDuplicateKey(product);
+      const current = groups.get(key) || [];
+      current.push(product);
+      groups.set(key, current);
+    });
+
+    return Array.from(groups.values())
+      .filter((group) => group.length > 1)
+      .map((group) =>
+        [...group].sort(
+          (a, b) =>
+            Number(b.stock || 0) - Number(a.stock || 0) ||
+            Number(b.totalIncoming || 0) - Number(a.totalIncoming || 0) ||
+            Number(a.id || 0) - Number(b.id || 0),
+        ),
+      );
+  }, [filteredProducts, selectedWarehouseId]);
+
+  const duplicateProductsCount = React.useMemo(
+    () => exactDuplicateGroups.reduce((sum, group) => sum + group.length - 1, 0),
+    [exactDuplicateGroups],
+  );
+
+  const handleMergeExactDuplicates = async () => {
+    if (!exactDuplicateGroups.length || isMergingDuplicates) {
+      return;
+    }
+
+    setIsMergingDuplicates(true);
+    try {
+      let mergedCount = 0;
+
+      for (const group of exactDuplicateGroups) {
+        const [target, ...sources] = group;
+        for (const source of sources) {
+          await mergeProduct(Number(source.id), Number(target.id));
+          mergedCount += 1;
+        }
+      }
+
+      await fetchInitialData();
+      toast.success(`Объединено дублей: ${mergedCount}`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Не удалось объединить дубликаты');
+    } finally {
+      setIsMergingDuplicates(false);
+    }
+  };
 
   return (
     <div className="app-page-shell">
@@ -1666,10 +1737,10 @@ export default function ProductsView() {
                             className="w-full rounded-2xl border border-slate-200 px-4 py-3.5 font-bold outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                           />
                           <p className="mt-2 text-xs font-medium text-slate-400">
-                            1 {formatCountWithUnit(1, selectedRestockPackaging.packageName).replace(/^1\s+/, '')} = {selectedRestockPackaging.unitsPerPackage} {selectedProduct?.unit || 'шт'}
+                            1 {formatCountWithUnit(1, selectedRestockPackaging.packageName).replace(/^1\s+/, '')} = {selectedRestockPackaging.unitsPerPackage} {normalizeDisplayBaseUnit(selectedProduct?.unit || 'шт')}
                           </p>
                           <p className="mt-1 text-xs font-medium text-slate-400">
-                            Итого: {totalRestockUnits} {selectedProduct?.unit || 'шт'}
+                            Итого: {totalRestockUnits} {normalizeDisplayBaseUnit(selectedProduct?.unit || 'шт')}
                           </p>
                         </div>
                       </>
@@ -2211,10 +2282,25 @@ export default function ProductsView() {
               </select>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-full bg-emerald-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">
               Товаров: {filteredProducts.length}
             </div>
+            {duplicateProductsCount > 0 ? (
+              <>
+                <div className="rounded-full bg-amber-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">
+                  Дублей: {duplicateProductsCount}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleMergeExactDuplicates}
+                  disabled={isMergingDuplicates}
+                  className="rounded-full bg-fuchsia-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white transition-all hover:bg-fuchsia-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isMergingDuplicates ? 'Объединение...' : 'Объединить дубликаты'}
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -2276,7 +2362,7 @@ export default function ProductsView() {
                 <div className="rounded-2xl bg-slate-50 px-3 py-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Приход</p>
                   <p className="mt-1 break-words text-sm font-semibold text-slate-900">
-                    {product.totalIncoming} <span className="text-[10px] uppercase text-slate-400">{product.unit}</span>
+                    {product.totalIncoming} <span className="text-[10px] uppercase text-slate-400">{normalizeDisplayBaseUnit(product.unit || 'шт')}</span>
                   </p>
                 </div>
                 {isAdmin && (
@@ -2494,7 +2580,7 @@ export default function ProductsView() {
                     </div>
                   </td>
                   <td className="px-5 py-3">
-                    <p className="text-xs font-medium text-slate-500">{product.totalIncoming} <span className="text-[10px] font-medium text-slate-400 uppercase">{product.unit}</span></p>
+                    <p className="text-xs font-medium text-slate-500">{product.totalIncoming} <span className="text-[10px] font-medium text-slate-400 uppercase">{normalizeDisplayBaseUnit(product.unit || 'шт')}</span></p>
                   </td>
                   {isAdmin && <td className="px-5 py-3 text-right">
                     {selectedWarehouseId ? (
