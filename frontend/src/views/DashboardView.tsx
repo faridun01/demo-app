@@ -37,6 +37,7 @@ const statusLabel = (status: string) => {
 };
 
 const ringColors = ['#5b8def', '#7c6cf2', '#f3cb5d', '#5ec98f', '#ef6fae'];
+const LOW_STOCK_THRESHOLD = 5;
 
 function card(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
@@ -698,7 +699,7 @@ export default function DashboardView() {
                 {filteredLowStock.map((item: any) => {
                   const stockValue = Number(item.stock || 0);
                   const outOfStock = stockValue <= 0;
-                  const isCriticalLowStock = stockValue > 0 && stockValue < 10;
+                  const isCriticalLowStock = stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD;
                   const warehouseLabel = getWarehouseLabel(item);
                   return (
                     <div key={item.id} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
@@ -756,7 +757,7 @@ export default function DashboardView() {
                     {filteredLowStock.map((item: any) => {
                       const stockValue = Number(item.stock || 0);
                       const outOfStock = stockValue <= 0;
-                      const isCriticalLowStock = stockValue > 0 && stockValue < 10;
+                      const isCriticalLowStock = stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD;
                       const warehouseLabel = getWarehouseLabel(item);
                       return (
                         <tr key={item.id}>

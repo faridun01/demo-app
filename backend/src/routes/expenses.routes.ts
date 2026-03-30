@@ -33,9 +33,29 @@ const normalizePaidAmount = (value: unknown, totalAmount: number) => {
   return amount;
 };
 
+const normalizeExpenseDate = (value: unknown) => {
+  if (value === undefined || value === null || value === '') {
+    return new Date();
+  }
+
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) {
+    throw Object.assign(new Error('Дата расхода указана некорректно'), { status: 400 });
+  }
+
+  return parsed;
+};
+
+const ensureAdminOnly = (isAdmin: boolean) => {
+  if (!isAdmin) {
+    throw Object.assign(new Error('Forbidden'), { status: 403 });
+  }
+};
+
 router.get('/', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    ensureAdminOnly(access.isAdmin);
     const warehouseId = getScopedWarehouseId(access, req.query.warehouseId);
     const start = normalizeOptionalString(req.query.start);
     const end = normalizeOptionalString(req.query.end);
@@ -70,15 +90,12 @@ router.get('/', async (req: AuthRequest, res, next) => {
 router.post('/', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    ensureAdminOnly(access.isAdmin);
     const requestedWarehouseId = Number(req.body?.warehouseId);
-    const warehouseId = access.isAdmin ? requestedWarehouseId : access.warehouseId;
+    const warehouseId = requestedWarehouseId;
 
     if (!warehouseId || !Number.isFinite(Number(warehouseId))) {
       return res.status(400).json({ error: 'Склад обязателен' });
-    }
-
-    if (!access.isAdmin && !ensureWarehouseAccess(access, Number(warehouseId))) {
-      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const title = String(req.body?.title || '').trim();
@@ -89,7 +106,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
     const category = String(req.body?.category || 'Прочее').trim() || 'Прочее';
     const amount = normalizePositiveAmount(req.body?.amount);
     const paidAmount = normalizePaidAmount(req.body?.paidAmount, amount);
-    const expenseDate = req.body?.expenseDate ? new Date(req.body.expenseDate) : new Date();
+    const expenseDate = normalizeExpenseDate(req.body?.expenseDate);
 
     const created = await prisma.expense.create({
       data: {
@@ -118,9 +135,74 @@ router.post('/', async (req: AuthRequest, res, next) => {
   }
 });
 
+const updateExpenseHandler = async (req: AuthRequest, res: any, next: any) => {
+  try {
+    const access = await getAccessContext(req);
+    ensureAdminOnly(access.isAdmin);
+
+    const expenseId = Number(req.params.id);
+    const existingExpense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      select: {
+        id: true,
+        warehouseId: true,
+      },
+    });
+
+    if (!existingExpense) {
+      return res.status(404).json({ error: 'Расход не найден' });
+    }
+
+    const requestedWarehouseId = Number(req.body?.warehouseId ?? existingExpense.warehouseId);
+    const warehouseId = Number.isFinite(requestedWarehouseId) ? requestedWarehouseId : null;
+    if (!warehouseId) {
+      return res.status(400).json({ error: 'Склад обязателен' });
+    }
+
+    const title = String(req.body?.title || '').trim();
+    if (!title) {
+      return res.status(400).json({ error: 'Название расхода обязательно' });
+    }
+
+    const category = String(req.body?.category || 'Прочее').trim() || 'Прочее';
+    const amount = normalizePositiveAmount(req.body?.amount);
+    const paidAmount = normalizePaidAmount(req.body?.paidAmount, amount);
+    const expenseDate = normalizeExpenseDate(req.body?.expenseDate);
+
+    const updated = await prisma.expense.update({
+      where: { id: expenseId },
+      data: {
+        warehouseId,
+        category,
+        title,
+        amount,
+        paidAmount,
+        expenseDate,
+        note: normalizeOptionalString(req.body?.note),
+      },
+      include: {
+        warehouse: {
+          select: { id: true, name: true },
+        },
+        user: {
+          select: { id: true, username: true },
+        },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+};
+
+router.put('/:id', updateExpenseHandler);
+router.patch('/:id', updateExpenseHandler);
+
 router.post('/:id/payments', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    ensureAdminOnly(access.isAdmin);
     const expenseId = Number(req.params.id);
     const expense = await prisma.expense.findUnique({
       where: { id: expenseId },
@@ -134,10 +216,6 @@ router.post('/:id/payments', async (req: AuthRequest, res, next) => {
 
     if (!expense) {
       return res.status(404).json({ error: 'Расход не найден' });
-    }
-
-    if (!ensureWarehouseAccess(access, expense.warehouseId)) {
-      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const amount = normalizePositiveAmount(req.body?.amount);
@@ -167,6 +245,7 @@ router.post('/:id/payments', async (req: AuthRequest, res, next) => {
 router.delete('/:id', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    ensureAdminOnly(access.isAdmin);
     const expenseId = Number(req.params.id);
     const expense = await prisma.expense.findUnique({
       where: { id: expenseId },
@@ -179,11 +258,6 @@ router.delete('/:id', async (req: AuthRequest, res, next) => {
 
     if (!expense) {
       return res.status(404).json({ error: 'Расход не найден' });
-    }
-
-    const canDelete = access.isAdmin || expense.userId === access.userId;
-    if (!canDelete || !ensureWarehouseAccess(access, expense.warehouseId)) {
-      return res.status(403).json({ error: 'Forbidden' });
     }
 
     await prisma.expense.delete({ where: { id: expenseId } });

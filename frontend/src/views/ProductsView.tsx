@@ -11,6 +11,7 @@ import {
   Edit,
   Trash2,
   Camera,
+  FileSpreadsheet,
   Loader2,
   ChevronUp,
   ChevronDown,
@@ -1480,16 +1481,84 @@ export default function ProductsView() {
     }
   };
 
+  const exportStockReport = async () => {
+    if (!displayProducts.length) {
+      toast.error('Нет товаров для выгрузки');
+      return;
+    }
+
+    const XLSX = await import('xlsx');
+    const warehouseName = warehouses.find((warehouse) => String(warehouse.id) === selectedWarehouseId)?.name || 'Все склады';
+    const downloadedAt = new Date();
+    const downloadedAtLabel = downloadedAt.toLocaleString('ru-RU');
+    const downloadedAtValue = downloadedAt.toISOString().slice(0, 10);
+    const rows: unknown[][] = [
+      ['Отчёт по остаткам товаров'],
+      ['Склад', warehouseName],
+      ['Скачано', downloadedAtLabel],
+      [],
+      ['Товар', 'Категория', 'Склад', 'Остаток', 'Остаток (шт)', 'Приход', 'Мин. остаток', 'Закупка', 'Продажа'],
+      ...displayProducts.map((product) => {
+        const stockBreakdown = getStockBreakdown(product);
+
+        return [
+          formatProductName(product.name),
+          product.category?.name || 'Без категории',
+          product.warehouse?.name || warehouseName,
+          String(stockBreakdown.primary || '').replace(/\n/g, ' / '),
+          Number(product.stock || 0),
+          Number(product.totalIncoming || 0),
+          Number(product.minStock || 0),
+          isAggregateMode ? '-' : Number(product.costPrice || 0),
+          isAggregateMode ? '-' : Number(product.sellingPrice || 0),
+        ];
+      }),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    worksheet['!cols'] = [
+      { wch: 34 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Остатки');
+
+    const safeWarehouseName = String(warehouseName || 'vse-sklady')
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zа-я0-9_-]+/gi, '') || 'vse-sklady';
+
+    XLSX.writeFile(workbook, `ostatki_${safeWarehouseName}_${downloadedAtValue}.xlsx`);
+    toast.success('Остатки товаров скачаны');
+  };
+
   return (
     <div className="app-page-shell">
       <div className="space-y-6">
       <div className="app-surface px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-4xl font-medium tracking-tight text-slate-900">Товары</h1>
+          <h1 className="text-3xl font-medium tracking-tight text-slate-900 sm:text-4xl">Товары</h1>
           <p className="mt-1 max-w-xl text-sm font-medium text-slate-500">Управление ассортиментом, ценами и остатками.</p>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <button
+            type="button"
+            onClick={exportStockReport}
+            disabled={!displayProducts.length}
+            className="flex w-full items-center justify-center space-x-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            <FileSpreadsheet size={18} />
+            <span>Скачать остаток</span>
+          </button>
           {isAdmin && <label className={clsx(
             "flex w-full items-center justify-center space-x-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-all sm:w-auto",
             selectedWarehouseId
@@ -2516,7 +2585,7 @@ export default function ProductsView() {
                 className="w-full rounded-2xl border border-sky-100 bg-sky-50 py-3 pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition-all focus:border-sky-300 focus:bg-white"
               />
             </div>
-            <div className="relative min-w-[180px]">
+            <div className="relative w-full sm:min-w-[180px] sm:w-auto">
               <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-500" size={16} />
               <select
                 value={selectedWarehouseId}
@@ -2631,7 +2700,7 @@ export default function ProductsView() {
               </div>
 
               {isAdmin && !isAggregateMode && (
-                <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <button
                     onClick={() => {
                       setSelectedProduct(product);

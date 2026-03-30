@@ -92,10 +92,10 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   };
 
   const filteredNavItems = navItems.filter((item) => {
-    if (!isAdmin && (item.to === '/' || item.to === '/reports' || item.to === '/settings')) {
+    if (!isAdmin && (item.to === '/' || item.to === '/expenses' || item.to === '/reports' || item.to === '/settings')) {
       return false;
     }
-    if (item.to === '/reports' || item.to === '/settings') {
+    if (item.to === '/expenses' || item.to === '/reports' || item.to === '/settings') {
       return isAdmin;
     }
     return true;
@@ -122,7 +122,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
       <aside
         className={clsx(
           'fixed inset-y-0 left-0 z-50 flex h-[100dvh] flex-col overflow-hidden border-r border-[#202c3c] bg-[#111927] text-[#eaf1f8] shadow-2xl transition-[width,transform] duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none',
-          isCollapsed ? 'w-[92px] lg:w-[92px]' : 'w-[246px] lg:w-[246px]',
+          isCollapsed
+            ? 'w-[86vw] max-w-[320px] lg:w-[92px] lg:max-w-none'
+            : 'w-[86vw] max-w-[320px] lg:w-[246px] lg:max-w-none',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >

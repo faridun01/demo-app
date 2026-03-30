@@ -5,6 +5,7 @@ import { getAccessContext, getScopedWarehouseId } from '../utils/access.js';
 import { DEFAULT_CUSTOMER_NAME } from '../utils/defaultCustomer.js';
 
 const router = Router();
+const LOW_STOCK_THRESHOLD = 5;
 const safePercentChange = (current: number, previous: number) => {
   if (previous === 0 && current === 0) return 0;
   if (previous === 0) return 100;
@@ -111,8 +112,8 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       prisma.warehouse.count({ where: warehouseWhere }),
       prisma.invoice.count({ where: invoiceWhere }),
       prisma.product.findMany({
-        where: { ...productWhere, stock: { lte: 10 } },
-        take: 5,
+        where: { ...productWhere, stock: { lte: LOW_STOCK_THRESHOLD } },
+        orderBy: [{ stock: 'asc' }, { name: 'asc' }],
         select: {
           id: true,
           name: true,

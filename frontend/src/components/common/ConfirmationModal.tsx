@@ -85,7 +85,7 @@ export default function ConfirmationModal({
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2rem]"
+            className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 p-4 sm:p-6">
               <h3 className="text-lg font-black text-slate-900 sm:text-xl">{title}</h3>
@@ -99,7 +99,7 @@ export default function ConfirmationModal({
               </button>
             </div>
 
-            <div className="p-5 text-center sm:p-8">
+            <div className="overflow-y-auto p-5 text-center sm:p-8">
               <div
                 className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full ${
                   type === 'danger'

@@ -169,7 +169,14 @@ export default function App() {
           <Route path="/sales" element={<SalesView />} />
           <Route path="/pos" element={<POSView />} />
           <Route path="/customers" element={<CustomerView />} />
-          <Route path="/expenses" element={<ExpensesView />} />
+          <Route
+            path="/expenses"
+            element={
+              <AdminRoute>
+                <ExpensesView />
+              </AdminRoute>
+            }
+          />
           <Route
             path="/reports"
             element={

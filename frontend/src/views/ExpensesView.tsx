@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Banknote, CalendarDays, Plus, Search, Trash2, Wallet, Warehouse, X } from 'lucide-react';
+import { Banknote, CalendarDays, Pencil, Plus, Search, Trash2, Wallet, Warehouse, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { addExpensePayment, createExpense, deleteExpense, getExpenses } from '../api/expenses.api';
+import { addExpensePayment, createExpense, deleteExpense, getExpenses, updateExpense } from '../api/expenses.api';
 import { getWarehouses } from '../api/warehouses.api';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import PaginationControls from '../components/common/PaginationControls';
@@ -25,6 +25,16 @@ type ExpenseRow = {
 const categories = ['Аренда', 'Зарплата', 'Доставка', 'Транспорт', 'Коммунальные', 'Ремонт', 'Прочее'];
 const todayValue = new Date().toISOString().slice(0, 10);
 
+const buildExpenseFormState = (expense?: Partial<ExpenseRow> | null, preferredWarehouseId = '') => ({
+  warehouseId: expense?.warehouse?.id ? String(expense.warehouse.id) : preferredWarehouseId,
+  title: String(expense?.title || ''),
+  category: String(expense?.category || 'Прочее') || 'Прочее',
+  amount: expense ? String(roundMoney(expense.amount || 0)) : '',
+  paidAmount: expense ? String(roundMoney(expense.paidAmount || 0)) : '',
+  expenseDate: expense ? String(expense.expenseDate || '').slice(0, 10) || todayValue : todayValue,
+  note: String(expense?.note || ''),
+});
+
 export default function ExpensesView() {
   const pageSize = 8;
   const user = React.useMemo(() => getCurrentUser(), []);
@@ -43,6 +53,8 @@ export default function ExpensesView() {
   const [payingExpenseId, setPayingExpenseId] = useState<number | null>(null);
   const [selectedExpenseForPayment, setSelectedExpenseForPayment] = useState<ExpenseRow | null>(null);
   const [selectedExpenseForDelete, setSelectedExpenseForDelete] = useState<ExpenseRow | null>(null);
+  const [selectedExpenseForEdit, setSelectedExpenseForEdit] = useState<ExpenseRow | null>(null);
+  const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState({
@@ -53,6 +65,7 @@ export default function ExpensesView() {
     expenseDate: todayValue,
     note: '',
   });
+  const [editForm, setEditForm] = useState(() => buildExpenseFormState(null, userWarehouseId ? String(userWarehouseId) : ''));
 
   const getExpenseRemaining = (expense: ExpenseRow) =>
     Math.max(0, Number(expense.amount || 0) - Number(expense.paidAmount || 0));
@@ -144,6 +157,11 @@ export default function ExpensesView() {
     setPaymentAmount('');
   };
 
+  const closeEditModal = () => {
+    setSelectedExpenseForEdit(null);
+    setEditForm(buildExpenseFormState(null, selectedWarehouseId || (userWarehouseId ? String(userWarehouseId) : '')));
+  };
+
   const handleCreateExpense = async (event: React.FormEvent) => {
     event.preventDefault();
 
@@ -212,6 +230,11 @@ export default function ExpensesView() {
     setPaymentAmount(String(roundMoney(remaining)));
   };
 
+  const openEditModal = (expense: ExpenseRow) => {
+    setSelectedExpenseForEdit(expense);
+    setEditForm(buildExpenseFormState(expense, selectedWarehouseId || (userWarehouseId ? String(userWarehouseId) : '')));
+  };
+
   const handleAddPayment = async () => {
     if (!selectedExpenseForPayment) {
       return;
@@ -262,6 +285,63 @@ export default function ExpensesView() {
     }
   };
 
+  const handleUpdateExpense = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!selectedExpenseForEdit) {
+      return;
+    }
+
+    const warehouseId = Number(editForm.warehouseId || selectedWarehouseId || userWarehouseId || '');
+    if (!warehouseId) {
+      toast.error('Выберите склад');
+      return;
+    }
+
+    if (!editForm.title.trim()) {
+      toast.error('Введите название расхода');
+      return;
+    }
+
+    if (!(Number(editForm.amount) > 0)) {
+      toast.error('Сумма расхода должна быть больше нуля');
+      return;
+    }
+
+    if (Number(editForm.paidAmount || 0) < 0) {
+      toast.error('Оплата не может быть отрицательной');
+      return;
+    }
+
+    if (Number(editForm.paidAmount || 0) > Number(editForm.amount)) {
+      toast.error('Оплата не может быть больше суммы расхода');
+      return;
+    }
+
+    setIsUpdatingExpense(true);
+    try {
+      await updateExpense(selectedExpenseForEdit.id, {
+        warehouseId,
+        title: editForm.title.trim(),
+        category: editForm.category,
+        amount: Number(editForm.amount),
+        paidAmount: Number(editForm.paidAmount || 0),
+        expenseDate: editForm.expenseDate,
+        note: editForm.note.trim(),
+      });
+      toast.success('Расход обновлён');
+      closeEditModal();
+      if (String(warehouseId) !== selectedWarehouseId) {
+        setSelectedWarehouseId(String(warehouseId));
+      }
+      await fetchExpenses(String(warehouseId));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Ошибка при обновлении расхода');
+    } finally {
+      setIsUpdatingExpense(false);
+    }
+  };
+
   const clearHistoryFilters = () => {
     setSearch('');
     setHistoryCategoryFilter('all');
@@ -274,9 +354,9 @@ export default function ExpensesView() {
     <div className="app-page-shell">
       <div className="w-full space-y-6">
         <div className="overflow-hidden rounded-[28px] border border-slate-100 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 border-b border-slate-100 px-4 py-4 sm:px-5 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h1 className="text-4xl font-medium tracking-tight text-slate-900">Расходы</h1>
+              <h1 className="text-3xl font-medium tracking-tight text-slate-900 sm:text-4xl">Расходы</h1>
               <p className="mt-1 text-slate-500">Учитывайте расходы по каждому складу отдельно.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -295,7 +375,7 @@ export default function ExpensesView() {
             </div>
           </div>
 
-          <div className="grid gap-6 p-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="grid gap-6 p-3 sm:p-5 xl:grid-cols-[360px_minmax(0,1fr)]">
             <section className="rounded-[24px] border border-slate-100 bg-slate-50 p-4">
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
@@ -422,7 +502,7 @@ export default function ExpensesView() {
             </section>
 
             <section className="flex flex-col overflow-hidden rounded-[24px] border border-slate-100 bg-white">
-              <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">История расходов</h2>
                   <p className="text-sm text-slate-500">{filteredExpenses.length} записей</p>
@@ -438,7 +518,7 @@ export default function ExpensesView() {
                 </div>
               </div>
 
-              <div className="grid gap-3 border-b border-slate-100 px-5 py-4 md:grid-cols-2 xl:grid-cols-5">
+              <div className="grid gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 md:grid-cols-2 xl:grid-cols-5">
                 <select
                   value={historyCategoryFilter}
                   onChange={(event) => setHistoryCategoryFilter(event.target.value)}
@@ -492,7 +572,89 @@ export default function ExpensesView() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-x-auto lg:overflow-x-visible">
+              <div className="space-y-3 p-3 md:hidden">
+                {paginatedExpenses.map((expense) => {
+                  const remaining = getExpenseRemaining(expense);
+
+                  return (
+                    <article key={`expense-mobile-${expense.id}`} className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">{expense.title}</p>
+                          <p className="mt-1 text-xs text-slate-500">{new Date(expense.expenseDate).toLocaleDateString('ru-RU')}</p>
+                        </div>
+                        <span className="rounded-xl bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">{expense.category}</span>
+                      </div>
+
+                      {expense.note ? <p className="mt-3 text-sm leading-5 text-slate-500">{expense.note}</p> : null}
+
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Сумма</p>
+                          <p className="mt-1 text-sm font-semibold text-rose-600">{formatMoney(expense.amount)}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Оплачено</p>
+                          <p className="mt-1 text-sm font-semibold text-emerald-600">{formatMoney(expense.paidAmount || 0)}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
+                          <p className="mt-1 text-sm font-semibold text-amber-600">{formatMoney(remaining)}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Склад</p>
+                          <p className="mt-1 text-sm font-medium text-slate-700">{expense.warehouse?.name || '-'}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-3">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Добавил</p>
+                          <p className="mt-1 text-sm font-medium text-slate-700">{expense.user?.username || '-'}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(expense)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-3 text-xs font-semibold text-sky-700"
+                        >
+                          <Pencil size={14} />
+                          <span>Изменить</span>
+                        </button>
+                        {remaining > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => openPaymentModal(expense)}
+                            disabled={payingExpenseId === expense.id}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-semibold text-emerald-700 disabled:opacity-50"
+                          >
+                            <Wallet size={14} />
+                            <span>{payingExpenseId === expense.id ? '...' : 'Оплатить'}</span>
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedExpenseForDelete(expense)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs font-semibold text-rose-700"
+                        >
+                          <Trash2 size={14} />
+                          <span>Удалить</span>
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+
+                {!filteredExpenses.length && (
+                  <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-12 text-center text-sm text-slate-400">
+                    Расходы пока не добавлены.
+                  </div>
+                )}
+              </div>
+
+              <div className="hidden flex-1 overflow-x-auto md:block lg:overflow-x-visible">
                 <table className="min-w-full table-fixed">
                   <thead className="bg-slate-50 text-left text-[12px] text-slate-500">
                     <tr>
@@ -532,6 +694,14 @@ export default function ExpensesView() {
                           <td className="whitespace-nowrap px-2 py-3">{expense.user?.username || '-'}</td>
                           <td className="whitespace-nowrap px-2 py-3">
                             <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(expense)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-sky-50 hover:text-sky-600"
+                                title="Редактировать"
+                              >
+                                <Pencil size={14} />
+                              </button>
                               {remaining > 0 ? (
                                 <button
                                   onClick={() => openPaymentModal(expense)}
@@ -592,7 +762,7 @@ export default function ExpensesView() {
         >
           <div
             onClick={(event) => event.stopPropagation()}
-            className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
+              className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 p-5 sm:p-7">
               <div className="flex items-center gap-4">
@@ -612,7 +782,7 @@ export default function ExpensesView() {
               </button>
             </div>
 
-            <div className="space-y-5 p-5 sm:p-7">
+            <div className="space-y-5 overflow-y-auto p-5 sm:p-7">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-2xl bg-slate-50 px-4 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Всего</p>
@@ -672,6 +842,156 @@ export default function ExpensesView() {
                 {payingExpenseId === selectedExpenseForPayment.id ? 'Сохранение...' : 'Внести оплату'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {selectedExpenseForEdit && (
+        <div
+          className="fixed inset-0 z-[75] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={closeEditModal}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 p-4 sm:p-6">
+              <div className="flex items-center gap-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-600/20">
+                  <Pencil size={18} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 sm:text-2xl">Редактировать расход</h3>
+                  <p className="mt-1 text-sm text-slate-500">Измените сумму, название и остальные поля без удаления записи.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="rounded-2xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateExpense} className="flex min-h-0 flex-1 flex-col">
+              <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 sm:p-6 lg:grid-cols-2">
+                <div className="space-y-2 lg:col-span-2">
+                  <label className="text-sm text-slate-600">Склад</label>
+                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                    <Warehouse size={16} className="text-slate-400" />
+                    <select
+                      value={editForm.warehouseId}
+                      onChange={(event) => setEditForm({ ...editForm, warehouseId: event.target.value })}
+                      className="w-full bg-transparent text-sm text-slate-700 outline-none"
+                    >
+                      <option value="">Выберите склад</option>
+                      {warehouses.map((warehouse) => (
+                        <option key={warehouse.id} value={warehouse.id}>
+                          {warehouse.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm text-slate-600">Категория</label>
+                  <select
+                    value={editForm.category}
+                    onChange={(event) => setEditForm({ ...editForm, category: event.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none"
+                  >
+                    {categories.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm text-slate-600">Дата</label>
+                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                    <CalendarDays size={16} className="text-slate-400" />
+                    <input
+                      type="date"
+                      value={editForm.expenseDate}
+                      onChange={(event) => setEditForm({ ...editForm, expenseDate: event.target.value })}
+                      className="w-full bg-transparent text-sm text-slate-700 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2 lg:col-span-2">
+                  <label className="text-sm text-slate-600">Название расхода</label>
+                  <input
+                    value={editForm.title}
+                    onChange={(event) => setEditForm({ ...editForm, title: event.target.value })}
+                    placeholder="Например: аренда, бензин, грузчики"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm text-slate-600">Сумма расхода</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={editForm.amount}
+                    onChange={(event) => setEditForm({ ...editForm, amount: event.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm text-slate-600">Оплачено</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={editForm.paidAmount}
+                    onChange={(event) => setEditForm({ ...editForm, paidAmount: event.target.value })}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none"
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 lg:col-span-2">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Остаток к оплате</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">
+                    {formatMoney(Math.max(0, Number(editForm.amount || 0) - Number(editForm.paidAmount || 0)))}
+                  </p>
+                </div>
+
+                <div className="space-y-2 lg:col-span-2">
+                  <label className="text-sm text-slate-600">Примечание</label>
+                  <textarea
+                    value={editForm.note}
+                    onChange={(event) => setEditForm({ ...editForm, note: event.target.value })}
+                    rows={4}
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:p-6">
+                <button
+                  type="button"
+                  onClick={closeEditModal}
+                  className="flex-1 rounded-2xl border border-slate-200 bg-white py-3.5 font-bold text-slate-700 transition-all hover:bg-slate-50"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingExpense}
+                  className="flex-1 rounded-2xl bg-sky-600 py-3.5 font-black text-white shadow-lg shadow-sky-600/20 transition-all hover:bg-sky-700 disabled:opacity-50"
+                >
+                  {isUpdatingExpense ? 'Сохраняем...' : 'Сохранить изменения'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
