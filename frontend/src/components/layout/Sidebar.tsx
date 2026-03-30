@@ -99,6 +99,15 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
       return isAdmin;
     }
     return true;
+  }).map((item) => {
+    if (!isAdmin && item.to === '/sales') {
+      return {
+        ...item,
+        label: 'Мои накладные',
+      };
+    }
+
+    return item;
   });
 
   const navSections = filteredNavItems.reduce<Record<string, NavItem[]>>((acc, item) => {

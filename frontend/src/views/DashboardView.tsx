@@ -19,7 +19,6 @@ import { getWarehouses } from '../api/warehouses.api';
 import { formatCount, formatMoney, formatPercent } from '../utils/format';
 import { filterWarehousesForUser, getCurrentUser, getUserWarehouseId, isAdminUser } from '../utils/userAccess';
 import client from '../api/client';
-import { getDefaultWarehouseId } from '../utils/warehouse';
 import ChartSkeleton from '../components/charts/ChartSkeleton';
 
 const DashboardCharts = React.lazy(() => import('../components/charts/DashboardCharts'));
@@ -57,6 +56,75 @@ const formatMetricDelta = (value: number) => {
   return `${prefix}${formatPercent(safeValue)}`;
 };
 
+const normalizeDisplayBaseUnit = (value: unknown) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'шт';
+  if (['пачка', 'пачки', 'пачек', 'шт', 'штук', 'штука', 'штуки', 'pcs', 'piece', 'pieces'].includes(normalized)) {
+    return 'шт';
+  }
+  return normalized;
+};
+
+const normalizePackagings = (item: any) =>
+  Array.isArray(item?.packagings)
+    ? item.packagings
+        .map((entry: any) => ({
+          id: Number(entry.id),
+          packageName: String(entry.packageName || '').trim(),
+          baseUnitName: normalizeDisplayBaseUnit(entry.baseUnitName || item?.baseUnitName || item?.unit || 'шт'),
+          unitsPerPackage: Number(entry.unitsPerPackage || 0),
+          isDefault: Boolean(entry.isDefault),
+        }))
+        .filter((entry: any) => entry.id > 0 && entry.packageName && entry.unitsPerPackage > 0)
+    : [];
+
+const getDefaultPackaging = (packagings: any[]) =>
+  packagings.find((entry: any) => entry.isDefault) || packagings[0] || null;
+
+const getProductStockParts = (item: any) => {
+  const packagings = normalizePackagings(item);
+  const defaultPackaging = getDefaultPackaging(packagings);
+  const stock = Math.max(0, Math.floor(Number(item?.stock || 0)));
+  const baseUnitName = normalizeDisplayBaseUnit(item?.baseUnitName || item?.unit || defaultPackaging?.baseUnitName || 'шт');
+
+  if (!defaultPackaging || Number(defaultPackaging.unitsPerPackage || 0) <= 1) {
+    return {
+      primary: `${stock} ${baseUnitName}`,
+      secondary: '',
+    };
+  }
+
+  const unitsPerPackage = Number(defaultPackaging.unitsPerPackage || 0);
+  const packageQuantity = Math.floor(stock / unitsPerPackage);
+  const extraUnits = stock % unitsPerPackage;
+
+  if (stock <= 0) {
+    return {
+      primary: `0 ${defaultPackaging.packageName}`,
+      secondary: '',
+    };
+  }
+
+  if (packageQuantity > 0 && extraUnits > 0) {
+    return {
+      primary: `${packageQuantity} ${defaultPackaging.packageName} +${extraUnits} ${baseUnitName}`,
+      secondary: `${packageQuantity}*${unitsPerPackage}=${packageQuantity * unitsPerPackage} ${baseUnitName}`,
+    };
+  }
+
+  if (packageQuantity > 0) {
+    return {
+      primary: `${packageQuantity} ${defaultPackaging.packageName}`,
+      secondary: `${packageQuantity}*${unitsPerPackage}=${packageQuantity * unitsPerPackage} ${baseUnitName}`,
+    };
+  }
+
+  return {
+    primary: `${extraUnits} ${baseUnitName}`,
+    secondary: '',
+  };
+};
+
 export default function DashboardView() {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<any>(null);
@@ -68,7 +136,7 @@ export default function DashboardView() {
   const user = useMemo(() => getCurrentUser(), []);
   const isAdmin = isAdminUser(user);
   const defaultWarehouseId = getUserWarehouseId(user);
-  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>(defaultWarehouseId ? String(defaultWarehouseId) : '');
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>(isAdmin ? '' : (defaultWarehouseId ? String(defaultWarehouseId) : ''));
 
   const getWarehouseLabel = React.useCallback((item: any) => {
     const directName = item?.warehouse?.name || item?.warehouseName;
@@ -107,10 +175,6 @@ export default function DashboardView() {
         const items = Array.isArray(data) ? data : [];
         const filteredWarehouses = filterWarehousesForUser(items, user);
         setWarehouses(filteredWarehouses);
-        const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses);
-        if (isAdmin && defaultWarehouseId) {
-          setSelectedWarehouseId((currentValue) => currentValue || String(defaultWarehouseId));
-        }
       })
       .catch((error) => {
         hasLoadedWarehousesRef.current = false;
@@ -199,6 +263,9 @@ export default function DashboardView() {
       );
     });
   }, [lowStock, searchQuery]);
+
+  const visibleLowStock = useMemo(() => filteredLowStock.slice(0, 5), [filteredLowStock]);
+  const totalLowStockCount = lowStock.length;
 
   const filteredCustomers = useMemo(() => {
     const seen = new Set<string>();
@@ -686,7 +753,12 @@ export default function DashboardView() {
           <section className="grid gap-4">
             <div className="overflow-hidden rounded-[24px] border border-white bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                <h2 className="text-2xl font-semibold text-slate-900">Товары с низким остатком</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-semibold text-slate-900">Товары с низким остатком</h2>
+                  <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+                    {formatCount(totalLowStockCount)}
+                  </span>
+                </div>
                 <button
                   onClick={() => navigate('/products')}
                   className="inline-flex items-center gap-1 text-sm text-[#5b8def] transition-colors hover:text-[#3d73da]"
@@ -695,12 +767,13 @@ export default function DashboardView() {
                   <ChevronRight size={16} />
                 </button>
               </div>
-              <div className={filteredLowStock.length > 5 ? 'max-h-[640px] space-y-3 overflow-y-auto p-4 sm:hidden' : 'space-y-3 p-4 sm:hidden'}>
-                {filteredLowStock.map((item: any) => {
+              <div className="space-y-3 p-4 sm:hidden">
+                {visibleLowStock.map((item: any) => {
                   const stockValue = Number(item.stock || 0);
                   const outOfStock = stockValue <= 0;
                   const isCriticalLowStock = stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD;
                   const warehouseLabel = getWarehouseLabel(item);
+                  const stockInfo = getProductStockParts(item);
                   return (
                     <div key={item.id} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
                       <div className="flex items-start gap-3">
@@ -715,7 +788,8 @@ export default function DashboardView() {
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <div className="rounded-2xl bg-white px-3 py-3">
                           <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{item.stock} {item.unit}</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">{stockInfo.primary}</p>
+                          {stockInfo.secondary && <p className="mt-0.5 text-[10px] text-slate-400">{stockInfo.secondary}</p>}
                         </div>
                         <div className="rounded-2xl bg-white px-3 py-3">
                           <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Статус</p>
@@ -737,13 +811,13 @@ export default function DashboardView() {
                     </div>
                   );
                 })}
-                {!filteredLowStock.length && (
+                {!visibleLowStock.length && (
                   <div className="rounded-3xl bg-slate-50 px-4 py-10 text-center text-sm text-slate-400">
                     Нет товаров с таким фильтром
                   </div>
                 )}
               </div>
-              <div className={filteredLowStock.length > 5 ? 'hidden max-h-[420px] overflow-y-auto sm:block' : 'hidden overflow-x-auto sm:block'}>
+              <div className="hidden overflow-x-auto sm:block">
                 <table className="w-full text-left">
                   <thead className="bg-[#f4f5fb] text-sm text-slate-500">
                     <tr>
@@ -754,11 +828,12 @@ export default function DashboardView() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredLowStock.map((item: any) => {
+                    {visibleLowStock.map((item: any) => {
                       const stockValue = Number(item.stock || 0);
                       const outOfStock = stockValue <= 0;
                       const isCriticalLowStock = stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD;
                       const warehouseLabel = getWarehouseLabel(item);
+                      const stockInfo = getProductStockParts(item);
                       return (
                         <tr key={item.id}>
                           <td className="px-5 py-4">
@@ -771,7 +846,8 @@ export default function DashboardView() {
                           </td>
                           <td className="px-5 py-4 text-sm text-sky-600">{warehouseLabel}</td>
                           <td className="px-5 py-4 text-sm text-slate-900">
-                            {item.stock} {item.unit}
+                            <p className="text-sm text-slate-900">{stockInfo.primary}</p>
+                            {stockInfo.secondary && <p className="text-[10px] text-slate-400">{stockInfo.secondary}</p>}
                           </td>
                           <td className="px-5 py-4">
                             <span
@@ -791,7 +867,7 @@ export default function DashboardView() {
                         </tr>
                       );
                     })}
-                    {!filteredLowStock.length && (
+                    {!visibleLowStock.length && (
                       <tr>
                         <td colSpan={4} className="px-5 py-16 text-center text-sm text-slate-400">
                           Нет товаров с таким фильтром

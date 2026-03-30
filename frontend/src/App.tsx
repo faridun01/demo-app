@@ -186,7 +186,14 @@ export default function App() {
             }
           />
           <Route path="/reminders" element={<RemindersView />} />
-          <Route path="/history" element={<HistoryView />} />
+          <Route
+            path="/history"
+            element={
+              <AdminRoute>
+                <HistoryView />
+              </AdminRoute>
+            }
+          />
           <Route
             path="/settings"
             element={

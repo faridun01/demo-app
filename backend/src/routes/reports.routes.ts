@@ -374,6 +374,9 @@ router.get('/returns', authorize(['ADMIN']), async (req: AuthRequest, res, next)
 router.get('/transactions', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
+    if (!access.isAdmin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const { productId, type, limit = 50 } = req.query;
     const warehouseId = getScopedWarehouseId(access, req.query.warehouseId);
     const transactions = await prisma.inventoryTransaction.findMany({

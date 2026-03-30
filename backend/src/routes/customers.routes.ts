@@ -189,7 +189,23 @@ router.get('/', async (req: AuthRequest, res, next) => {
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
 
-    res.json(mappedCustomers.filter((customer: any) => customer.id !== defaultCustomer?.id));
+    const customersToReturn = mappedCustomers
+      .filter((customer: any) => customer.id !== defaultCustomer?.id)
+      .map((customer: any) => {
+        if (access.isAdmin) {
+          return customer;
+        }
+
+        return {
+          ...customer,
+          total_invoiced: 0,
+          total_paid: 0,
+          balance: 0,
+          average_invoice: 0,
+        };
+      });
+
+    res.json(customersToReturn);
   } catch (error) {
     next(error);
   }
@@ -324,7 +340,39 @@ router.get('/:id/invoices', async (req: AuthRequest, res, next) => {
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(invoices);
+    if (access.isAdmin) {
+      return res.json(invoices);
+    }
+
+    const maskedInvoices = invoices.map((invoice: any) => ({
+      ...invoice,
+      totalAmount: 0,
+      discount: 0,
+      netAmount: 0,
+      paidAmount: 0,
+      returnedAmount: 0,
+      invoiceBalance: 0,
+      items: Array.isArray(invoice.items)
+        ? invoice.items.map((item: any) => ({
+            ...item,
+            sellingPrice: 0,
+          }))
+        : [],
+      paymentEvents: Array.isArray(invoice.paymentEvents)
+        ? invoice.paymentEvents.map((payment: any) => ({
+            ...payment,
+            amount: 0,
+          }))
+        : [],
+      returnEvents: Array.isArray(invoice.returnEvents)
+        ? invoice.returnEvents.map((event: any) => ({
+            ...event,
+            totalValue: 0,
+          }))
+        : [],
+    }));
+
+    res.json(maskedInvoices);
   } catch (error) {
     next(error);
   }

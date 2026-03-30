@@ -109,6 +109,9 @@ router.put('/:id', async (req: AuthRequest, res, next) => {
     if (!invoiceMeta) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
+    if (!access.isAdmin && Number(invoiceMeta.userId || 0) !== Number(access.userId || 0)) {
+      return res.status(403).json({ error: 'Можно редактировать только свои накладные' });
+    }
     if (!canAccessInvoice(access, invoiceMeta)) {
       return res.status(403).json({ error: 'Forbidden' });
     }

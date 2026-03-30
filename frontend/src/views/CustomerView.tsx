@@ -9,6 +9,8 @@ import { formatCount, formatMoney } from '../utils/format';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import PaginationControls from '../components/common/PaginationControls';
 import { useMemo } from 'react';
+import { getCurrentUser, isAdminUser } from '../utils/userAccess';
+import { useLocation } from 'react-router-dom';
 
 interface Customer {
   id: number;
@@ -51,6 +53,15 @@ interface StatementItem {
   id: number;
   product?: { name?: string };
   quantity: number;
+  totalBaseUnits?: number;
+  packageQuantity?: number;
+  extraUnitQuantity?: number;
+  unitsPerPackageSnapshot?: number;
+  unitsPerPackage?: number;
+  packageNameSnapshot?: string;
+  baseUnitNameSnapshot?: string;
+  packageName?: string;
+  baseUnitName?: string;
   returnedQty?: number;
   sellingPrice: number;
 }
@@ -85,6 +96,9 @@ const emptyForm = {
 };
 
 export default function CustomerView() {
+  const location = useLocation();
+  const user = useMemo(() => getCurrentUser(), []);
+  const isAdmin = isAdminUser(user);
   const pageSize = 6;
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,6 +114,14 @@ export default function CustomerView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAYMENT_EPSILON = 0.01;
+  const formatMoneyByRole = (value: unknown, trimCurrency = false) => {
+    if (!isAdmin) {
+      return 'Скрыто';
+    }
+
+    const formatted = formatMoney(value);
+    return trimCurrency ? formatted.replace(' TJS', '') : formatted;
+  };
 
   const closeCustomerModal = () => {
     setIsModalOpen(false);
@@ -122,6 +144,15 @@ export default function CustomerView() {
 
   useEffect(() => {
     fetchCustomers();
+  }, [location.key]);
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      fetchCustomers();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    return () => window.removeEventListener('focus', handleWindowFocus);
   }, []);
 
   useEffect(() => {
@@ -274,6 +305,46 @@ export default function CustomerView() {
   const getInvoiceAppliedPaidAmount = (invoice: StatementInvoice) =>
     Math.max(0, Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceChangeAmount(invoice));
 
+  const normalizeDisplayBaseUnit = (value: unknown) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return 'шт';
+    if (['штук', 'штука', 'штуки', 'шт', 'pcs', 'piece', 'pieces'].includes(normalized)) {
+      return 'шт';
+    }
+    return normalized;
+  };
+
+  const normalizeDisplayPackageName = (value: unknown) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized || 'уп';
+  };
+
+  const getInvoiceItemQuantityParts = (item: StatementItem) => {
+    const packageQuantity = Math.max(0, Number(item?.packageQuantity || 0));
+    const extraUnitQuantity = Math.max(0, Number(item?.extraUnitQuantity || 0));
+    const unitsPerPackage = Math.max(0, Number(item?.unitsPerPackageSnapshot ?? item?.unitsPerPackage ?? 0));
+    const packageName = normalizeDisplayPackageName(item?.packageNameSnapshot || item?.packageName);
+    const baseUnitName = normalizeDisplayBaseUnit(item?.baseUnitNameSnapshot || item?.baseUnitName || 'шт');
+
+    if (packageQuantity > 0 && unitsPerPackage > 0) {
+      const packagedUnits = packageQuantity * unitsPerPackage;
+      let secondary = `${formatCount(packageQuantity)}*${formatCount(unitsPerPackage)}=${formatCount(packagedUnits)} ${baseUnitName}`;
+      if (extraUnitQuantity > 0) {
+        secondary += ` +${formatCount(extraUnitQuantity)} ${baseUnitName}`;
+      }
+      return {
+        primary: `${formatCount(packageQuantity)} ${packageName}`,
+        secondary,
+      };
+    }
+
+    const totalBaseUnits = Math.max(0, Number(item?.totalBaseUnits ?? item?.quantity ?? 0));
+    return {
+      primary: `${formatCount(totalBaseUnits)} ${baseUnitName}`,
+      secondary: '',
+    };
+  };
+
   const handlePrintInvoiceDirect = async (invoice: StatementInvoice) => {
     try {
       const res = await client.get(`/invoices/${invoice.id}`);
@@ -383,7 +454,6 @@ export default function CustomerView() {
     () => sortedCustomers.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [currentPage, sortedCustomers],
   );
-
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, segmentFilter, sortBy]);
@@ -423,7 +493,7 @@ export default function CustomerView() {
               <select
                 value={segmentFilter}
                 onChange={(e) => setSegmentFilter(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white md:max-w-[240px]"
+                className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white md:max-w-60"
               >
                 <option value="all">Все категории</option>
                 <option value="VIP">VIP</option>
@@ -434,12 +504,12 @@ export default function CustomerView() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white md:max-w-[260px]"
+                className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white md:max-w-65"
               >
                 <option value="strength">Сильные сверху</option>
-                <option value="amount">По сумме покупок</option>
                 <option value="invoices">По числу накладных</option>
-                <option value="balance">По долгу</option>
+                {isAdmin && <option value="amount">По сумме покупок</option>}
+                {isAdmin && <option value="balance">По долгу</option>}
                 <option value="lastPurchase">По последней покупке</option>
               </select>
             </div>
@@ -523,15 +593,15 @@ export default function CustomerView() {
                   <div className="mb-6 grid grid-cols-1 gap-3 rounded-2xl bg-[#f4f5fb] p-4 lg:grid-cols-3">
                     <div className="min-w-0 rounded-2xl border border-sky-100 bg-sky-50 px-3 py-3">
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Накладные</p>
-                      <p className="whitespace-nowrap text-[10px] leading-4 tabular-nums text-slate-900 xl:text-[11px]">{formatMoney(customer.total_invoiced).replace(' TJS', '')}</p>
+                      <p className="whitespace-nowrap text-[10px] leading-4 tabular-nums text-slate-900 xl:text-[11px]">{formatMoneyByRole(customer.total_invoiced, true)}</p>
                     </div>
                     <div className="min-w-0 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-3">
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Оплачено</p>
-                      <p className="whitespace-nowrap text-[10px] leading-4 tabular-nums text-emerald-600 xl:text-[11px]">{formatMoney(customer.total_paid).replace(' TJS', '')}</p>
+                      <p className="whitespace-nowrap text-[10px] leading-4 tabular-nums text-emerald-600 xl:text-[11px]">{formatMoneyByRole(customer.total_paid, true)}</p>
                     </div>
                     <div className="min-w-0 rounded-2xl border border-rose-100 bg-rose-50 px-3 py-3">
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Долг</p>
-                      <p className={`whitespace-nowrap text-[10px] leading-4 tabular-nums xl:text-[11px] ${customer.balance > 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatMoney(customer.balance).replace(' TJS', '')}</p>
+                      <p className={`whitespace-nowrap text-[10px] leading-4 tabular-nums xl:text-[11px] ${isAdmin && customer.balance > 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatMoneyByRole(customer.balance, true)}</p>
                     </div>
                   </div>
 
@@ -726,15 +796,15 @@ export default function CustomerView() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-6">
                     <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Всего по накладным</p>
-                      <p className="text-lg font-medium text-slate-900 md:text-xl">{formatMoney(selectedCustomer.total_invoiced)}</p>
+                      <p className="text-lg font-medium text-slate-900 md:text-xl">{formatMoneyByRole(selectedCustomer.total_invoiced)}</p>
                     </div>
                     <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Всего оплачено</p>
-                      <p className="text-xl font-medium text-emerald-600">{formatMoney(selectedCustomer.total_paid)}</p>
+                      <p className="text-xl font-medium text-emerald-600">{formatMoneyByRole(selectedCustomer.total_paid)}</p>
                     </div>
                     <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Текущий долг</p>
-                      <p className="text-xl font-medium text-rose-600">{formatMoney(selectedCustomer.balance)}</p>
+                      <p className="text-xl font-medium text-rose-600">{formatMoneyByRole(selectedCustomer.balance)}</p>
                     </div>
                   </div>
                 </div>
@@ -784,13 +854,13 @@ export default function CustomerView() {
                           </button>
                         </div>
                         <div className="w-full text-left sm:w-auto sm:text-right">
-                          <p className="text-lg font-medium text-slate-900 md:text-xl">{formatMoney(invoice.netAmount)}</p>
+                          <p className="text-lg font-medium text-slate-900 md:text-xl">{formatMoneyByRole(invoice.netAmount)}</p>
                           <div className="mt-1.5 flex justify-end">
                             <Badge variant={invoice.status === 'paid' ? 'success' : invoice.invoiceBalance > 0 ? 'warning' : 'default'}>
                               {invoice.status === 'paid' ? 'Оплачено' : invoice.invoiceBalance > 0 ? 'Есть долг' : 'Закрыто'}
                             </Badge>
                           </div>
-                          <p className="mt-1.5 text-[11px] text-slate-500">Остаток: {formatMoney(invoice.invoiceBalance)}</p>
+                          <p className="mt-1.5 text-[11px] text-slate-500">Остаток: {formatMoneyByRole(invoice.invoiceBalance)}</p>
                         </div>
                       </div>
                     ))}
@@ -831,50 +901,56 @@ export default function CustomerView() {
                   </div>
 
                   <div className="space-y-4">
-                    {selectedInvoice.items?.map((item) => (
-                      <div key={item.id} className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="font-medium text-slate-900">{item.product?.name}</p>
-                          <p className="text-xs text-slate-400">
-                            {formatCount(item.quantity)} x {formatMoney(item.sellingPrice)}
-                          </p>
-                          {Number(item.returnedQty || 0) > 0 && (
-                            <p className="mt-1 text-xs text-amber-600">Возвращено: {formatCount(item.returnedQty || 0)}</p>
-                          )}
+                    {selectedInvoice.items?.map((item) => {
+                      const quantityInfo = getInvoiceItemQuantityParts(item);
+
+                      return (
+                        <div key={item.id} className="flex flex-col gap-3 rounded-2xl bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="font-medium text-slate-900">{item.product?.name}</p>
+                            <p className="whitespace-nowrap text-xs font-medium text-slate-700">{quantityInfo.primary}</p>
+                            <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">
+                              {quantityInfo.secondary || ''}
+                            </p>
+                            <p className="whitespace-nowrap text-[10px] text-slate-400">x {formatMoney(item.sellingPrice)}</p>
+                            {Number(item.returnedQty || 0) > 0 && (
+                              <p className="mt-1 text-xs text-amber-600">Возвращено: {formatCount(item.returnedQty || 0)}</p>
+                            )}
+                          </div>
+                          <p className="font-medium text-slate-900">{formatMoney(Number(item.quantity || 0) * Number(item.sellingPrice || 0))}</p>
                         </div>
-                        <p className="font-medium text-slate-900">{formatMoney(Number(item.quantity || 0) * Number(item.sellingPrice || 0))}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="space-y-2 border-t border-slate-100 pt-6">
                     <div className="flex justify-between text-sm text-slate-500">
                       <span>Сумма</span>
-                      <span>{formatMoney(selectedInvoice.totalAmount)}</span>
+                      <span>{formatMoneyByRole(selectedInvoice.totalAmount)}</span>
                     </div>
                     {Number(selectedInvoice.discount || 0) > 0 && (
                       <div className="flex justify-between text-sm text-rose-500">
                         <span>Скидка ({selectedInvoice.discount}%)</span>
-                        <span>-{formatMoney((Number(selectedInvoice.totalAmount || 0) * Number(selectedInvoice.discount || 0)) / 100)}</span>
+                        <span>-{formatMoneyByRole((Number(selectedInvoice.totalAmount || 0) * Number(selectedInvoice.discount || 0)) / 100)}</span>
                       </div>
                     )}
                     {Number(selectedInvoice.returnedAmount || 0) > 0 && (
                       <div className="flex justify-between text-sm text-amber-600">
                         <span>Возвраты</span>
-                        <span>-{formatMoney(selectedInvoice.returnedAmount)}</span>
+                        <span>-{formatMoneyByRole(selectedInvoice.returnedAmount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between pt-2 text-lg font-medium text-slate-900 md:text-xl">
                       <span>Итого</span>
-                      <span>{formatMoney(selectedInvoice.netAmount)}</span>
+                      <span>{formatMoneyByRole(selectedInvoice.netAmount)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-emerald-600">
                       <span>Оплачено</span>
-                      <span>{formatMoney(getInvoiceAppliedPaidAmount(selectedInvoice))}</span>
+                      <span>{formatMoneyByRole(getInvoiceAppliedPaidAmount(selectedInvoice))}</span>
                     </div>
                     <div className="flex justify-between text-sm text-rose-600">
                       <span>Остаток</span>
-                      <span>{formatMoney(selectedInvoice.invoiceBalance)}</span>
+                      <span>{formatMoneyByRole(selectedInvoice.invoiceBalance)}</span>
                     </div>
                   </div>
 
@@ -884,7 +960,7 @@ export default function CustomerView() {
                       selectedInvoice.paymentEvents.map((payment) => (
                         <div key={payment.id} className="flex items-center justify-between rounded-2xl bg-emerald-50 px-4 py-3">
                           <div>
-                            <p className="text-sm font-medium text-emerald-700">{formatMoney(payment.amount)}</p>
+                            <p className="text-sm font-medium text-emerald-700">{formatMoneyByRole(payment.amount)}</p>
                             <p className="text-xs text-emerald-600">
                               {new Date(payment.createdAt).toLocaleString('ru-RU')} · {payment.staff_name}
                             </p>
@@ -903,7 +979,7 @@ export default function CustomerView() {
                       selectedInvoice.returnEvents.map((itemReturn) => (
                         <div key={itemReturn.id} className="rounded-2xl bg-amber-50 px-4 py-3">
                           <div className="flex items-center justify-between gap-4">
-                            <p className="text-sm font-medium text-amber-700">{formatMoney(itemReturn.totalValue)}</p>
+                            <p className="text-sm font-medium text-amber-700">{formatMoneyByRole(itemReturn.totalValue)}</p>
                             <p className="text-xs text-amber-600">{new Date(itemReturn.createdAt).toLocaleString('ru-RU')}</p>
                           </div>
                           <p className="mt-1 text-xs text-amber-700">{itemReturn.staff_name}</p>

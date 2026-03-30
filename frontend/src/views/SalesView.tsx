@@ -27,7 +27,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { clsx } from 'clsx';
 import { filterWarehousesForUser, getCurrentUser, getUserWarehouseId, isAdminUser } from '../utils/userAccess';
-import { formatMoney, toFixedNumber } from '../utils/format';
+import { formatCount, formatMoney, toFixedNumber } from '../utils/format';
 import { formatProductName } from '../utils/productName';
 import { getDefaultWarehouseId } from '../utils/warehouse';
 import { getCustomers } from '../api/customers.api';
@@ -95,6 +95,34 @@ const getDefaultPackaging = (
 ) =>
   packagings.find((entry) => entry.isDefault) || packagings[0] || null;
 
+const getProductStockParts = (product: EditProductOption) => {
+  const totalStock = Math.max(0, Number(product?.stock || 0));
+  const baseUnitName = normalizeDisplayBaseUnit(product?.baseUnitName || product?.unit || 'шт');
+  const packagings = normalizePackagings(product);
+  const packaging = getDefaultPackaging(packagings);
+
+  if (!packaging || Number(packaging.unitsPerPackage || 0) <= 0) {
+    return {
+      primary: `${formatCount(totalStock)} ${baseUnitName}`,
+      secondary: '',
+    };
+  }
+
+  const unitsPerPackage = Number(packaging.unitsPerPackage || 0);
+  const packageName = String(packaging.packageName || '').trim().toLowerCase() || 'уп';
+  const packageCount = Math.floor(totalStock / unitsPerPackage);
+  const extraUnits = totalStock - packageCount * unitsPerPackage;
+  const primary =
+    packageCount > 0
+      ? `${formatCount(packageCount)} ${packageName}${extraUnits > 0 ? ` +${formatCount(extraUnits)} ${baseUnitName}` : ''}`
+      : `${formatCount(totalStock)} ${baseUnitName}`;
+  const secondary = packageCount > 0
+    ? `${formatCount(packageCount)}*${formatCount(unitsPerPackage)}=${formatCount(packageCount * unitsPerPackage)} ${baseUnitName}`
+    : '';
+
+  return { primary, secondary };
+};
+
 export default function SalesView() {
   const PAYMENT_EPSILON = 0.01;
   const pageSize = 8;
@@ -135,6 +163,7 @@ export default function SalesView() {
   const [isPaying, setIsPaying] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isEditItemsDirty, setIsEditItemsDirty] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -150,6 +179,7 @@ export default function SalesView() {
     setEditInvoiceSearch('');
     setOpenEditProductMenuKey(null);
     setEditProductMenuSearch('');
+    setIsEditItemsDirty(false);
   };
 
   const closePaymentModal = () => {
@@ -447,6 +477,10 @@ export default function SalesView() {
       return false;
     }
 
+    if (!isAdmin && Number(invoice.userId || 0) !== Number(user?.id || 0)) {
+      return false;
+    }
+
     const hasPayments = Array.isArray(invoice.payments) && invoice.payments.length > 0;
     const hasReturns = Array.isArray(invoice.returns) && invoice.returns.length > 0;
     const hasPaidAmount = Number(invoice.paidAmount || 0) > PAYMENT_EPSILON;
@@ -458,6 +492,10 @@ export default function SalesView() {
   const getEditBlockedReason = (invoice: any) => {
     if (!invoice) {
       return 'Накладную нельзя изменить';
+    }
+
+    if (!isAdmin && Number(invoice.userId || 0) !== Number(user?.id || 0)) {
+      return 'Можно редактировать только свои накладные';
     }
 
     if (invoice.cancelled) {
@@ -611,9 +649,104 @@ export default function SalesView() {
     };
   };
 
+  const originalInvoiceQtyByProduct = React.useMemo(() => {
+    const result = new Map<number, number>();
+    for (const sourceItem of Array.isArray(selectedInvoice?.items) ? selectedInvoice.items : []) {
+      const productId = Number(sourceItem?.productId);
+      if (!productId) {
+        continue;
+      }
+
+      const quantity = Math.max(0, Number(sourceItem?.totalBaseUnits ?? sourceItem?.quantity ?? 0));
+      result.set(productId, (result.get(productId) || 0) + quantity);
+    }
+
+    return result;
+  }, [selectedInvoice?.items]);
+
+  const getAvailableForEditProduct = (productId: number | '') => {
+    const numericProductId = Number(productId);
+    if (!numericProductId) {
+      return 0;
+    }
+
+    const product = getEditProductMeta(numericProductId);
+    const availableNow = Math.max(0, Number(product?.stock || 0));
+    const originalQty = Math.max(0, Number(originalInvoiceQtyByProduct.get(numericProductId) || 0));
+    return availableNow + originalQty;
+  };
+
+  const getRequestedUnitsForProduct = (items: EditInvoiceItem[], productId: number, skipItemKey?: string) =>
+    items.reduce((sum, currentItem) => {
+      if (skipItemKey && currentItem.key === skipItemKey) {
+        return sum;
+      }
+
+      if (Number(currentItem.productId) !== productId) {
+        return sum;
+      }
+
+      return sum + Math.max(0, Number(normalizeEditInvoiceItem(currentItem).quantity || 0));
+    }, 0);
+
+  const applyEditItemQuantityCap = (item: EditInvoiceItem, allItems: EditInvoiceItem[]) => {
+    const productId = Number(item.productId);
+    const normalized = normalizeEditInvoiceItem(item);
+    if (!productId) {
+      return normalized;
+    }
+
+    const maxAvailableForProduct = getAvailableForEditProduct(productId);
+    const requestedWithoutCurrent = getRequestedUnitsForProduct(allItems, productId, item.key);
+    const maxAllowedForItem = Math.max(0, maxAvailableForProduct - requestedWithoutCurrent);
+    const currentUnits = Math.max(0, Number(normalized.quantity || 0));
+
+    if (currentUnits <= maxAllowedForItem) {
+      return normalized;
+    }
+
+    const selectedPackaging = getEditItemPackaging(normalized);
+    const unitsPerPackage = Math.max(0, Number(selectedPackaging?.unitsPerPackage || 0));
+
+    if (selectedPackaging && unitsPerPackage > 0) {
+      const packageQuantity = Math.floor(maxAllowedForItem / unitsPerPackage);
+      const extraUnitQuantity = maxAllowedForItem % unitsPerPackage;
+      return {
+        ...normalized,
+        quantity: String(maxAllowedForItem),
+        packageQuantityInput: String(packageQuantity),
+        extraUnitQuantityInput: String(extraUnitQuantity),
+      };
+    }
+
+    return {
+      ...normalized,
+      quantity: String(maxAllowedForItem),
+      extraUnitQuantityInput: String(maxAllowedForItem),
+    };
+  };
+
+  const getEditItemMaxAllowedQuantity = (item: EditInvoiceItem, allItems: EditInvoiceItem[]) => {
+    const productId = Number(item.productId);
+    if (!productId) {
+      return 0;
+    }
+
+    const maxAvailableForProduct = getAvailableForEditProduct(productId);
+    const requestedWithoutCurrent = getRequestedUnitsForProduct(allItems, productId, item.key);
+    return Math.max(0, maxAvailableForProduct - requestedWithoutCurrent);
+  };
+
   const updateNormalizedEditInvoiceItem = (key: string, patch: Partial<EditInvoiceItem>) => {
+    setIsEditItemsDirty(true);
     setEditInvoiceItems((current) =>
-      current.map((item) => (item.key === key ? normalizeEditInvoiceItem({ ...item, ...patch }) : item)),
+      current.map((item) => {
+        if (item.key !== key) {
+          return item;
+        }
+
+        return applyEditItemQuantityCap({ ...item, ...patch }, current);
+      }),
     );
   };
 
@@ -637,6 +770,7 @@ export default function SalesView() {
   };
 
   const addEditInvoiceItem = () => {
+    setIsEditItemsDirty(true);
     setEditInvoiceItems((current) => [
       createEditInvoiceItem(),
       ...current,
@@ -644,6 +778,7 @@ export default function SalesView() {
   };
 
   const removeEditInvoiceItem = (key: string) => {
+    setIsEditItemsDirty(true);
     setEditInvoiceItems((current) => current.filter((item) => item.key !== key));
   };
 
@@ -685,6 +820,11 @@ export default function SalesView() {
   );
 
   const openEditInvoiceModal = async (invoice: any) => {
+    if (!canEditInvoice(invoice)) {
+      toast.error(getEditBlockedReason(invoice));
+      return;
+    }
+
     try {
       const res = await client.get(`/invoices/${invoice.id}`);
       const products = await getProducts(Number(res.data.warehouseId));
@@ -701,6 +841,7 @@ export default function SalesView() {
             )
           : [],
       );
+      setIsEditItemsDirty(false);
       setShowEditModal(true);
     } catch (err) {
       toast.error('Ошибка при загрузке накладной');
@@ -709,6 +850,33 @@ export default function SalesView() {
 
   const handleUpdateInvoice = async () => {
     if (!selectedInvoice) return;
+
+    if (!isEditItemsDirty) {
+      setIsSavingEdit(true);
+      try {
+        const res = await client.put(`/invoices/${selectedInvoice.id}`, {
+          customerId: editCustomerId || null,
+        });
+        const updatedInvoice = res.data;
+        setSelectedInvoice(updatedInvoice);
+        setInvoices((current) =>
+          current.map((invoice) =>
+            Number(invoice.id) === Number(updatedInvoice.id)
+              ? { ...invoice, ...updatedInvoice }
+              : invoice,
+          ),
+        );
+        toast.success('Клиент изменен только для текущей накладной');
+        closeEditModal();
+        await Promise.all([fetchInvoices(), refreshSelectedInvoice(selectedInvoice.id)]);
+      } catch (err: any) {
+        toast.error(err.response?.data?.error || 'Ошибка при смене клиента');
+      } finally {
+        setIsSavingEdit(false);
+      }
+      return;
+    }
+
     if (editInvoiceItems.length === 0) {
       toast.error('Добавьте хотя бы один товар в накладную');
       return;
@@ -756,6 +924,36 @@ export default function SalesView() {
       return;
     }
 
+    const requestedByProduct = new Map<number, number>();
+    for (const item of payloadItems) {
+      const productId = Number(item.productId);
+      const quantity = Math.max(0, Number(item.totalBaseUnits ?? item.quantity ?? 0));
+      requestedByProduct.set(productId, (requestedByProduct.get(productId) || 0) + quantity);
+    }
+
+    const originalByProduct = new Map<number, number>();
+    for (const item of Array.isArray(selectedInvoice.items) ? selectedInvoice.items : []) {
+      const productId = Number(item.productId);
+      const quantity = Math.max(0, Number(item.totalBaseUnits ?? item.quantity ?? 0));
+      originalByProduct.set(productId, (originalByProduct.get(productId) || 0) + quantity);
+    }
+
+    for (const [productId, requestedQty] of requestedByProduct.entries()) {
+      const product = getEditProductMeta(productId);
+      const availableNow = Math.max(0, Number(product?.stock || 0));
+      const originalQty = Math.max(0, Number(originalByProduct.get(productId) || 0));
+      const availableForEdit = availableNow + originalQty;
+
+      if (requestedQty > availableForEdit) {
+        const productName = formatProductName(product?.name || `Товар #${productId}`);
+        const unit = normalizeDisplayBaseUnit(product?.baseUnitName || product?.unit || 'шт');
+        toast.error(
+          `Нельзя продать больше остатка для "${productName}". Доступно: ${availableForEdit} ${unit}, запрошено: ${requestedQty} ${unit}`,
+        );
+        return;
+      }
+    }
+
     setIsSavingEdit(true);
     try {
       const res = await client.put(`/invoices/${selectedInvoice.id}`, {
@@ -797,6 +995,37 @@ export default function SalesView() {
 
   const getInvoiceAppliedPaidAmount = (invoice: any) =>
     Math.max(0, Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceChangeAmount(invoice));
+
+  const normalizeDisplayPackageName = (value: unknown) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized || 'уп';
+  };
+
+  const getInvoiceItemQuantityParts = (item: any) => {
+    const packageQuantity = Math.max(0, Number(item?.packageQuantity || 0));
+    const extraUnitQuantity = Math.max(0, Number(item?.extraUnitQuantity || 0));
+    const unitsPerPackage = Math.max(0, Number(item?.unitsPerPackageSnapshot ?? item?.unitsPerPackage ?? 0));
+    const packageName = normalizeDisplayPackageName(item?.packageNameSnapshot || item?.packageName);
+    const baseUnitName = normalizeDisplayBaseUnit(item?.unit || item?.baseUnitNameSnapshot || item?.baseUnitName || 'шт');
+
+    if (packageQuantity > 0 && unitsPerPackage > 0) {
+      const packagedUnits = packageQuantity * unitsPerPackage;
+      let secondary = `${formatCount(packageQuantity)}*${formatCount(unitsPerPackage)}=${formatCount(packagedUnits)} ${baseUnitName}`;
+      if (extraUnitQuantity > 0) {
+        secondary += ` +${formatCount(extraUnitQuantity)} ${baseUnitName}`;
+      }
+      return {
+        primary: `${formatCount(packageQuantity)} ${packageName}`,
+        secondary,
+      };
+    }
+
+    const totalBaseUnits = Math.max(0, Number(item?.totalBaseUnits ?? item?.quantity ?? 0));
+    return {
+      primary: `${formatCount(totalBaseUnits)} ${baseUnitName}`,
+      secondary: '',
+    };
+  };
 
   const isInvoicePaidInFull = (invoice: any) => getEffectiveStatus(invoice) === 'paid';
 
@@ -961,7 +1190,12 @@ export default function SalesView() {
 
       <div className="mt-1 flex flex-col overflow-hidden rounded-[28px] border border-slate-100 bg-white/95 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.18)] md:min-h-[860px]">
         <div className="flex flex-col gap-3 border-b border-slate-100 bg-[#fbfcfe] p-4 lg:flex-row lg:items-center lg:justify-between">
-          <h2 className="text-2xl font-semibold text-slate-900">Накладные</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-semibold text-slate-900">Накладные</h2>
+            <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+              {formatCount(invoices.length)}
+            </span>
+          </div>
           <div className="relative flex-1 max-w-xl">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
@@ -1368,25 +1602,32 @@ export default function SalesView() {
                   <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">Товары</h4>
                   <div className="overflow-hidden rounded-[22px] border border-slate-100 bg-white md:rounded-3xl">
                     <div className="space-y-3 p-3 md:hidden">
-                      {selectedInvoice.items.map((item: any) => (
-                        <div key={`mobile-item-${item.id}`} className="rounded-2xl bg-slate-50 p-3">
-                          <p className="break-words text-sm font-black text-slate-900">{formatProductName(item.product_name)}</p>
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                            <div className="rounded-xl bg-white px-2.5 py-2">
-                              <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Кол-во</p>
-                              <p className="mt-1 font-bold text-slate-700">{item.quantity} {item.unit}</p>
-                            </div>
-                            <div className="rounded-xl bg-white px-2.5 py-2">
-                              <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Цена</p>
-                              <p className="mt-1 font-bold text-slate-700">{formatMoney(item.sellingPrice)}</p>
-                            </div>
-                            <div className="rounded-xl bg-white px-2.5 py-2">
-                              <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Итого</p>
-                              <p className="mt-1 font-black text-slate-900">{formatMoney(item.totalPrice)}</p>
+                      {selectedInvoice.items.map((item: any) => {
+                        const quantityInfo = getInvoiceItemQuantityParts(item);
+
+                        return (
+                          <div key={`mobile-item-${item.id}`} className="rounded-2xl bg-slate-50 p-3">
+                            <p className="break-words text-sm font-black text-slate-900">{formatProductName(item.product_name)}</p>
+                            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                              <div className="rounded-xl bg-white px-2.5 py-2">
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Кол-во</p>
+                                <p className="mt-1 whitespace-nowrap text-xs font-semibold text-slate-700">{quantityInfo.primary}</p>
+                                {quantityInfo.secondary && (
+                                  <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">{quantityInfo.secondary}</p>
+                                )}
+                              </div>
+                              <div className="rounded-xl bg-white px-2.5 py-2">
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Цена</p>
+                                <p className="mt-1 font-bold text-slate-700">{formatMoney(item.sellingPrice)}</p>
+                              </div>
+                              <div className="rounded-xl bg-white px-2.5 py-2">
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Итого</p>
+                                <p className="mt-1 font-black text-slate-900">{formatMoney(item.totalPrice)}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <table className="hidden w-full text-left md:table">
                       <thead>
@@ -1399,6 +1640,8 @@ export default function SalesView() {
                       </thead>
                       <tbody className="divide-y divide-slate-50">
                         {selectedInvoice.items.map((item: any) => {
+                          const quantityInfo = getInvoiceItemQuantityParts(item);
+
                           return (
                             <tr key={item.id}>
                               <td className="px-6 py-4">
@@ -1413,7 +1656,12 @@ export default function SalesView() {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-6 py-4 font-bold text-slate-500">{item.quantity} {item.unit}</td>
+                              <td className="whitespace-nowrap px-6 py-4 text-[11px] text-slate-500">
+                                <p className="whitespace-nowrap text-xs font-semibold text-slate-700">{quantityInfo.primary}</p>
+                                {quantityInfo.secondary && (
+                                  <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">{quantityInfo.secondary}</p>
+                                )}
+                              </td>
                               <td className="px-6 py-4 font-bold text-slate-500">{formatMoney(item.sellingPrice)}</td>
                               <td className="px-6 py-4 text-right font-black text-slate-900">{formatMoney(item.totalPrice)}</td>
                             </tr>
@@ -1614,7 +1862,7 @@ export default function SalesView() {
                     ))}
                   </select>
                   <p className="mt-3 text-sm text-slate-500">
-                    При смене клиента все связанные оплаты и возвраты этой накладной будут перенесены к новому клиенту.
+                    При смене клиента переносится только текущая накладная (и ее оплаты/возвраты).
                   </p>
                 </div>
                 <div className="space-y-4">
@@ -1648,6 +1896,25 @@ export default function SalesView() {
                     {filteredEditInvoiceItems.map((item) => {
                       const index = editInvoiceItems.findIndex((entry) => entry.key === item.key);
                       const selectedProduct = getEditProductMeta(item.productId);
+                      const itemMaxAllowedQuantity = getEditItemMaxAllowedQuantity(item, editInvoiceItems);
+                      const selectedPackagingForRow = getEditItemPackaging(item);
+                      const unitsPerPackageForRow = Math.max(0, Number(selectedPackagingForRow?.unitsPerPackage || 0));
+                      const maxPackageCount =
+                        selectedPackagingForRow && unitsPerPackageForRow > 0
+                          ? Math.floor(itemMaxAllowedQuantity / unitsPerPackageForRow)
+                          : 0;
+                      const visibleEditProducts = editProducts
+                        .filter((product) => {
+                          const productId = Number(product.id);
+                          const isSelectedProduct = productId === Number(item.productId || 0);
+                          const hasStock = Math.max(0, Number(product.stock || 0)) > 0;
+                          return isSelectedProduct || hasStock;
+                        })
+                        .filter((product) => {
+                          const query = editProductMenuSearch.trim().toLowerCase();
+                          if (!query) return true;
+                          return formatProductName(product.name).toLowerCase().includes(query);
+                        });
 
                       return (
                         <div
@@ -1714,38 +1981,35 @@ export default function SalesView() {
                                       </div>
                                     </div>
                                     <div className="max-h-64 overflow-y-auto py-2">
-                                      {editProducts
-                                        .filter((product) => {
-                                          const query = editProductMenuSearch.trim().toLowerCase();
-                                          if (!query) return true;
-                                          return formatProductName(product.name).toLowerCase().includes(query);
-                                        })
-                                        .map((product) => (
-                                        <button
-                                          key={product.id}
-                                          type="button"
-                                          onClick={() => {
-                                            selectEditProductForItem(item.key, product);
-                                            setOpenEditProductMenuKey(null);
-                                            setEditProductMenuSearch('');
-                                          }}
-                                          className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-all hover:bg-slate-50"
-                                        >
-                                          <div className="min-w-0">
-                                            <p className="truncate text-sm font-bold text-slate-900">
-                                              {formatProductName(product.name)}
-                                            </p>
-                                            <p className="mt-1 text-xs text-slate-500">
-                                              {Number(product.stock || 0)} шт
-                                            </p>
-                                            </div>
-                                          </button>
-                                      ))}
-                                      {!editProducts.filter((product) => {
-                                        const query = editProductMenuSearch.trim().toLowerCase();
-                                        if (!query) return true;
-                                        return formatProductName(product.name).toLowerCase().includes(query);
-                                      }).length ? (
+                                      {visibleEditProducts
+                                        .map((product, productIndex) => {
+                                          const stockInfo = getProductStockParts(product as EditProductOption);
+
+                                          return (
+                                            <button
+                                              key={product.id}
+                                              type="button"
+                                              onClick={() => {
+                                                selectEditProductForItem(item.key, product);
+                                                setOpenEditProductMenuKey(null);
+                                                setEditProductMenuSearch('');
+                                              }}
+                                              className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-all hover:bg-slate-50"
+                                            >
+                                              <div className="min-w-0">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">#{productIndex + 1}</p>
+                                                <p className="truncate text-sm font-bold text-slate-900">
+                                                  {formatProductName(product.name)}
+                                                </p>
+                                                <p className="mt-1 text-xs font-medium text-slate-600">{stockInfo.primary}</p>
+                                                {stockInfo.secondary && (
+                                                  <p className="mt-0.5 text-[10px] text-slate-400">{stockInfo.secondary}</p>
+                                                )}
+                                              </div>
+                                            </button>
+                                          );
+                                        })}
+                                      {!visibleEditProducts.length ? (
                                         <div className="px-4 py-6 text-center text-sm font-medium text-slate-400">
                                           Ничего не найдено
                                         </div>
@@ -1799,6 +2063,7 @@ export default function SalesView() {
                                     <input
                                       type="number"
                                       min="0"
+                                      max={maxPackageCount}
                                       step="1"
                                       value={item.packageQuantityInput}
                                       onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { packageQuantityInput: e.target.value })}
@@ -1809,6 +2074,7 @@ export default function SalesView() {
                                     <input
                                       type="number"
                                       min="0"
+                                      max={itemMaxAllowedQuantity}
                                       step="1"
                                       value={item.extraUnitQuantityInput}
                                       onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { extraUnitQuantityInput: e.target.value })}
@@ -1821,6 +2087,7 @@ export default function SalesView() {
                                   <input
                                     type="number"
                                     min="0"
+                                    max={itemMaxAllowedQuantity}
                                     step="1"
                                     value={item.extraUnitQuantityInput}
                                     onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { extraUnitQuantityInput: e.target.value })}
@@ -1884,7 +2151,9 @@ export default function SalesView() {
                               </span>
                             ) : null}
                             {selectedProduct ? (
-                              <span>Остаток сейчас: {selectedProduct.stock} {normalizeDisplayBaseUnit(selectedProduct.baseUnitName || selectedProduct.unit || 'шт')}</span>
+                              <span>
+                                Остаток сейчас: {getProductStockParts(selectedProduct as EditProductOption).primary}
+                              </span>
                             ) : null}
                           </div>
                         </div>
@@ -2067,11 +2336,19 @@ export default function SalesView() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {returnItems.map((item: any, idx: number) => (
-                          <tr key={item.id}>
-                            <td className="px-6 py-4 font-black text-slate-900">{formatProductName(item.product_name)}</td>
-                            <td className="px-6 py-4 font-bold text-slate-500">{item.quantity} {item.unit}</td>
-                            <td className="px-6 py-4">
+                        {returnItems.map((item: any, idx: number) => {
+                          const quantityInfo = getInvoiceItemQuantityParts(item);
+
+                          return (
+                            <tr key={item.id}>
+                              <td className="px-6 py-4 font-black text-slate-900">{formatProductName(item.product_name)}</td>
+                              <td className="whitespace-nowrap px-6 py-4 text-[11px] text-slate-500">
+                                <p className="whitespace-nowrap text-xs font-semibold text-slate-700">{quantityInfo.primary}</p>
+                                {quantityInfo.secondary && (
+                                  <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">{quantityInfo.secondary}</p>
+                                )}
+                              </td>
+                              <td className="px-6 py-4">
                               <input 
                                 type="number" 
                                 min="0"
@@ -2084,9 +2361,10 @@ export default function SalesView() {
                                 }}
                                 className="w-20 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-black text-center outline-none focus:ring-2 focus:ring-amber-500"
                               />
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

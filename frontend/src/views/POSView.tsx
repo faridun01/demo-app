@@ -224,6 +224,14 @@ export default function POSView() {
     return Math.max(0, Math.floor(Number(currentProduct?.stock ?? item.stock ?? 0) || 0));
   };
 
+  const warnStockOverflow = (item: CartItem, availableStock: number) => {
+    const currentProduct = products.find((product) => product.id === item.id);
+    toast.error(
+      `Нельзя продать больше остатка. Доступно: ${getProductStockLabel(currentProduct || item, item.baseUnitName || item.unit)}`,
+      { id: `stock-overflow-${item.id}` },
+    );
+  };
+
   const normalizeCartItem = (item: CartItem, overrides: Partial<CartItem> = {}) => {
     const merged = { ...item, ...overrides };
     const packaging = merged.packagings.find((entry) => entry.id === merged.selectedPackagingId) || null;
@@ -240,10 +248,11 @@ export default function POSView() {
 
     if (totalBaseUnits > availableStock) {
       if (packaging && unitsPerPackage > 0) {
-        packageQuantity = Math.min(packageQuantity, Math.floor(availableStock / unitsPerPackage));
-        extraUnitQuantity = Math.min(extraUnitQuantity, Math.max(0, availableStock - packageQuantity * unitsPerPackage));
+        packageQuantity = Math.floor(availableStock / unitsPerPackage);
+        extraUnitQuantity = Math.max(0, availableStock - packageQuantity * unitsPerPackage);
       } else {
-        extraUnitQuantity = Math.min(extraUnitQuantity, availableStock);
+        packageQuantity = 0;
+        extraUnitQuantity = availableStock;
       }
 
       totalBaseUnits = packageQuantity * unitsPerPackage + extraUnitQuantity;
@@ -509,6 +518,10 @@ export default function POSView() {
 
     if (existing) {
       const packaging = getCartPackaging(existing);
+      const attemptedQuantity = packaging
+        ? (existing.packageQuantity + 1) * Number(packaging.unitsPerPackage || 0) + Math.max(0, Number(existing.extraUnitQuantity || 0))
+        : Math.max(0, Number(existing.extraUnitQuantity || 0)) + 1;
+      const availableStock = Math.max(0, Number(product.stock || 0));
       const nextItem = normalizeCartItem(
         existing,
         packaging
@@ -522,8 +535,10 @@ export default function POSView() {
             },
       );
 
-      if (nextItem.quantity > Number(product.stock || 0)) {
-      toast.error(`Недостаточно товара. Доступно: ${getProductStockLabel(product, existing.baseUnitName || product.unit)}`);
+      if (attemptedQuantity > availableStock) {
+        toast.error(`Недостаточно товара. Доступно: ${getProductStockLabel(product, existing.baseUnitName || product.unit)}`);
+        const cappedItem = normalizeCartItem(nextItem);
+        setCart(cart.map((item) => (item.id === product.id ? cappedItem : item)));
         return;
       }
 
@@ -560,6 +575,19 @@ export default function POSView() {
     const product = products.find((item) => item.id === id);
     if (product && quantity > product.stock) {
       toast.error(`Недостаточно товара. Доступно: ${getProductStockLabel(product, product.unit)}`);
+      setCart(
+        cart.map((item) =>
+          item.id === id
+            ? normalizeCartItem(item, {
+                selectedPackagingId: null,
+                packageQuantity: 0,
+                packageQuantityInput: '0',
+                extraUnitQuantity: Math.max(0, Math.floor(Number(product.stock || 0))),
+                extraUnitQuantityInput: String(Math.max(0, Math.floor(Number(product.stock || 0)))),
+              })
+            : item,
+        ),
+      );
       return;
     }
 
@@ -588,6 +616,9 @@ export default function POSView() {
 
         const product = products.find((productItem) => productItem.id === id);
         const maxStock = product?.stock ?? item.stock;
+        if (parsedQuantity > maxStock) {
+          warnStockOverflow(item, maxStock);
+        }
         const nextQuantity = Math.max(1, Math.min(parsedQuantity, maxStock));
         return {
           ...item,
@@ -607,6 +638,9 @@ export default function POSView() {
 
         const product = products.find((productItem) => productItem.id === id);
         const maxStock = product?.stock ?? item.stock;
+        if (item.quantity > maxStock) {
+          warnStockOverflow(item, maxStock);
+        }
         const normalizedQuantity = Math.max(1, Math.min(item.quantity, maxStock));
         return {
           ...item,
@@ -645,9 +679,24 @@ export default function POSView() {
           return { ...item, packageQuantityInput: '' };
         }
 
+        const packaging = getCartPackaging(item);
+        const unitsPerPackage = Number(packaging?.unitsPerPackage || 0);
+        const parsedPackageQuantity = Math.max(0, Math.floor(Number(value) || 0));
+        const maxByStock = unitsPerPackage > 0
+          ? Math.floor(
+              Math.max(0, getAvailableStockForCartItem(item) - Math.max(0, Number(item.extraUnitQuantity || 0))) / unitsPerPackage,
+            )
+          : 0;
+        const nextPackageQuantity = Math.min(parsedPackageQuantity, Math.max(0, maxByStock));
+        const attemptedTotal = parsedPackageQuantity * unitsPerPackage + Math.max(0, Number(item.extraUnitQuantity || 0));
+        const availableStock = getAvailableStockForCartItem(item);
+        if (attemptedTotal > availableStock) {
+          warnStockOverflow(item, availableStock);
+        }
+
         return normalizeCartItem(item, {
-          packageQuantity: Math.max(0, Math.floor(Number(value) || 0)),
-          packageQuantityInput: value,
+          packageQuantity: nextPackageQuantity,
+          packageQuantityInput: String(nextPackageQuantity),
         });
       }),
     );
@@ -662,6 +711,13 @@ export default function POSView() {
           }
 
           const nextValue = Math.max(0, Math.floor(Number(item.packageQuantityInput || item.packageQuantity || 0) || 0));
+          const packaging = getCartPackaging(item);
+          const unitsPerPackage = Number(packaging?.unitsPerPackage || 0);
+          const attemptedTotal = nextValue * unitsPerPackage + Math.max(0, Number(item.extraUnitQuantity || 0));
+          const availableStock = getAvailableStockForCartItem(item);
+          if (attemptedTotal > availableStock) {
+            warnStockOverflow(item, availableStock);
+          }
           return normalizeCartItem(item, {
             packageQuantity: nextValue,
             packageQuantityInput: String(nextValue),
@@ -682,9 +738,24 @@ export default function POSView() {
           return { ...item, extraUnitQuantityInput: '' };
         }
 
+        const packaging = getCartPackaging(item);
+        const unitsPerPackage = Number(packaging?.unitsPerPackage || 0);
+        const parsedExtraUnitQuantity = Math.max(0, Math.floor(Number(value) || 0));
+        const maxByStock = packaging
+          ? Math.max(0, getAvailableStockForCartItem(item) - Math.max(0, Number(item.packageQuantity || 0)) * unitsPerPackage)
+          : getAvailableStockForCartItem(item);
+        const nextExtraUnitQuantity = Math.min(parsedExtraUnitQuantity, Math.max(0, maxByStock));
+        const attemptedTotal = packaging
+          ? Math.max(0, Number(item.packageQuantity || 0)) * unitsPerPackage + parsedExtraUnitQuantity
+          : parsedExtraUnitQuantity;
+        const availableStock = getAvailableStockForCartItem(item);
+        if (attemptedTotal > availableStock) {
+          warnStockOverflow(item, availableStock);
+        }
+
         return normalizeCartItem(item, {
-          extraUnitQuantity: Math.max(0, Math.floor(Number(value) || 0)),
-          extraUnitQuantityInput: value,
+          extraUnitQuantity: nextExtraUnitQuantity,
+          extraUnitQuantityInput: String(nextExtraUnitQuantity),
         });
       }),
     );
@@ -699,6 +770,15 @@ export default function POSView() {
           }
 
           const nextValue = Math.max(0, Math.floor(Number(item.extraUnitQuantityInput || item.extraUnitQuantity || 0) || 0));
+          const packaging = getCartPackaging(item);
+          const unitsPerPackage = Number(packaging?.unitsPerPackage || 0);
+          const attemptedTotal = packaging
+            ? Math.max(0, Number(item.packageQuantity || 0)) * unitsPerPackage + nextValue
+            : nextValue;
+          const availableStock = getAvailableStockForCartItem(item);
+          if (attemptedTotal > availableStock) {
+            warnStockOverflow(item, availableStock);
+          }
           return normalizeCartItem(item, {
             extraUnitQuantity: nextValue,
             extraUnitQuantityInput: String(nextValue),

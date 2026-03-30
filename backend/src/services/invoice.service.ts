@@ -36,6 +36,20 @@ function normalizeNonNegativeNumber(value: number, fieldName: string) {
   return normalized;
 }
 
+function buildRequestedQuantityByProduct(
+  items: Array<{ productId: number; quantity: number; totalBaseUnits?: number }>,
+) {
+  const requested = new Map<number, number>();
+
+  for (const item of items) {
+    const productId = Number(item.productId);
+    const quantity = normalizeNonNegativeNumber(item.totalBaseUnits ?? item.quantity, 'Item quantity');
+    requested.set(productId, roundMoney((requested.get(productId) || 0) + quantity));
+  }
+
+  return requested;
+}
+
 export class InvoiceService {
   /**
    * Creates a new invoice and allocates stock.
@@ -103,6 +117,22 @@ export class InvoiceService {
 
       if (products.length !== productIds.length) {
         throw new Error('Один или несколько товаров не принадлежат выбранному складу');
+      }
+
+      const requestedByProduct = buildRequestedQuantityByProduct(items);
+      for (const [productId, requestedQty] of requestedByProduct.entries()) {
+        const product = productsById.get(productId);
+        if (!product) {
+          continue;
+        }
+
+        const availableQty = Math.max(0, Number(product.stock || 0));
+        if (requestedQty > availableQty) {
+          const unit = normalizeBaseUnitName(product.baseUnitName || product.unit || 'шт');
+          throw new Error(
+            `Нельзя продать больше остатка для "${product.name}". Доступно: ${availableQty} ${unit}, запрошено: ${requestedQty} ${unit}`,
+          );
+        }
       }
 
       // 1. Calculate totals
@@ -353,6 +383,32 @@ export class InvoiceService {
 
       if (products.length !== productIds.length) {
         throw new Error('Один или несколько товаров не принадлежат выбранному складу');
+      }
+
+      const requestedByProduct = buildRequestedQuantityByProduct(items);
+      const originalByProduct = new Map<number, number>();
+      for (const existingItem of invoice.items) {
+        const productId = Number(existingItem.productId);
+        const current = originalByProduct.get(productId) || 0;
+        originalByProduct.set(productId, roundMoney(current + Number(existingItem.totalBaseUnits ?? existingItem.quantity ?? 0)));
+      }
+
+      for (const [productId, requestedQty] of requestedByProduct.entries()) {
+        const product = productsById.get(productId);
+        if (!product) {
+          continue;
+        }
+
+        const availableNow = Math.max(0, Number(product.stock || 0));
+        const originalQty = Math.max(0, Number(originalByProduct.get(productId) || 0));
+        const availableForEdit = roundMoney(availableNow + originalQty);
+
+        if (requestedQty > availableForEdit) {
+          const unit = normalizeBaseUnitName(product.baseUnitName || product.unit || 'шт');
+          throw new Error(
+            `Нельзя продать больше остатка для "${product.name}". Доступно: ${availableForEdit} ${unit}, запрошено: ${requestedQty} ${unit}`,
+          );
+        }
       }
 
       let totalAmount = 0;

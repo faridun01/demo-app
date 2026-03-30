@@ -6,6 +6,7 @@ import { DEFAULT_CUSTOMER_NAME } from '../utils/defaultCustomer.js';
 
 const router = Router();
 const LOW_STOCK_THRESHOLD = 5;
+const LOW_STOCK_PACKAGE_THRESHOLD = 4;
 const safePercentChange = (current: number, previous: number) => {
   if (previous === 0 && current === 0) return 0;
   if (previous === 0) return 100;
@@ -18,6 +19,9 @@ const getInvoiceDebt = (netAmount: number, paidAmount: number) => {
   const balance = Number(netAmount || 0) - Number(paidAmount || 0);
   return balance > PAYMENT_EPSILON ? balance : 0;
 };
+
+const getDefaultPackaging = (packagings: Array<{ isDefault?: boolean; unitsPerPackage?: number; packageName?: string }>) =>
+  packagings.find((entry) => Boolean(entry?.isDefault)) || packagings[0] || null;
 
 const getPeriodRevenue = (
   invoices: Array<{ createdAt: Date; netAmount: number | string | { toString(): string } }>,
@@ -58,6 +62,10 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       active: true,
       warehouseId: selectedWarehouseId ?? (isAdmin ? undefined : (access.warehouseId ?? -1)),
     };
+    const lowStockProductWhere = {
+      active: true,
+      warehouseId: isAdmin ? undefined : (access.warehouseId ?? -1),
+    };
     const customerWhere = {
       active: true,
       city: isAdmin ? undefined : (access.city ?? '__no_city__'),
@@ -79,7 +87,7 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       totalCustomers,
       totalWarehouses,
       totalOrders,
-      lowStock,
+      lowStockRaw,
       recentSales,
       allInvoices,
       reminders,
@@ -112,13 +120,23 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       prisma.warehouse.count({ where: warehouseWhere }),
       prisma.invoice.count({ where: invoiceWhere }),
       prisma.product.findMany({
-        where: { ...productWhere, stock: { lte: LOW_STOCK_THRESHOLD } },
-        orderBy: [{ stock: 'asc' }, { name: 'asc' }],
+        where: lowStockProductWhere,
         select: {
           id: true,
           name: true,
           stock: true,
           unit: true,
+          baseUnitName: true,
+          packagings: {
+            where: { active: true },
+            select: {
+              id: true,
+              packageName: true,
+              baseUnitName: true,
+              unitsPerPackage: true,
+              isDefault: true,
+            },
+          },
           warehouseId: true,
           warehouse: {
             select: {
@@ -227,6 +245,29 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
     const currentMonthProducts = selectedWarehouseId
       ? currentMonthProductsRaw.length
       : new Set(currentMonthProductsRaw.map((product: { name: string }) => normalizeProductKey(product.name))).size;
+
+    const lowStock = lowStockRaw
+      .filter((product: any) => {
+        const stockUnits = Math.max(0, Number(product?.stock || 0));
+        const packagings = Array.isArray(product?.packagings) ? product.packagings : [];
+        const defaultPackaging = getDefaultPackaging(packagings);
+        const unitsPerPackage = Number(defaultPackaging?.unitsPerPackage || 0);
+
+        if (defaultPackaging && unitsPerPackage > 0) {
+          const packageCount = stockUnits / unitsPerPackage;
+          return stockUnits <= LOW_STOCK_THRESHOLD || packageCount < LOW_STOCK_PACKAGE_THRESHOLD;
+        }
+
+        return stockUnits <= LOW_STOCK_THRESHOLD;
+      })
+      .sort((a: any, b: any) => {
+        const stockDiff = Number(a?.stock || 0) - Number(b?.stock || 0);
+        if (stockDiff !== 0) {
+          return stockDiff;
+        }
+
+        return String(a?.name || '').localeCompare(String(b?.name || ''), 'ru');
+      });
 
     const previousMonthProducts = selectedWarehouseId
       ? previousMonthProductsRaw.length
