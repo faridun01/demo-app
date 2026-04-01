@@ -312,6 +312,13 @@ export default function RemindersView() {
     { key: 'upcoming', title: 'Предстоящие', items: paginatedGroupedReminders.upcoming, accent: 'text-slate-900' },
     { key: 'completed', title: 'Выполнены', items: paginatedGroupedReminders.completed, accent: 'text-slate-400' },
   ] as const;
+  const reminderTabs = [
+    { key: 'all', label: 'Все', count: reminders.length },
+    { key: 'today', label: 'Сегодня', count: groupedReminders.today.length },
+    { key: 'overdue', label: 'Просрочены', count: groupedReminders.overdue.length },
+    { key: 'upcoming', label: 'Скоро', count: groupedReminders.upcoming.length },
+    { key: 'completed', label: 'Выполнены', count: groupedReminders.completed.length },
+  ] as const;
 
   return (
     <div className="app-page-shell">
@@ -346,36 +353,46 @@ export default function RemindersView() {
             <div className="space-y-5">
               <div className="rounded-[24px] border border-[#e7ebff] bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
-                  <div className="grid min-w-0 grid-cols-5 gap-1 rounded-[20px] bg-[#f7f8ff] p-1">
-                    {[
-                      { key: 'all', label: 'Все', count: reminders.length },
-                      { key: 'today', label: 'Сегодня', count: groupedReminders.today.length },
-                      { key: 'overdue', label: 'Просрочены', count: groupedReminders.overdue.length },
-                      { key: 'upcoming', label: 'Скоро', count: groupedReminders.upcoming.length },
-                      { key: 'completed', label: 'Выполнены', count: groupedReminders.completed.length },
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setFilterTab(tab.key as typeof filterTab)}
-                        className={clsx(
-                          'inline-flex min-h-[40px] min-w-0 items-center justify-center gap-1 rounded-[15px] px-2 py-1.5 text-center text-[10px] font-bold leading-none transition-all',
-                          filterTab === tab.key
-                            ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-[#dfe5ff]'
-                            : 'text-[#5d7190] hover:bg-white/80 hover:text-slate-900',
-                        )}
+                  <div className="min-w-0">
+                    <div className="sm:hidden">
+                      <select
+                        value={filterTab}
+                        onChange={(e) => setFilterTab(e.target.value as typeof filterTab)}
+                        className="w-full rounded-[18px] border border-[#dfe5ff] bg-[#f7f8ff] px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-violet-300 focus:bg-white"
                       >
-                        <span className="min-w-0 whitespace-nowrap">{tab.label}</span>
-                        <span
+                        {reminderTabs.map((tab) => (
+                          <option key={tab.key} value={tab.key}>
+                            {tab.label} ({tab.count})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="hidden min-w-0 grid-cols-5 gap-1 rounded-[20px] bg-[#f7f8ff] p-1 sm:grid">
+                      {reminderTabs.map((tab) => (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setFilterTab(tab.key as typeof filterTab)}
                           className={clsx(
-                            'inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-black leading-none',
-                            filterTab === tab.key ? 'bg-[#eef2ff] text-slate-900' : 'bg-white text-[#5d7190]',
+                            'inline-flex min-h-[40px] min-w-0 items-center justify-center gap-1 rounded-[15px] px-2 py-1.5 text-center text-[10px] font-bold leading-none transition-all',
+                            filterTab === tab.key
+                              ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-[#dfe5ff]'
+                              : 'text-[#5d7190] hover:bg-white/80 hover:text-slate-900',
                           )}
                         >
-                          {tab.count}
-                        </span>
-                      </button>
-                    ))}
+                          <span className="min-w-0 whitespace-nowrap">{tab.label}</span>
+                          <span
+                            className={clsx(
+                              'inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-black leading-none',
+                              filterTab === tab.key ? 'bg-[#eef2ff] text-slate-900' : 'bg-white text-[#5d7190]',
+                            )}
+                          >
+                            {tab.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {filteredReminders.length > reminderPageSize && (
@@ -527,7 +544,7 @@ export default function RemindersView() {
             <div className="flex h-full flex-col gap-5">
               <div className="rounded-[24px] border border-[#e7ebff] bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.04)]">
                 <div className="mb-4 flex items-center justify-between">
-                <h3 className="break-words text-[clamp(1.65rem,2.2vw,1.95rem)] font-bold leading-tight tracking-[-0.03em] text-slate-900">
+                <h3 className="break-words text-[clamp(1.2rem,1.8vw,1.45rem)] font-medium leading-tight tracking-[-0.02em] text-slate-900">
                   {activeMonthLabel.charAt(0).toUpperCase() + activeMonthLabel.slice(1)}
                 </h3>
                   <div className="flex items-center gap-2">
@@ -577,7 +594,7 @@ export default function RemindersView() {
                 </div>
               </div>
               <div className="overflow-hidden rounded-[24px] border border-[#e7ebff] bg-white p-4 shadow-[0_10px_35px_rgba(15,23,42,0.04)] sm:p-5">
-                <h3 className="max-w-full break-words text-[clamp(1rem,5.8vw,1.55rem)] font-bold leading-[1.08] tracking-[-0.03em] text-slate-900 sm:text-[clamp(1.35rem,1.9vw,1.7rem)]">
+                <h3 className="max-w-full break-words text-[clamp(0.95rem,4.8vw,1.2rem)] font-medium leading-[1.15] tracking-[-0.02em] text-slate-900 sm:text-[clamp(1.05rem,1.5vw,1.25rem)]">
                   Статистика задач
                 </h3>
                 <div className="mt-5 space-y-4">
@@ -615,7 +632,7 @@ export default function RemindersView() {
               </div>
 
               <div className="mt-auto rounded-[24px] border border-[#e7ebff] bg-white p-4 shadow-[0_10px_35px_rgba(15,23,42,0.04)] sm:p-5">
-                <h3 className="break-words text-[clamp(1.65rem,2.1vw,1.95rem)] font-bold leading-tight tracking-[-0.03em] text-slate-900">Категории</h3>
+                <h3 className="break-words text-[clamp(1.05rem,1.55vw,1.25rem)] font-medium leading-tight tracking-[-0.02em] text-slate-900">Категории</h3>
                 <div className="mt-3 space-y-2.5">
                   {Object.entries(TYPE_META).map(([key, meta]) => (
                     <div key={key} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2.5">

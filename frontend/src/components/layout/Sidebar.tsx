@@ -54,6 +54,28 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   const user = getCurrentUser();
   const isAdmin = isAdminUser(user);
   const [remindersCount, setRemindersCount] = useState(0);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const syncViewport = (event?: MediaQueryListEvent) => {
+      setIsDesktopViewport(event ? event.matches : mediaQuery.matches);
+    };
+
+    syncViewport();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncViewport);
+      return () => mediaQuery.removeEventListener('change', syncViewport);
+    }
+
+    mediaQuery.addListener(syncViewport);
+    return () => mediaQuery.removeListener(syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!hasStoredSession()) return;
@@ -117,6 +139,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
     acc[item.section].push(item);
     return acc;
   }, {});
+  const sidebarCollapsed = isDesktopViewport && isCollapsed;
 
   return (
     <>
@@ -130,15 +153,15 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-50 flex h-[100dvh] flex-col overflow-hidden border-r border-[#202c3c] bg-[#111927] text-[#eaf1f8] shadow-2xl transition-[width,transform] duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none',
-          isCollapsed
-            ? 'w-[86vw] max-w-[320px] lg:w-[92px] lg:max-w-none'
-            : 'w-[86vw] max-w-[320px] lg:w-[246px] lg:max-w-none',
+          'fixed inset-y-0 left-0 z-50 flex h-[100dvh] flex-col overflow-y-auto overflow-x-hidden border-r border-[#202c3c] bg-[#111927] text-[#eaf1f8] shadow-2xl transition-[width,transform] duration-300 ease-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:overflow-hidden lg:shadow-none',
+          sidebarCollapsed
+            ? 'w-[82vw] max-w-[312px] lg:w-[92px] lg:max-w-none'
+            : 'w-[82vw] max-w-[312px] lg:w-[246px] lg:max-w-none',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className={clsx('border-b border-white/5', isCollapsed ? 'px-3 py-2.5' : 'px-3.5 py-3')}>
-          <div className={clsx('flex items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
+        <div className={clsx('border-b border-white/5', sidebarCollapsed ? 'px-3 py-2.5' : 'px-4 py-3.5')}>
+          <div className={clsx('flex items-center', sidebarCollapsed ? 'justify-center' : 'gap-3')}>
             <button
               type="button"
               onClick={() => {
@@ -150,18 +173,18 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                 navigate('/');
                 onClose();
               }}
-              title={isCollapsed ? 'Развернуть меню' : 'Оптовая торговля'}
+              title={sidebarCollapsed ? 'Развернуть меню' : 'Оптовая торговля'}
               className={clsx(
                 'flex shrink-0 items-center justify-center transition-all duration-200',
-                isCollapsed
+                sidebarCollapsed
                   ? 'h-[50px] w-[50px] rounded-[18px] bg-[linear-gradient(180deg,#5a49ff_0%,#4a2fe0_100%)] text-white shadow-[0_12px_28px_rgba(88,72,255,0.28)]'
                   : 'h-11 w-11 rounded-[16px] bg-[linear-gradient(180deg,#5a49ff_0%,#4a2fe0_100%)] text-white shadow-[0_12px_24px_rgba(88,72,255,0.24)]',
               )}
             >
-              <Warehouse size={isCollapsed ? 21 : 19} />
+              <Warehouse size={sidebarCollapsed ? 21 : 19} />
             </button>
 
-            {!isCollapsed && (
+            {!sidebarCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
                   <div className="text-[16px] font-semibold leading-[1.1] tracking-tight text-white">Оптовая торговля</div>
@@ -191,18 +214,18 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
         <nav
           className={clsx(
-            'flex-1 overflow-hidden',
-            isCollapsed ? 'px-2.5 py-2' : 'px-3.5 py-2.5',
+            'flex-1 overflow-visible lg:overflow-hidden',
+            sidebarCollapsed ? 'px-2.5 py-2' : 'px-3.5 py-3',
           )}
         >
-          <div className={clsx(isCollapsed ? 'space-y-2' : 'space-y-1.5')}>
+          <div className={clsx(sidebarCollapsed ? 'space-y-2' : 'space-y-2')}>
             {Object.entries(navSections).map(([section, items]) => (
               <div key={section}>
-                {!isCollapsed && (
-                  <p className="mb-1 px-3 text-[8px] font-semibold uppercase tracking-[0.14em] text-[#74859a]">{section}</p>
+                {!sidebarCollapsed && (
+                  <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#74859a]">{section}</p>
                 )}
 
-                <div className={clsx(isCollapsed ? 'space-y-1' : 'space-y-0.5')}>
+                <div className={clsx(sidebarCollapsed ? 'space-y-1' : 'space-y-1')}>
                   {items.map((item) => (
                     <NavLink
                       key={item.to}
@@ -211,13 +234,13 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                       onClick={() => {
                         if (window.innerWidth < 1024) onClose();
                       }}
-                      title={isCollapsed ? item.label : undefined}
+                      title={sidebarCollapsed ? item.label : undefined}
                       className={({ isActive }) =>
                         clsx(
                           'group relative flex border transition-all duration-200',
-                          isCollapsed
+                          sidebarCollapsed
                             ? 'mx-auto h-[50px] w-[50px] items-center justify-center rounded-[16px]'
-                            : 'items-center gap-3 rounded-[16px] px-3.5 py-2.5',
+                            : 'items-center gap-3 rounded-[18px] px-3.5 py-3',
                           isActive
                             ? 'border-[#31426b] bg-[#192542] text-white shadow-[0_10px_22px_rgba(9,15,28,0.24)]'
                             : 'border-transparent bg-transparent text-[#9daec4] hover:border-[#243146] hover:bg-[#182231] hover:text-white',
@@ -226,22 +249,22 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                     >
                       {({ isActive }) => (
                         <>
-                          <item.icon size={isCollapsed ? 22 : 17} className="shrink-0" strokeWidth={isActive ? 2.2 : 2} />
+                          <item.icon size={sidebarCollapsed ? 22 : 18} className="shrink-0" strokeWidth={isActive ? 2.2 : 2} />
 
-                          {!isCollapsed && <span className="truncate text-[14px] font-medium">{item.label}</span>}
+                          {!sidebarCollapsed && <span className="truncate text-[14px] font-medium">{item.label}</span>}
 
                           {item.to === '/reminders' && remindersCount > 0 && (
                             <span
                               className={clsx(
                                 'flex items-center justify-center rounded-full bg-[#ef4444] text-[9px] font-semibold text-white',
-                                isCollapsed ? 'absolute right-1.5 top-1.5 h-4 min-w-4 px-1' : 'ml-auto h-4 min-w-4 px-1',
+                                sidebarCollapsed ? 'absolute right-1.5 top-1.5 h-4 min-w-4 px-1' : 'ml-auto h-4 min-w-4 px-1',
                               )}
                             >
                               {remindersCount > 9 ? '9+' : remindersCount}
                             </span>
                           )}
 
-                          {isCollapsed && isActive && (
+                          {sidebarCollapsed && isActive && (
                             <span className="absolute inset-0 rounded-[16px] bg-[linear-gradient(180deg,rgba(99,76,255,0.30)_0%,rgba(79,57,197,0.26)_100%)]" />
                           )}
                         </>
@@ -254,19 +277,19 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </div>
         </nav>
 
-        <div className={clsx('mt-auto border-t border-white/5', isCollapsed ? 'px-2.5 py-2' : 'px-3.5 py-2.5')}>
+        <div className={clsx('mt-auto border-t border-white/5', sidebarCollapsed ? 'px-2.5 py-2' : 'px-3.5 py-3')}>
           <div
             className={clsx(
               'rounded-[18px] border border-[#223043] bg-[#172133]',
-              isCollapsed ? 'px-0 py-2' : 'p-2.5',
+              sidebarCollapsed ? 'px-0 py-2' : 'p-2.5',
             )}
           >
-            <div className={clsx('flex items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
+            <div className={clsx('flex items-center', sidebarCollapsed ? 'justify-center' : 'gap-3')}>
               <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[14px] bg-[#223148] text-sm font-semibold text-white">
                 {user.username?.[0]?.toUpperCase()}
               </div>
 
-              {!isCollapsed && (
+              {!sidebarCollapsed && (
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-semibold text-[#eaf1f8]">{user.username}</p>
                   <p className="truncate text-[9px] uppercase tracking-[0.12em] text-[#73869d]">{user.role}</p>
@@ -274,7 +297,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
               )}
             </div>
 
-            {!isCollapsed && (
+            {!sidebarCollapsed && (
               <button
                 onClick={handleLogout}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-[#223148] py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#c9d5e3] transition-colors hover:border-[#5a3441] hover:bg-[#3a2430] hover:text-[#fecdd3]"

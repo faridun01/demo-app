@@ -822,7 +822,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
         </div>
       </section>
 
-      {reportType !== 'writeoffs' && (
+      {reportType !== 'writeoffs' && reportType !== 'returns' && (
         <React.Suspense
           fallback={
             <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_360px]">
@@ -844,7 +844,25 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
 
       {reportType === 'profit' && (
         <Panel title="Прибыль по товарам">
-          <div className="max-h-[420px] overflow-auto -mx-5">
+          <div className="space-y-3 md:hidden">
+            {paginatedProductProfitRows.length ? (
+              paginatedProductProfitRows.map((row) => (
+                <article key={row.name} className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4">
+                  <h3 className="text-sm font-semibold leading-5 text-slate-900">{row.name}</h3>
+                  <div className="mt-3 grid gap-2">
+                    <MobileDetailField label="Количество" value={formatCount(row.quantity)} />
+                    <MobileDetailField label="Чистая выручка" value={formatMoney(row.revenue)} />
+                    <MobileDetailField label="Прибыль" value={formatMoney(row.profit)} valueClassName="text-emerald-700" />
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="rounded-3xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+                Нет данных о прибыли по товарам
+              </div>
+            )}
+          </div>
+          <div className="hidden max-h-[420px] overflow-auto -mx-5 md:block">
             <table className="min-w-[720px] w-full text-left">
               <thead className="bg-slate-50 text-sm text-slate-500">
                 <tr>
@@ -900,7 +918,57 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           </div>
         }
       >
-        <div className="max-h-[640px] overflow-auto -mx-5">
+        <div className="space-y-3 md:hidden">
+          {paginatedDetailRows.length ? (
+            paginatedDetailRows.map((row, index) => (
+              <article key={`${row.date}-${row.product_name}-${index}`} className="rounded-3xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-slate-500">{new Date(row.date).toLocaleDateString('ru-RU')}</p>
+                    <h3 className="mt-1 text-sm font-semibold leading-5 text-slate-900">{formatProductName(row.product_name)}</h3>
+                  </div>
+                  <div className="shrink-0 rounded-2xl bg-white px-3 py-2 text-right shadow-sm ring-1 ring-slate-200">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Кол-во</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">{formatCount(row.quantity)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  {reportType === 'sales' && (
+                    <>
+                      <MobileDetailField label="Цена прод." value={toFixedNumber(row.selling_price || 0)} />
+                      <MobileDetailField label="Итого" value={formatMoney(row.total_sales || 0)} valueClassName="text-sky-700" />
+                    </>
+                  )}
+                  {reportType === 'profit' && (
+                    <>
+                      <MobileDetailField label="Цена прод." value={toFixedNumber(row.selling_price || 0)} />
+                      <MobileDetailField label="Себест." value={toFixedNumber(row.cost_price || 0)} />
+                      <MobileDetailField label="Прибыль" value={formatMoney(row.profit || 0)} valueClassName="text-emerald-700" />
+                    </>
+                  )}
+                  {reportType === 'returns' && (
+                    <MobileDetailField label="Причина" value={row.reason || '-'} valueClassName="text-rose-600" />
+                  )}
+                  {reportType === 'writeoffs' && (
+                    <>
+                      <MobileDetailField label="Сумма" value={formatMoney(row.total_value || 0)} valueClassName="text-amber-700" />
+                      <MobileDetailField label="Причина" value={row.reason || '-'} valueClassName="text-amber-700" />
+                      <MobileDetailField label="Сотрудник" value={row.staff_name || '-'} />
+                      <MobileDetailField label="Склад" value={row.warehouse_name || '-'} />
+                      <MobileDetailField label="Себест." value={toFixedNumber(row.cost_price || 0)} />
+                    </>
+                  )}
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="rounded-3xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+              Нет данных за выбранный период
+            </div>
+          )}
+        </div>
+        <div className="hidden max-h-[640px] overflow-auto -mx-5 md:block">
           <table className="min-w-[720px] w-full text-left">
             <thead className="bg-slate-50 text-sm text-slate-500">
               <tr>
@@ -989,6 +1057,23 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
         )}
       </Panel>
       </div>
+    </div>
+  );
+}
+
+function MobileDetailField({
+  label,
+  value,
+  valueClassName = '',
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-slate-50 px-3 py-2.5">
+      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">{label}</p>
+      <div className={`mt-1 text-sm font-medium text-slate-900 ${valueClassName}`.trim()}>{value}</div>
     </div>
   );
 }
