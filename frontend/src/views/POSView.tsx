@@ -936,16 +936,9 @@ export default function POSView() {
 
       <div className="overflow-hidden rounded-[28px] bg-[#f4f5fb]">
         <div className="space-y-5 px-5 py-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-4xl font-medium tracking-tight text-slate-900">POS Терминал</h1>
-              <p className="mt-1 text-sm text-slate-500">Оформление продаж, выбор клиента и создание накладной.</p>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <span>Главная</span>
-              <span>/</span>
-              <span className="text-slate-600">POS Терминал</span>
-            </div>
+          <div className="-mx-5 -mt-5 app-surface space-y-1 px-5 py-5">
+            <h1 className="text-3xl font-medium tracking-tight text-slate-900 sm:text-4xl">POS Терминал</h1>
+            <p className="text-sm text-slate-500">Оформление продаж, выбор клиента и создание накладной.</p>
           </div>
 
           <div className="flex gap-4 border-b border-slate-200 bg-white px-4 py-3 rounded-[24px] lg:hidden">

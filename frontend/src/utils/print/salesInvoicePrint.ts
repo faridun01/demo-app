@@ -19,6 +19,32 @@ const normalizeAddressLine = (value: unknown) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const splitAddressLines = (value: unknown) => {
+  const parts = normalizeAddressLine(value)
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length <= 1) {
+    return {
+      primary: parts[0] || '',
+      secondary: '',
+    };
+  }
+
+  if (parts.length === 2) {
+    return {
+      primary: parts[0],
+      secondary: parts[1],
+    };
+  }
+
+  return {
+    primary: parts.slice(0, 2).join(', '),
+    secondary: parts.slice(2).join(', '),
+  };
+};
+
 interface SalesInvoicePrintOptions {
   invoice: any;
   statusLabel: string;
@@ -47,9 +73,14 @@ export function printSalesInvoice({
 
   const customerName = invoice.customer_name || 'Обычный клиент';
   const customerPhone = invoice.customer_phone || '';
-  const customerAddress = normalizeAddressLine(invoice.customer_address || '');
+  const customerAddress = splitAddressLines(invoice.customer_address || '');
   const sellerRegionLine = [invoice.company_country, invoice.company_region].filter(Boolean).join(', ');
   const sellerCityLine = [invoice.company_city, invoice.company_address].filter(Boolean).join(', ');
+  const invoiceDateLabel = new Date(invoice.createdAt).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 
   const getDisplayPrice = (item: any) => {
     const sellingPricePerUnit = Number(item.sellingPrice || 0);
@@ -64,29 +95,6 @@ export function printSalesInvoice({
   };
 
   const getUnitPrice = (item: any) => Number(item.sellingPrice || 0);
-
-  const detectInnerUnitLabel = (item: any) => {
-    const explicitBaseUnit = String(item.baseUnitNameSnapshot || item.baseUnitName || item.unit || '').trim().toLowerCase();
-    if (explicitBaseUnit && explicitBaseUnit !== 'шт') {
-      return explicitBaseUnit;
-    }
-
-    const source = String(
-      item.rawNameSnapshot ||
-        item.raw_name_snapshot ||
-        item.product_name ||
-        item.productNameSnapshot ||
-        ''
-    ).toLowerCase();
-
-    if (/пач(?:ка|ки|ек)/u.test(source)) return 'пачка';
-    if (/флакон(?:а|ов)?/u.test(source)) return 'флакон';
-    if (/бут(?:ылка|ылки|ылок)/u.test(source)) return 'бутылка';
-    if (/бан(?:ка|ки|ок)/u.test(source)) return 'банка';
-    if (/ёмкост(?:ь|и|ей)|емкост(?:ь|и|ей)/u.test(source)) return 'ёмкость';
-
-    return explicitBaseUnit || 'шт';
-  };
 
   const getQuantityLabel = (item: any) => {
     const packageQuantity = Number(item.packageQuantity || 0);
@@ -143,18 +151,21 @@ export function printSalesInvoice({
           * { box-sizing: border-box; }
           body { margin: 0; padding: 6px; font-family: Arial, sans-serif; color: #0f172a; background: #ffffff; }
           .sheet { max-width: 920px; margin: 0 auto; }
-          .header { display: flex; justify-content: space-between; align-items: stretch; gap: 8px; border-bottom: 1px solid #d9e3ef; padding-bottom: 6px; margin-bottom: 6px; }
-          .party-block { min-width: 0; border: 1px solid #d9e3ef; border-radius: 8px; padding: 6px 8px; background: #ffffff; }
+          .doc-title { text-align: center; border-bottom: 1px solid #d9e3ef; padding-bottom: 8px; margin-bottom: 8px; }
+          .doc-title-text { margin: 0; font-size: 20px; font-weight: 800; }
+          .doc-title-date { margin: 3px 0 0; font-size: 11px; font-weight: 700; color: #334155; }
+          .header { display: flex; justify-content: space-between; align-items: stretch; gap: 16px; margin-bottom: 8px; }
+          .party-block { min-width: 0; border: none; border-radius: 0; padding: 6px 0; background: transparent; }
           .seller-block { flex: 1; }
-          .client-block { width: 235px; }
+          .client-block { width: 235px; margin-left: auto; text-align: left; }
           .label { margin: 0 0 3px; color: #64748b; font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; }
           .party-name { margin: 0; font-size: 11px; font-weight: 700; line-height: 1.1; color: #0f172a; }
           .party-line { margin: 1px 0 0; color: #334155; font-size: 8.5px; line-height: 1.1; }
-          .section { margin-top: 6px; }
-          .section h3 { margin: 0 0 3px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.07em; color: #1e3a8a; }
+          .section { margin-top: 8px; border-top: 3px solid #0f172a; padding-top: 6px; }
+          .section h3 { margin: 0 0 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.07em; color: #1e3a8a; font-weight: 800; }
           table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-          th, td { border: 1px solid #dbe5f1; padding: 3px 4px; font-size: 8.5px; text-align: left; vertical-align: top; line-height: 1.05; }
-          th { background: #ffffff; font-weight: 700; font-size: 8px; color: #111827; }
+          th, td { border: 2px solid #0f172a; padding: 3px 4px; font-size: 8.5px; text-align: left; vertical-align: top; line-height: 1.05; font-weight: 700; }
+          th { background: #ffffff; font-weight: 800; font-size: 8px; color: #111827; }
           .col-number { width: 28px; }
           .col-product { width: 292px; }
           .col-quantity { width: 78px; }
@@ -176,8 +187,8 @@ export function printSalesInvoice({
           .quantity-line { display: block; }
           .quantity-line + .quantity-line { margin-top: 1px; font-size: 7.4px; color: #475569; }
           .summary { margin-left: auto; margin-top: 6px; width: 220px; }
-          .summary-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; border-bottom: 1px solid #dbe5f1; font-size: 9px; }
-          .summary-row.total { font-size: 10.5px; font-weight: 700; border-top: 1px solid #cbd5e1; margin-top: 2px; padding-top: 4px; }
+          .summary-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; border-bottom: 2px solid #0f172a; font-size: 9px; font-weight: 700; }
+          .summary-row.total { font-size: 10.5px; font-weight: 800; margin-top: 2px; padding-top: 4px; }
           @media print {
             body { padding: 0; }
             .sheet { max-width: none; }
@@ -186,6 +197,10 @@ export function printSalesInvoice({
       </head>
       <body>
         <div class="sheet">
+          <div class="doc-title">
+            <p class="doc-title-text">Накладная №${invoice.id}</p>
+            <p class="doc-title-date">${escapeHtml(invoiceDateLabel)}</p>
+          </div>
           <div class="header">
             <div class="party-block seller-block">
               <p class="label">ПРОДАВЕЦ</p>
@@ -197,13 +212,14 @@ export function printSalesInvoice({
             <div class="party-block client-block">
               <p class="label">Клиент</p>
               <p class="party-name">${escapeHtml(customerName)}</p>
-              ${customerPhone ? `<p class="party-line">Телефон: ${escapeHtml(customerPhone)}</p>` : ''}
-              ${customerAddress ? `<p class="party-line">Адрес: ${escapeHtml(customerAddress)}</p>` : ''}
+              ${customerAddress.primary ? `<p class="party-line">${escapeHtml(customerAddress.primary)}</p>` : ''}
+              ${customerAddress.secondary ? `<p class="party-line">${escapeHtml(customerAddress.secondary)}</p>` : ''}
+              ${customerPhone ? `<p class="party-line">Тел: ${escapeHtml(customerPhone)}</p>` : ''}
             </div>
           </div>
 
           <div class="section">
-            <h3>Товары</h3>
+          <br />
             <table>
               <thead>
                 <tr>

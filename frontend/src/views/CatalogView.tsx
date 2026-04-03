@@ -265,19 +265,11 @@ export default function CatalogView() {
     <div className="app-page-shell min-h-full">
       <div className="overflow-hidden rounded-[28px] bg-[#f4f5fb]">
         <div className="space-y-4 px-3 py-4 sm:px-5 sm:py-5 lg:space-y-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h1 className="text-4xl font-medium tracking-tight text-slate-900">Каталог</h1>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                Просмотр товаров и добавление позиций в корзину продаж.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-slate-400 sm:text-sm">
-              <span>Главная</span>
-              <span>/</span>
-              <span className="text-slate-600">Каталог</span>
-            </div>
+          <div className="-mx-3 -mt-4 app-surface space-y-1 px-4 py-4 sm:-mx-5 sm:-mt-5 sm:px-6 sm:py-5">
+            <h1 className="text-3xl font-medium tracking-tight text-slate-900 sm:text-4xl">Каталог</h1>
+            <p className="text-sm leading-6 text-slate-500">
+              Просмотр товаров и добавление позиций в корзину продаж.
+            </p>
           </div>
 
           <section className="rounded-3xl border border-white bg-white p-4 shadow-sm sm:p-5">

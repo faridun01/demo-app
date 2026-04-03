@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { Printer, Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Badge, Card } from '../components/UI';
 import PaginationControls from '../components/common/PaginationControls';
-import { getCustomers } from '../api/customers.api';
+import { getCustomerHistory, getCustomers } from '../api/customers.api';
 import { formatCount, formatMoney } from '../utils/format';
 import { getCurrentUser, isAdminUser } from '../utils/userAccess';
 import {
@@ -13,20 +15,35 @@ import {
   getCustomerPaymentStatus,
   getCustomerPurchasedTotal,
   hasCustomerPurchases,
-  type CustomerPaymentStatus,
   type DebtCustomer,
 } from '../utils/customerDebt';
-import { Printer, Search } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { printCustomerDebts } from '../utils/print/customerDebtsPrint';
+import { printCustomerInvoicesBatch } from '../utils/print/customerInvoicePrint';
 
 const pageSize = 10;
+const PAYMENT_EPSILON = 0.01;
 
-type DebtFilter = 'all' | 'paid' | 'unpaid';
+type DebtFilter = 'all' | 'paid' | 'partial' | 'unpaid';
+
+type StatementInvoice = {
+  id: number;
+  createdAt: string;
+  totalAmount: number;
+  discount: number;
+  netAmount: number;
+  paidAmount: number;
+  returnedAmount: number;
+  status?: string;
+  invoiceBalance: number;
+  warehouse?: { id?: number; name?: string };
+  items?: any[];
+  paymentEvents?: any[];
+  returnEvents?: any[];
+};
 
 const filterTabs: Array<{ key: DebtFilter; label: string }> = [
   { key: 'all', label: 'Все' },
   { key: 'paid', label: 'Оплачено' },
+  { key: 'partial', label: 'Частично оплачено' },
   { key: 'unpaid', label: 'Не оплачено' },
 ];
 
@@ -54,6 +71,7 @@ export default function CustomerDebtsView() {
   const [statusFilter, setStatusFilter] = useState<DebtFilter>('all');
   const [sortBy, setSortBy] = useState<SortMode>('debt');
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExportingInvoices, setIsExportingInvoices] = useState(false);
 
   const formatMoneyByRole = (value: unknown) => {
     if (!isAdmin) {
@@ -107,12 +125,7 @@ export default function CustomerDebtsView() {
         return true;
       }
 
-      const status = getCustomerPaymentStatus(customer);
-      if (statusFilter === 'paid') {
-        return status === 'paid';
-      }
-
-      return status === 'partial' || status === 'unpaid';
+      return getCustomerPaymentStatus(customer) === statusFilter;
     });
   }, [customersWithPurchases, isAdmin, searchTerm, statusFilter]);
 
@@ -120,10 +133,8 @@ export default function CustomerDebtsView() {
     () => ({
       all: customersWithPurchases.length,
       paid: customersWithPurchases.filter((customer) => getCustomerPaymentStatus(customer) === 'paid').length,
-      unpaid: customersWithPurchases.filter((customer) => {
-        const status = getCustomerPaymentStatus(customer);
-        return status === 'partial' || status === 'unpaid';
-      }).length,
+      partial: customersWithPurchases.filter((customer) => getCustomerPaymentStatus(customer) === 'partial').length,
+      unpaid: customersWithPurchases.filter((customer) => getCustomerPaymentStatus(customer) === 'unpaid').length,
     }),
     [customersWithPurchases],
   );
@@ -172,16 +183,131 @@ export default function CustomerDebtsView() {
     }
   }, [currentPage, totalPages]);
 
-  const handlePrint = async () => {
-    const selectedFilter = filterTabs.find((tab) => tab.key === statusFilter)?.label || 'Все';
-    const result = printCustomerDebts({
-      customers: filteredCustomers,
-      filterLabel: isAdmin ? selectedFilter : 'Все',
-      hideFinancials: !isAdmin,
-    });
+  const getInvoiceSubtotal = (invoice: StatementInvoice) =>
+    Array.isArray(invoice?.items)
+      ? invoice.items.reduce((sum: number, item: any) => sum + Number(item.quantity || 0) * Number(item.sellingPrice || 0), 0)
+      : Number(invoice?.totalAmount || 0);
 
-    if (!result.ok) {
-      toast.error('Не удалось подготовить печать списка');
+  const getInvoiceDiscountAmount = (invoice: StatementInvoice) => {
+    const subtotal = getInvoiceSubtotal(invoice);
+    const discount = Number(invoice?.discount || 0);
+    return subtotal * (discount / 100);
+  };
+
+  const getInvoiceNetAmount = (invoice: StatementInvoice) => {
+    const subtotal = getInvoiceSubtotal(invoice);
+    const discountAmount = getInvoiceDiscountAmount(invoice);
+    const returnedAmount = Number(invoice?.returnedAmount || 0);
+    const calculatedNet = subtotal - discountAmount - returnedAmount;
+    const storedNet = Number(invoice?.netAmount || 0);
+
+    if (Math.abs(calculatedNet - storedNet) <= PAYMENT_EPSILON) {
+      return storedNet;
+    }
+
+    return Math.max(0, calculatedNet);
+  };
+
+  const getInvoiceChangeAmount = (invoice: StatementInvoice) => {
+    const change = Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice);
+    return change > PAYMENT_EPSILON ? change : 0;
+  };
+
+  const getInvoiceAppliedPaidAmount = (invoice: StatementInvoice) =>
+    Math.max(0, Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceChangeAmount(invoice));
+
+  const getStatementInvoiceStatus = (invoice: StatementInvoice): Exclude<DebtFilter, 'all'> => {
+    if (String(invoice?.status || '').toLowerCase() === 'paid') {
+      return 'paid';
+    }
+
+    const paidAmount = Math.max(0, Number(invoice?.paidAmount || 0));
+    const balance = Math.max(0, Number(invoice?.invoiceBalance || 0));
+
+    if (balance <= PAYMENT_EPSILON) {
+      return 'paid';
+    }
+
+    if (paidAmount > PAYMENT_EPSILON) {
+      return 'partial';
+    }
+
+    return 'unpaid';
+  };
+
+  const handlePrint = async () => {
+    if (filteredCustomers.length === 0) {
+      toast.error('Нет клиентов для выгрузки');
+      return;
+    }
+
+    setIsExportingInvoices(true);
+    try {
+      const selectedFilter = filterTabs.find((tab) => tab.key === statusFilter)?.label || 'Все';
+      const histories = await Promise.allSettled(
+        filteredCustomers.map(async (customer) => ({
+          customer,
+          invoices: (await getCustomerHistory(customer.id)) as StatementInvoice[],
+        })),
+      );
+
+      const failedRequests = histories.filter((result) => result.status === 'rejected').length;
+      const printableInvoices = histories.flatMap((result) => {
+        if (result.status !== 'fulfilled') {
+          return [];
+        }
+
+        const { customer, invoices } = result.value;
+
+        return (Array.isArray(invoices) ? invoices : [])
+          .filter((invoice) => statusFilter === 'all' || getStatementInvoiceStatus(invoice) === statusFilter)
+          .map((invoice) => {
+            const invoiceStatus = getStatementInvoiceStatus(invoice);
+            const statusLabel =
+              invoiceStatus === 'paid'
+                ? 'Оплачено'
+                : invoiceStatus === 'partial'
+                  ? 'Частично оплачено'
+                  : 'Не оплачено';
+
+            return {
+              invoice,
+              customer: {
+                name: customer.name || undefined,
+                phone: customer.phone || undefined,
+              },
+              statusLabel,
+              subtotal: getInvoiceSubtotal(invoice),
+              discountAmount: getInvoiceDiscountAmount(invoice),
+              netAmount: getInvoiceNetAmount(invoice),
+              appliedPaidAmount: getInvoiceAppliedPaidAmount(invoice),
+              changeAmount: getInvoiceChangeAmount(invoice),
+            };
+          });
+      });
+
+      if (printableInvoices.length === 0) {
+        toast.error(`По фильтру "${selectedFilter}" накладные не найдены`);
+        return;
+      }
+
+      const result = printCustomerInvoicesBatch({
+        invoices: printableInvoices,
+        filterLabel: selectedFilter,
+      });
+
+      if (!result.ok) {
+        toast.error('Не удалось подготовить печать накладных');
+        return;
+      }
+
+      if (failedRequests > 0) {
+        toast.error(`Часть клиентов не загрузилась: ${formatCount(failedRequests)}`);
+      }
+    } catch {
+      toast.error('Не удалось загрузить накладные');
+    } finally {
+      setIsExportingInvoices(false);
     }
   };
 
@@ -201,10 +327,11 @@ export default function CustomerDebtsView() {
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50"
+                disabled={isExportingInvoices || filteredCustomers.length === 0}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Printer size={18} />
-                <span>Печать списка</span>
+                <span>{isExportingInvoices ? 'Подготовка...' : 'Скачать накладные'}</span>
               </button>
             </div>
 
@@ -219,7 +346,7 @@ export default function CustomerDebtsView() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Card className="rounded-[28px] border border-white shadow-sm">
             <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Общий долг</p>
             <p className="mt-3 text-2xl font-medium text-rose-600">{formatMoneyByRole(summary.totalDebt)}</p>
@@ -233,8 +360,12 @@ export default function CustomerDebtsView() {
             <p className="mt-3 text-2xl font-medium text-slate-900">{isAdmin ? formatCount(summary.fullyPaidCount) : 'Скрыто'}</p>
           </Card>
           <Card className="rounded-[28px] border border-white shadow-sm">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Частично оплачено</p>
+            <p className="mt-3 text-2xl font-medium text-slate-900">{isAdmin ? formatCount(summary.partialCount) : 'Скрыто'}</p>
+          </Card>
+          <Card className="rounded-[28px] border border-white shadow-sm">
             <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Не оплачено</p>
-            <p className="mt-3 text-2xl font-medium text-slate-900">{isAdmin ? formatCount(summary.debtorsCount) : 'Скрыто'}</p>
+            <p className="mt-3 text-2xl font-medium text-slate-900">{isAdmin ? formatCount(summary.unpaidCount) : 'Скрыто'}</p>
           </Card>
         </div>
 
@@ -296,7 +427,7 @@ export default function CustomerDebtsView() {
               <thead className="bg-slate-50">
                 <tr className="text-left text-[9px] uppercase tracking-[0.12em] text-slate-400">
                   <th className="px-4 py-2.5 font-medium">Клиент</th>
-                  <th className="px-4 py-2.5 font-medium">Категория</th>
+                  <th className="px-4 py-2.5 font-medium">Склад</th>
                   <th className="px-4 py-2.5 font-medium">Телефон</th>
                   <th className="px-4 py-2.5 font-medium">Накладных</th>
                   <th className="px-4 py-2.5 font-medium">Купил всего</th>
@@ -317,13 +448,17 @@ export default function CustomerDebtsView() {
                   paginatedCustomers.map((customer) => {
                     const status = getCustomerPaymentStatus(customer);
                     const statusMeta = customerPaymentStatusMeta[status];
+                    const warehouseNames =
+                      Array.isArray(customer.warehouse_names) && customer.warehouse_names.length > 0
+                        ? customer.warehouse_names.join(', ')
+                        : '---';
 
                     return (
                       <tr key={customer.id} className="text-xs text-slate-700">
                         <td className="px-4 py-3">
                           <div className="font-medium text-slate-900">{customer.name}</div>
                         </td>
-                        <td className="px-4 py-3">{customer.customerCategory || 'Без категории'}</td>
+                        <td className="px-4 py-3">{warehouseNames}</td>
                         <td className="px-4 py-3">{customer.phone || 'Нет телефона'}</td>
                         <td className="px-4 py-3">{formatCount(customer.invoice_count || 0)}</td>
                         <td className="px-4 py-3">{formatMoneyByRole(getCustomerPurchasedTotal(customer))}</td>

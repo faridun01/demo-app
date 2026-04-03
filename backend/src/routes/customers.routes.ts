@@ -112,6 +112,13 @@ const mapCustomerWithTotals = (customer: any) => {
     }
     return new Date(current).getTime() > new Date(latest).getTime() ? current : latest;
   }, null);
+  const warehouseNames = Array.from(
+    new Set(
+      invoices
+        .map((invoice: any) => String(invoice?.warehouse?.name || '').trim())
+        .filter(Boolean),
+    ),
+  );
 
   return {
     ...customer,
@@ -122,6 +129,7 @@ const mapCustomerWithTotals = (customer: any) => {
     average_invoice: averageInvoice,
     customer_segment: customerSegment,
     last_purchase_at: lastPurchaseAt,
+    warehouse_names: warehouseNames,
   };
 };
 
@@ -177,6 +185,11 @@ router.get('/', async (req: AuthRequest, res, next) => {
             netAmount: true,
             paidAmount: true,
             createdAt: true,
+            warehouse: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },

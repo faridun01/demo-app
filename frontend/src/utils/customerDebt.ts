@@ -5,6 +5,7 @@ export type DebtCustomer = {
   name: string;
   customerCategory?: string | null;
   phone?: string | null;
+  warehouse_names?: string[] | null;
   total_invoiced?: number;
   total_paid?: number;
   balance?: number;
@@ -16,7 +17,8 @@ export type CustomerDebtSummary = {
   totalDebt: number;
   totalPaid: number;
   fullyPaidCount: number;
-  debtorsCount: number;
+  partialCount: number;
+  unpaidCount: number;
 };
 
 const PAYMENT_EPSILON = 0.01;
@@ -87,8 +89,12 @@ export function buildCustomerDebtSummary(customers: DebtCustomer[]): CustomerDeb
         summary.fullyPaidCount += 1;
       }
 
-      if (debt > PAYMENT_EPSILON) {
-        summary.debtorsCount += 1;
+      if (status === 'partial') {
+        summary.partialCount += 1;
+      }
+
+      if (status === 'unpaid') {
+        summary.unpaidCount += 1;
       }
 
       return summary;
@@ -97,7 +103,8 @@ export function buildCustomerDebtSummary(customers: DebtCustomer[]): CustomerDeb
       totalDebt: 0,
       totalPaid: 0,
       fullyPaidCount: 0,
-      debtorsCount: 0,
+      partialCount: 0,
+      unpaidCount: 0,
     },
   );
 }
