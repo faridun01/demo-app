@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
@@ -8,24 +8,40 @@ import { createRateLimit, resetRateLimit } from '../middlewares/rate-limit.middl
 
 const router = Router();
 
-const isSecureCookie = () =>
-  process.env.NODE_ENV === 'production' &&
-  String(process.env.COOKIE_SECURE || 'true').toLowerCase() !== 'false';
+const getForwardedProto = (req: Request) =>
+  String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
 
-const setAuthCookie = (res: Response, token: string) => {
+const isSecureCookie = (req: Request) => {
+  const configuredValue = String(process.env.COOKIE_SECURE || 'auto').trim().toLowerCase();
+
+  if (configuredValue === 'true') {
+    return true;
+  }
+
+  if (configuredValue === 'false') {
+    return false;
+  }
+
+  return req.secure || getForwardedProto(req) === 'https';
+};
+
+const setAuthCookie = (req: Request, res: Response, token: string) => {
   res.cookie('auth_token', token, {
     httpOnly: true,
-    secure: isSecureCookie(),
+    secure: isSecureCookie(req),
     sameSite: 'lax',
     maxAge: 8 * 60 * 60 * 1000,
     path: '/',
   });
 };
 
-const clearAuthCookie = (res: Response) => {
+const clearAuthCookie = (req: Request, res: Response) => {
   res.clearCookie('auth_token', {
     httpOnly: true,
-    secure: isSecureCookie(),
+    secure: isSecureCookie(req),
     sameSite: 'lax',
     path: '/',
   });
@@ -73,7 +89,7 @@ router.post('/login', loginRateLimit, async (req, res, next) => {
     }
 
     await resetRateLimit(loginRateLimitKey(req));
-    setAuthCookie(res, result.token);
+    setAuthCookie(req, res, result.token);
     res.json({ user: result.user, requiresTwoFactor: false });
   } catch (error) {
     next(error);
@@ -98,8 +114,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res, next) => {
   }
 });
 
-router.post('/logout', (_req, res) => {
-  clearAuthCookie(res);
+router.post('/logout', (req, res) => {
+  clearAuthCookie(req, res);
   res.json({ success: true });
 });
 
@@ -180,7 +196,7 @@ router.post('/2fa/login', twoFactorRateLimit, async (req, res, next) => {
 
     const result = await AuthService.completeTwoFactorLogin(twoFactorToken, code);
     await resetRateLimit(twoFactorRateLimitKey(req));
-    setAuthCookie(res, result.token);
+    setAuthCookie(req, res, result.token);
     res.json({ user: result.user });
   } catch (error) {
     next(error);

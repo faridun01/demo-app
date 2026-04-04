@@ -9,7 +9,6 @@ import warehouseRoutes from './routes/warehouses.routes.js';
 import customerRoutes from './routes/customers.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import reportsRoutes from './routes/reports.routes.js';
-import ocrRoutes from './routes/ocr.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import reminderRoutes from './routes/reminders.routes.js';
 import paymentRoutes from './routes/payments.routes.js';
@@ -23,6 +22,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(securityHeaders);
 app.use(corsMiddleware);
@@ -54,7 +54,6 @@ app.use('/api/warehouses', authenticate, warehouseRoutes);
 app.use('/api/customers', authenticate, customerRoutes);
 app.use('/api/dashboard', authenticate, dashboardRoutes);
 app.use('/api/reports', authenticate, reportsRoutes);
-app.use('/api/ocr', authenticate, ocrRoutes);
 app.use('/api/settings', authenticate, settingsRoutes);
 app.use('/api/reminders', authenticate, reminderRoutes);
 app.use('/api/payments', authenticate, paymentRoutes);

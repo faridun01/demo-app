@@ -29,7 +29,8 @@ export default function LoginView() {
         return;
       }
 
-      const sessionUser = await getSessionUser();
+      let sessionUser = null;
+      try { sessionUser = await getSessionUser(); } catch {}
       setAuthSession(null, sessionUser || result.user);
       navigate('/');
     } catch (err: any) {
@@ -49,7 +50,8 @@ export default function LoginView() {
         twoFactorToken,
         code: twoFactorCode,
       });
-      const sessionUser = await getSessionUser();
+      let sessionUser = null;
+      try { sessionUser = await getSessionUser(); } catch {}
       setAuthSession(null, sessionUser || result.user);
       navigate('/');
     } catch (err: any) {

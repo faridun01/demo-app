@@ -2,28 +2,46 @@ import cors, { CorsOptions } from 'cors';
 import type { NextFunction, Request, Response } from 'express';
 import { securityConfig } from '../config/security.js';
 
-const buildCorsOriginCheck = (): CorsOptions['origin'] => {
-  const { origins } = securityConfig.cors;
+const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, '');
 
-  return (origin, callback) => {
-    if (!origin) {
-      return callback(null, true);
-    }
+type CorsRequestLike = Pick<Request, 'headers'> & { protocol?: string };
 
-    if (origins.includes(origin)) {
-      return callback(null, true);
-    }
+const getRequestOrigins = (req: CorsRequestLike) => {
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim();
+  const host = forwardedHost || String(req.headers.host || '').trim();
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  const protocol = forwardedProto || req.protocol || 'http';
 
-    return callback(new Error('Origin not allowed by CORS'));
-  };
+  if (!host) {
+    return [];
+  }
+
+  return [`${protocol}://${host}`, `http://${host}`, `https://${host}`].map(normalizeOrigin);
 };
 
-export const corsMiddleware = cors({
-  origin: buildCorsOriginCheck(),
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type'],
-  credentials: true,
-  maxAge: 86400,
+export const corsMiddleware = cors((req, callback) => {
+  const allowedOrigins = new Set([
+    ...securityConfig.cors.origins.map(normalizeOrigin),
+    ...getRequestOrigins(req),
+  ]);
+
+  const origin = String(req.headers.origin || '').trim();
+  const allowOrigin = !origin || allowedOrigins.has(normalizeOrigin(origin));
+
+  const options: CorsOptions = {
+    origin: allowOrigin,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
+    credentials: true,
+    maxAge: 86400,
+  };
+
+  callback(allowOrigin ? null : new Error('Origin not allowed by CORS'), options);
 });
 
 export const securityHeaders = (req: Request, res: Response, next: NextFunction) => {

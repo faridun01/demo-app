@@ -18,7 +18,6 @@ import {
   Scissors,
   X,
   History,
-  DollarSign,
   Layers,
   GitMerge,
   Image as ImageIcon
@@ -42,23 +41,6 @@ import { formatProductName } from '../utils/productName';
 import { getDefaultWarehouseId } from '../utils/warehouse';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import PaginationControls from '../components/common/PaginationControls';
-
-const normalizeOcrProductName = (name: string) => {
-  const trimmed = String(name || '').trim();
-  const bracketIndex = trimmed.indexOf('(');
-  const slashIndex = trimmed.indexOf('/');
-  const cutIndex =
-    bracketIndex >= 0 && slashIndex >= 0
-      ? Math.min(bracketIndex, slashIndex)
-      : bracketIndex >= 0
-        ? bracketIndex
-        : slashIndex;
-
-  return (cutIndex >= 0 ? trimmed.slice(0, cutIndex) : trimmed)
-    .replace(/[«»“”„‟"]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-};
 
 const normalizeVolumeSpacing = (value: string) =>
   value
@@ -104,18 +86,7 @@ const detectCategoryName = (name: string) => {
   return words.slice(0, 2).join(' ');
 };
 
-const normalizeOcrBaseUnit = (value: string) => {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return 'шт';
-  if (['шт', 'штук', 'штука', 'штуки', 'pcs', 'piece', 'pieces'].includes(normalized)) return 'шт';
-  if (['пачка', 'пачки', 'пачек'].includes(normalized)) return 'пачка';
-  if (['флакон', 'флакона', 'флаконов'].includes(normalized)) return 'флакон';
-  if (['емкость', 'ёмкость', 'емкости', 'ёмкости', 'емкостей', 'ёмкостей'].includes(normalized)) return 'ёмкость';
-  if (['бутылка', 'бутылки', 'бутылок'].includes(normalized)) return 'бутылка';
-  return normalized;
-};
-
-const normalizeOcrPackageName = (value: string) => {
+const normalizePackageName = (value: string) => {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return '';
   if (['мешок', 'мешка', 'мешков', 'bag'].includes(normalized)) return 'мешок';
@@ -222,7 +193,7 @@ const getStockBreakdown = (product: any) => {
   const packageCount = Math.floor(totalUnits / unitsPerPackage);
   const remainderUnits = totalUnits % unitsPerPackage;
   const piecesLabel = displayBaseUnit;
-  const normalizedPackageName = normalizeOcrPackageName(packageName || 'упаковка');
+  const normalizedPackageName = normalizePackageName(packageName || 'упаковка');
 
   return {
     primary:
@@ -279,68 +250,6 @@ const compareProductsBySort = (a: any, b: any, sortConfig: { key: string; direct
   return compareValues(aValue, bValue, sortConfig.direction);
 };
 
-const getOcrResolvedQuantity = (item: any) => {
-  const packageCount = Number(item?.packageCount || 0);
-  const unitsPerPackage = Number(item?.unitsPerPackage || 0);
-  const fallbackQuantity = Number(item?.quantity || 0);
-
-  if (packageCount > 0 && unitsPerPackage > 0) {
-    return packageCount * unitsPerPackage;
-  }
-
-  return fallbackQuantity;
-};
-
-const getOcrValidationReason = (item: any, rateValue: unknown, expensePercentValue: unknown) => {
-  const rate = Number(rateValue || 0);
-  const expensePercent = Math.max(0, Number(expensePercentValue || 0));
-  const normalizedName = normalizeOcrProductName(item?.name || '');
-  const quantity = getOcrResolvedQuantity(item);
-  const price = Number(item?.price || 0);
-  const lineTotal = Number(item?.lineTotal || 0);
-  const unitsPerPackage = Number(item?.unitsPerPackage || 0);
-
-  if (!normalizedName) {
-    return 'Укажите или исправьте название товара';
-  }
-
-  if (!Number.isFinite(quantity) || quantity <= 0) {
-    return 'Проверьте количество';
-  }
-
-  if (!Number.isFinite(price) || price < 0) {
-    return 'Проверьте цену закупки';
-  }
-
-  const baseCostPerPiece =
-    lineTotal > 0 && quantity > 0
-      ? calculateUnitCostFromLineTotal(lineTotal * rate, quantity)
-      : unitsPerPackage > 0
-        ? calculateUnitCostFromPackage(price * rate, unitsPerPackage)
-        : calculateUnitCostFromLineTotal(price * rate, quantity);
-
-  if (!Number.isFinite(baseCostPerPiece) || baseCostPerPiece < 0) {
-    return 'Не удалось посчитать закупку за 1 шт';
-  }
-
-  const effectiveCostPerPiece = calculateEffectiveCost(baseCostPerPiece, expensePercent);
-
-  if (!Number.isFinite(effectiveCostPerPiece) || effectiveCostPerPiece < 0) {
-    return 'Не удалось посчитать итоговую закупку';
-  }
-
-  return null;
-};
-
-const getOcrProblemReason = (item: any, rateValue: unknown, expensePercentValue: unknown) => {
-  const serverError = String(item?.serverError || '').trim();
-  if (serverError) {
-    return serverError;
-  }
-
-  return getOcrValidationReason(item, rateValue, expensePercentValue);
-};
-
 export default function ProductsView() {
   const pageSize = 12;
   const writeOffReasonPresets = ['Брак', 'Потеря', 'Внутреннее использование', 'Корректировка'];
@@ -356,7 +265,6 @@ export default function ProductsView() {
   const [categories, setCategories] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isScanning, setIsScanning] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -393,13 +301,6 @@ export default function ProductsView() {
     quantity: '1',
     reason: 'брак',
   });
-  const [ocrResults, setOcrResults] = useState<any[] | null>(null);
-  const [ocrOriginalCount, setOcrOriginalCount] = useState(0);
-  const [ocrImportedCount, setOcrImportedCount] = useState(0);
-  const [usdRate, setUsdRate] = useState<string>('10.95'); // Default rate
-  const [scanExpensePercent, setScanExpensePercent] = useState<string>('0');
-  const [showOnlyProblematicOcrRows, setShowOnlyProblematicOcrRows] = useState(false);
-  const [highlightedOcrLine, setHighlightedOcrLine] = useState<number | null>(null);
   const [isCategoryManual, setIsCategoryManual] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' | null }>({ key: 'name', direction: 'asc' });
   const [isPhotoUploading, setIsPhotoUploading] = useState(false);
@@ -407,7 +308,6 @@ export default function ProductsView() {
   const [expandedMobileActionsId, setExpandedMobileActionsId] = useState<number | null>(null);
   const [isReferenceDataReady, setIsReferenceDataReady] = useState(false);
   const [categoryInput, setCategoryInput] = useState('');
-  const ocrRowRefs = React.useRef<Record<number, HTMLDivElement | null>>({});
   const emptyTransferData = {
     fromWarehouseId: '',
     toWarehouseId: '',
@@ -476,14 +376,6 @@ export default function ProductsView() {
     setSelectedProduct(null);
   };
 
-  const closeOcrResultsModal = () => {
-    setOcrResults(null);
-    setOcrOriginalCount(0);
-    setOcrImportedCount(0);
-    setShowOnlyProblematicOcrRows(false);
-    setHighlightedOcrLine(null);
-  };
-
   const availableTransferStock = selectedProduct && transferData.fromWarehouseId
     ? String(selectedProduct.warehouseId || '') === transferData.fromWarehouseId || selectedWarehouseId === transferData.fromWarehouseId
       ? Number(selectedProduct.stock || 0)
@@ -534,40 +426,6 @@ export default function ProductsView() {
     selectedRestockPackaging && selectedRestockPackaging.unitsPerPackage > 0
       ? restockPackageQuantity * selectedRestockPackaging.unitsPerPackage
       : Number(restockData.quantity || 0);
-  const invalidOcrRowsCount = Array.isArray(ocrResults)
-    ? ocrResults.filter((item) => item.enabled !== false && getOcrProblemReason(item, usdRate, scanExpensePercent)).length
-    : 0;
-  const visibleOcrResults = Array.isArray(ocrResults)
-    ? ocrResults.filter((item) =>
-        showOnlyProblematicOcrRows
-          ? item.enabled !== false && Boolean(getOcrProblemReason(item, usdRate, scanExpensePercent))
-          : true
-      )
-    : [];
-  const problematicOcrRows = Array.isArray(ocrResults)
-    ? ocrResults
-        .filter((item) => item.enabled !== false)
-        .map((item) => ({
-          lineIndex: Number(item.lineIndex || 0),
-          reason: getOcrProblemReason(item, usdRate, scanExpensePercent),
-        }))
-        .filter((item): item is { lineIndex: number; reason: string } => Boolean(item.reason))
-        .sort((a, b) => a.lineIndex - b.lineIndex)
-    : [];
-
-  const jumpToOcrLine = (lineIndex: number) => {
-    setShowOnlyProblematicOcrRows(true);
-    setHighlightedOcrLine(lineIndex);
-
-    window.setTimeout(() => {
-      const target = ocrRowRefs.current[lineIndex];
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
-
-    window.setTimeout(() => {
-      setHighlightedOcrLine((current) => (current === lineIndex ? null : current));
-    }, 2200);
-  };
 
   useEffect(() => {
     if (!isReferenceDataReady) {
@@ -624,8 +482,7 @@ export default function ProductsView() {
       showMergeModal ||
       showDeleteConfirm ||
       showHistoryModal ||
-      showBatchesModal ||
-      Boolean(ocrResults);
+      showBatchesModal;
 
     if (!hasOpenModal) {
       return;
@@ -644,13 +501,11 @@ export default function ProductsView() {
       if (showTransferModal) return closeTransferModal();
       if (showRestockModal) return closeRestockModal();
       if (showAddModal || showEditModal) return closeProductFormModal();
-      if (ocrResults) return closeOcrResultsModal();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
-    ocrResults,
     showAddModal,
     showBatchesModal,
     showDeleteConfirm,
@@ -819,282 +674,6 @@ export default function ProductsView() {
     }
   };
 
-  const handleScanInvoice = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!selectedWarehouseId) {
-      toast.error('Пожалуйста, сначала выберите склад!');
-      e.target.value = '';
-      return;
-    }
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Поддерживаются JPG, PNG, WEBP или PDF файлы');
-      e.target.value = '';
-      return;
-    }
-
-    setIsScanning(true);
-    const formData = new FormData();
-    formData.append('invoice', file);
-
-    try {
-      const res = await client.post('/ocr/parse-invoice', formData, {
-        timeout: 300000,
-      });
-      const rawItems = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res.data?.items)
-          ? res.data.items
-          : [];
-      const items = rawItems
-        .map((item: any, index: number) => ({
-          enabled: true,
-          lineIndex: Number(item.lineIndex || index + 1),
-          rawName: String(item.rawName || item.name || '').trim(),
-          name: normalizeOcrProductName(item.name || item.rawName || ''),
-          brand: String(item.brand || '').trim(),
-          packageName: normalizeOcrPackageName(item.packageName || ''),
-          baseUnitName: normalizeOcrBaseUnit(item.baseUnitName || item.unit || 'шт'),
-          packageCount: Number(item.packageCount || 0),
-          unitsPerPackage: Number(item.unitsPerPackage || 0),
-          quantity: Number(
-            item.quantity
-            || (Number(item.packageCount || 0) > 0 && Number(item.unitsPerPackage || 0) > 0
-              ? Number(item.packageCount || 0) * Number(item.unitsPerPackage || 0)
-              : 0)
-          ),
-          price: Number(item.price || 0),
-          rawQuantity: item.rawQuantity || '',
-          unit: normalizeOcrBaseUnit(item.baseUnitName || item.unit || 'шт'),
-          lineTotal: Number(item.lineTotal || 0),
-          note: item.note || '',
-          sellingPrice: item.sellingPrice || '',
-          expensePercent: Number(item.expensePercent || 0),
-        }))
-        .filter((item: any) => item.rawName || item.name)
-        .sort((a: any, b: any) => a.lineIndex - b.lineIndex);
-      if (!items.length) {
-        toast.error('Сканирование завершено, но товары не были распознаны');
-        setOcrOriginalCount(0);
-        setOcrImportedCount(0);
-        setOcrResults([]);
-        return;
-      }
-      setOcrOriginalCount(items.length);
-      setOcrImportedCount(0);
-      setScanExpensePercent('0');
-      setShowOnlyProblematicOcrRows(false);
-      setHighlightedOcrLine(null);
-      setOcrResults(items);
-      toast.success('Накладная успешно отсканирована!');
-    } catch (err: any) {
-      const isTimeout =
-        err?.code === 'ECONNABORTED'
-        || String(err?.message || '').toLowerCase().includes('timeout');
-
-      toast.error(
-        isTimeout
-          ? 'Сканирование заняло слишком много времени. Подождите ещё немного, повторите попытку или используйте файл поменьше.'
-          : err.response?.data?.error || err.message || 'Ошибка при сканировании накладной'
-      );
-    } finally {
-      setIsScanning(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleAddOcrToStock = async () => {
-    if (!ocrResults || !selectedWarehouseId) return;
-    const rate = parseFloat(usdRate) || 1;
-    const sharedExpensePercent = Math.max(0, Number(scanExpensePercent || 0));
-    try {
-      setIsLoading(true);
-      const invalidRows: Array<{ lineIndex: number; reason: string }> = [];
-      const enabledRowsCount = ocrResults.filter((item) => item.enabled !== false).length;
-
-      const preparedResults = ocrResults
-        .map((item) => {
-          if (item.enabled === false) {
-            return null;
-          }
-
-          const lineIndex = Number(item.lineIndex || 0);
-          const validationReason = getOcrProblemReason(item, rate, sharedExpensePercent);
-          const normalizedName = normalizeOcrProductName(item.name || '');
-          const rawName = String(item.rawName || item.name || '').trim();
-          const brand = String(item.brand || '').trim();
-          const packageName = normalizeOcrPackageName(item.packageName || '');
-          const baseUnitName = normalizeOcrBaseUnit(item.baseUnitName || item.unit || 'шт');
-          const packageCount = Number(item.packageCount || 0);
-          const unitsPerPackage = Number(item.unitsPerPackage || 0);
-          const normalizedQuantity = Number(item.quantity || 0);
-          const quantity =
-            packageCount > 0 && unitsPerPackage > 0
-              ? packageCount * unitsPerPackage
-              : normalizedQuantity;
-          const price = Number(item.price || 0);
-          const lineTotal = Number(item.lineTotal || 0);
-          const sellingPrice = item.sellingPrice ? Number(item.sellingPrice) : 0;
-          const expensePercent = sharedExpensePercent;
-          const costPricePerPieceTJS =
-            lineTotal > 0 && quantity > 0
-              ? calculateUnitCostFromLineTotal(lineTotal * rate, quantity)
-              : unitsPerPackage > 0
-                ? calculateUnitCostFromPackage(price * rate, unitsPerPackage)
-              : calculateUnitCostFromLineTotal(price * rate, quantity);
-          const effectiveCostPricePerPieceTJS = calculateEffectiveCost(costPricePerPieceTJS, expensePercent);
-
-          if (validationReason) {
-            invalidRows.push({
-              lineIndex,
-              reason: validationReason,
-            });
-            return null;
-          }
-
-          return {
-            lineIndex,
-            name: normalizedName,
-            rawName,
-            brand,
-            packageName,
-            baseUnitName,
-            packageCount,
-            unitsPerPackage,
-            quantity,
-            price,
-            lineTotal,
-            expensePercent,
-            costPricePerPieceTJS,
-            effectiveCostPricePerPieceTJS,
-            sellingPrice,
-            rawQuantity: String(item.rawQuantity || '').trim(),
-            note: String(item.note || '').trim(),
-          };
-        })
-        .filter(Boolean) as Array<{
-          lineIndex: number;
-          name: string;
-          rawName: string;
-          brand: string;
-          packageName: string;
-          baseUnitName: string;
-          packageCount: number;
-          unitsPerPackage: number;
-          quantity: number;
-          price: number;
-          lineTotal: number;
-          expensePercent: number;
-          costPricePerPieceTJS: number;
-          effectiveCostPricePerPieceTJS: number;
-          sellingPrice: number;
-          rawQuantity: string;
-          note: string;
-        }>;
-
-      const importRows = [...preparedResults].sort((a, b) => a.lineIndex - b.lineIndex);
-
-      if (invalidRows.length > 0) {
-        const invalidRowsText = invalidRows
-          .sort((a, b) => a.lineIndex - b.lineIndex)
-          .slice(0, 6)
-          .map((row) => `#${row.lineIndex}: ${row.reason}`)
-          .join(', ');
-
-        setShowOnlyProblematicOcrRows(true);
-        if (invalidRows[0]?.lineIndex) {
-          jumpToOcrLine(invalidRows[0].lineIndex);
-        }
-        toast.error(
-          `Не все товары готовы к добавлению. Проверьте ${invalidRows.length} строк: ${invalidRowsText}${invalidRows.length > 6 ? '...' : ''}`
-        );
-        return;
-      }
-
-      if (!importRows.length) {
-        toast.error('После сканирования не осталось корректных товаров для добавления');
-        return;
-      }
-
-      const response = await client.post(
-        '/ocr/import-items',
-        {
-          warehouseId: Number(selectedWarehouseId),
-          items: importRows.map((item) => ({
-            lineIndex: item.lineIndex,
-            name: item.name,
-            rawName: item.name || item.rawName,
-            brand: item.brand,
-            packageName: item.packageName,
-            baseUnitName: item.baseUnitName,
-            unitsPerPackage: item.unitsPerPackage,
-            quantity: Number(item.quantity),
-            purchaseCostPrice: roundMoney(item.costPricePerPieceTJS),
-            effectiveCostPricePerPieceTJS: roundMoney(item.effectiveCostPricePerPieceTJS),
-            expensePercent: Number(item.expensePercent || 0),
-            sellingPrice: roundMoney(item.sellingPrice || 0),
-          })),
-        },
-        { timeout: 300000 }
-      );
-
-      const importedCount = Number(response.data?.importedCount || 0);
-
-      const importedLineIndexes = new Set(
-        Array.isArray(response.data?.importedLineIndexes)
-          ? response.data.importedLineIndexes.map((value: unknown) => Number(value)).filter((value: number) => value > 0)
-          : importRows.slice(0, importedCount).map((item) => item.lineIndex)
-      );
-      const failedItems = Array.isArray(response.data?.failedItems) ? response.data.failedItems : [];
-      const failedPairs = failedItems
-        .map((entry: any): [number, string] => [Number(entry?.lineIndex || 0), String(entry?.reason || '').trim()])
-        .filter((entry: [number, string]): entry is [number, string] => entry[0] > 0 && Boolean(entry[1]));
-      const failedByLineIndex = new Map<number, string>(failedPairs);
-
-      const remainingRows = ocrResults
-        .filter((item) => {
-          if (item.enabled === false) {
-            return true;
-          }
-
-          return !importedLineIndexes.has(Number(item.lineIndex || 0));
-        })
-        .map((item) => ({
-          ...item,
-          serverError: failedByLineIndex.get(Number(item.lineIndex || 0)) || '',
-        }));
-
-      setOcrImportedCount((prev) => prev + importedCount);
-
-      if (failedByLineIndex.size > 0) {
-        setOcrResults(remainingRows);
-        setShowOnlyProblematicOcrRows(true);
-        const firstFailedLineIndex = Array.from(failedByLineIndex.keys()).sort((a, b) => a - b)[0];
-        if (firstFailedLineIndex) {
-          jumpToOcrLine(firstFailedLineIndex);
-        }
-        toast.error(
-          `Добавлено ${ocrImportedCount + importedCount} из ${ocrOriginalCount}. Осталось проверить ${failedByLineIndex.size} строк.`
-        );
-      } else if (remainingRows.length > 0) {
-        setOcrResults(remainingRows);
-        setShowOnlyProblematicOcrRows(false);
-        setHighlightedOcrLine(null);
-        toast.success(`Добавлено ${ocrImportedCount + importedCount} из ${ocrOriginalCount}. Осталось ${remainingRows.length} строк.`);
-      } else {
-        toast.success(`Все товары успешно добавлены на склад: ${ocrImportedCount + importedCount} из ${ocrOriginalCount} строк`);
-        closeOcrResultsModal();
-      }
-      await fetchInitialData();
-    } catch (err: any) {
-      toast.error('Ошибка при добавлении товаров: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1110,7 +689,7 @@ export default function ProductsView() {
       setIsPhotoUploading(true);
       const uploadFormData = new FormData();
       uploadFormData.append('photo', file);
-      const res = await client.post('/ocr/upload', uploadFormData);
+      const res = await client.post('/upload', uploadFormData);
 
       if (res.data?.photoUrl) {
         setFormData((prev) => ({ ...prev, photoUrl: res.data.photoUrl }));
@@ -1667,16 +1246,6 @@ export default function ProductsView() {
           <p className="mt-1 max-w-xl text-sm font-medium text-slate-500">Управление ассортиментом, ценами и остатками.</p>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-          {isAdmin && <label className={clsx(
-            "flex w-full items-center justify-center space-x-2 rounded-2xl border px-4 py-3 text-sm font-medium transition-all sm:w-auto",
-            selectedWarehouseId
-              ? "cursor-pointer border-sky-100 bg-sky-50 text-slate-700 hover:bg-white"
-              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
-          )}>
-            {isScanning ? <Loader2 size={16} className="animate-spin text-sky-600" /> : <Camera size={16} className={selectedWarehouseId ? "text-sky-600" : "text-slate-400"} />}
-            <span>{isScanning ? 'Чтение накладной...' : 'Загрузить накладную'}</span>
-            <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleScanInvoice} disabled={isScanning || !selectedWarehouseId} />
-          </label>}
           {isAdmin && <button 
             onClick={() => {
               if (!selectedWarehouseId) {
@@ -1702,32 +1271,6 @@ export default function ProductsView() {
       </div>
       
       <AnimatePresence>
-        {isScanning && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl"
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-600">
-                  <Loader2 size={30} className="animate-spin" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900">Идёт чтение накладной</h3>
-                <p className="mt-2 text-sm text-slate-500">
-                  Система сама распознаёт позиции, количество и закупку. Обычно лучше всего читается одна чёткая страница.
-                </p>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
         {(showAddModal || showEditModal) && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -1941,154 +1484,15 @@ export default function ProductsView() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showTransferModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={closeTransferModal}
-              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
-            >
-              <div className="border-b border-slate-100 bg-amber-50/50 p-4 sm:p-5">
-                <h3 className="text-lg font-black text-slate-900 flex items-center space-x-3">
-                  <div className="p-2 bg-amber-600 text-white rounded-xl">
-                    <ArrowRightLeft size={20} />
-                  </div>
-                  <span>Перенос товара</span>
-                </h3>
-                <p className="text-slate-500 mt-1 font-bold text-sm">{selectedProduct?.name}</p>
-              </div>
-              <form onSubmit={handleTransfer} className="space-y-4 p-4 sm:p-5">
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Из склада</label>
-                    <select 
-                      required
-                      value={transferData.fromWarehouseId}
-                      onChange={e => setTransferData({ ...transferData, fromWarehouseId: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-bold text-sm appearance-none bg-white"
-                    >
-                      <option value="">Выберите склад</option>
-                      {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">В склад</label>
-                    <select 
-                      required
-                      value={transferData.toWarehouseId}
-                      onChange={e => setTransferData({ ...transferData, toWarehouseId: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-bold text-sm appearance-none bg-white"
-                    >
-                      <option value="">Выберите склад</option>
-                      {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
-                  </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Количество</label>
-                      {selectedTransferPackaging && transferUnitsPerPackage > 0 ? (
-                        <div className="space-y-3">
-                          {availableTransferStock !== null && (
-                            <div className="rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2.5">
-                              <p className="text-xs font-bold text-amber-900">
-                                Доступно: {formatCountWithUnit(transferAvailableFullPackages, selectedTransferPackaging.packageName)}
-                              </p>
-                              {transferRemainderUnits > 0 && (
-                                <p className="mt-1 text-xs font-medium text-amber-700">
-                                  Остаток: {formatCountWithUnit(transferRemainderUnits, normalizeDisplayBaseUnit(selectedProduct?.unit || 'шт'))}
-                                </p>
-                              )}
-                              <p className="mt-1 text-[11px] font-medium text-amber-700">
-                                По умолчанию: {formatCountWithUnit(1, selectedTransferPackaging.packageName)} = {transferUnitsPerPackage} {normalizeDisplayBaseUnit(selectedProduct?.unit || 'шт')}
-                              </p>
-                            </div>
-                          )}
-                          {transferAvailableFullPackages > 0 ? (
-                            <>
-                              <input
-                                type="number"
-                                required
-                                min="1"
-                                max={transferAvailableFullPackages || undefined}
-                                placeholder={`Введите количество (${selectedTransferPackaging.packageName})`}
-                                value={transferData.packageQuantityInput}
-                                onChange={e =>
-                                  setTransferData((prev) => ({
-                                    ...prev,
-                                    packageQuantityInput: e.target.value,
-                                    quantity: String(
-                                      Math.max(0, Math.floor(Number(e.target.value || 0) || 0)) * transferUnitsPerPackage
-                                    ),
-                                  }))
-                                }
-                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-bold text-sm"
-                              />
-                              <p className="text-xs font-medium text-slate-500">
-                                Перенос: {formatCountWithUnit(transferPackageQuantity, selectedTransferPackaging.packageName)}
-                                {transferPackageQuantity > 0 && ` = ${totalTransferUnits} ${normalizeDisplayBaseUnit(selectedProduct?.unit || 'шт')}`}
-                              </p>
-                            </>
-                          ) : (
-                            <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-500">
-                              Для оптового переноса нужна хотя бы одна полная {selectedTransferPackaging.packageName}.
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          {availableTransferStock !== null && (
-                            <p className="mb-2 text-xs font-bold text-slate-500">
-                              Доступно: {formatCountWithUnit(Number(availableTransferStock || 0), normalizeDisplayBaseUnit(selectedProduct?.unit || 'шт'))}
-                            </p>
-                          )}
-                          <input 
-                            type="number" 
-                            required
-                            min="1"
-                            placeholder="Введите количество"
-                            value={transferData.quantity}
-                            onChange={e => setTransferData({ ...transferData, quantity: e.target.value })}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-bold text-sm" 
-                          />
-                        </>
-                      )}
-                    </div>
-                </div>
-                <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end sm:space-x-2 sm:gap-0">
-                  <button type="button" onClick={closeTransferModal} className="px-6 py-2 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all text-sm">Отмена</button>
-                    <button
-                      type="submit"
-                      disabled={
-                        (selectedTransferPackaging && transferUnitsPerPackage > 0 && transferAvailableFullPackages <= 0) ||
-                        totalTransferUnits <= 0
-                      }
-                      className="px-8 py-2 bg-amber-600 text-white rounded-xl font-bold shadow-xl shadow-amber-600/20 hover:bg-amber-700 transition-all active:scale-95 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Перенести
-                    </button>
-                  </div>
-                </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
         {showRestockModal && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={closeRestockModal}
               className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
@@ -2432,346 +1836,6 @@ export default function ProductsView() {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {ocrResults && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setOcrResults(null)}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-2 backdrop-blur-sm sm:items-center sm:p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[96vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[2.5rem]"
-            >
-              <div className="border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <h3 className="text-xl font-black text-slate-900 sm:text-2xl">Результаты сканирования</h3>
-                  </div>
-                  <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl border border-sky-100 bg-white px-4 py-3 shadow-sm">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Курс USD ($)</p>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          value={usdRate}
-                          onChange={(e) => setUsdRate(e.target.value)}
-                          className="w-24 bg-transparent text-left font-black text-sky-600 outline-none"
-                        />
-                        <DollarSign className="text-sky-300" size={18} />
-                      </div>
-                    </div>
-                    <div className="rounded-2xl border border-violet-100 bg-white px-4 py-3 shadow-sm">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Общие расходы %</p>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={scanExpensePercent}
-                          onChange={(e) => setScanExpensePercent(e.target.value)}
-                          className="w-20 bg-transparent text-left font-black text-violet-600 outline-none"
-                        />
-                        <span className="text-sm font-black text-slate-300">%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-8">
-                <div className="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-sky-600">Авторасчёт по накладной</p>
-                      <p className="mt-2 text-sm font-medium text-slate-600">
-                        Количество и закупка пересчитываются автоматически. Измените только то, что нужно перед добавлением на склад.
-                      </p>
-                      {invalidOcrRowsCount > 0 && (
-                        <p className="mt-3 text-sm font-bold text-rose-600">
-                          Проверьте проблемные строки: {invalidOcrRowsCount}. Они подсвечены красным и не дадут завершить импорт.
-                        </p>
-                      )}
-                      {problematicOcrRows.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {problematicOcrRows.map((row) => (
-                            <button
-                              key={`problem-row-${row.lineIndex}`}
-                              type="button"
-                              onClick={() => jumpToOcrLine(row.lineIndex)}
-                              className="rounded-xl bg-rose-100 px-3 py-1.5 text-xs font-black text-rose-700 ring-1 ring-rose-200"
-                              title={row.reason}
-                            >
-                              Строка {row.lineIndex}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2 self-start rounded-2xl border border-sky-200 bg-white px-3 py-2">
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Позиции</span>
-                      <span className="rounded-xl bg-sky-500 px-2.5 py-1 text-sm font-black text-white">
-                        {ocrImportedCount + ocrResults.filter((entry) => entry.enabled !== false).length}/{ocrOriginalCount || ocrResults.length}
-                      </span>
-                      {ocrImportedCount > 0 && (
-                        <span className="rounded-xl bg-emerald-500 px-2.5 py-1 text-sm font-black text-white">
-                          Добавлено: {ocrImportedCount}
-                        </span>
-                      )}
-                      {ocrResults.filter((entry) => entry.enabled !== false).length > 0 && (
-                        <span className="rounded-xl bg-slate-500 px-2.5 py-1 text-sm font-black text-white">
-                          Осталось: {ocrResults.filter((entry) => entry.enabled !== false).length}
-                        </span>
-                      )}
-                      {invalidOcrRowsCount > 0 && (
-                        <span className="rounded-xl bg-rose-500 px-2.5 py-1 text-sm font-black text-white">
-                          Ошибки: {invalidOcrRowsCount}
-                        </span>
-                      )}
-                      {invalidOcrRowsCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setShowOnlyProblematicOcrRows((prev) => !prev)}
-                          className={clsx(
-                            'rounded-xl px-3 py-1.5 text-xs font-black transition-all',
-                            showOnlyProblematicOcrRows
-                              ? 'bg-rose-600 text-white'
-                              : 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
-                          )}
-                        >
-                          {showOnlyProblematicOcrRows ? 'Показать все строки' : 'Только проблемные'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="hidden grid-cols-12 gap-4 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:grid">
-                  <div className="col-span-4">Товар</div>
-                  <div className="col-span-2 text-center">Кол-во</div>
-                  <div className="col-span-2 text-right">Закупка</div>
-                  <div className="col-span-2 text-right">Наша закупка</div>
-                  <div className="col-span-2 text-right">Цена продажи</div>
-                </div>
-                {visibleOcrResults.map((item, i) => {
-                  const validationReason = getOcrProblemReason(item, usdRate, scanExpensePercent);
-                  const sourceIndex = ocrResults.findIndex((entry) => entry === item);
-
-                  return (
-                  <div
-                    key={`${item.lineIndex || sourceIndex || i}-${sourceIndex}`}
-                    ref={(node) => {
-                      ocrRowRefs.current[Number(item.lineIndex || sourceIndex || i)] = node;
-                    }}
-                    className={clsx(
-                    "grid grid-cols-1 gap-4 rounded-[28px] border p-4 transition-colors sm:grid-cols-12 sm:items-center sm:p-5",
-                    item.enabled === false
-                      ? "bg-slate-100 opacity-65"
-                      : highlightedOcrLine === Number(item.lineIndex || sourceIndex || i)
-                        ? "border-rose-400 bg-rose-100 shadow-lg shadow-rose-200/60 ring-2 ring-rose-300"
-                      : validationReason
-                        ? "border-rose-200 bg-rose-50 hover:bg-rose-100/60"
-                        : "bg-sky-50 hover:bg-sky-100/50"
-                  )}
-                  >
-                    <div className="sm:col-span-4">
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-sky-500">
-                          <input
-                            type="checkbox"
-                            checked={item.enabled !== false}
-                            onChange={(e) => {
-                              const newResults = [...ocrResults];
-                              if (sourceIndex >= 0) {
-                                newResults[sourceIndex].enabled = e.target.checked;
-                                if (e.target.checked) {
-                                  newResults[sourceIndex].serverError = '';
-                                }
-                              }
-                              setOcrResults(newResults);
-                            }}
-                            className="h-4 w-4 rounded border-sky-300 text-sky-600 focus:ring-sky-500"
-                          />
-                          Добавить строку #{item.lineIndex || i + 1}
-                        </label>
-                        <div className="flex shrink-0 items-center gap-2">
-                          {validationReason && item.enabled !== false && (
-                            <span className="rounded-xl bg-rose-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white">
-                              Проблема
-                            </span>
-                          )}
-                          <span className="shrink-0 rounded-xl bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 ring-1 ring-sky-100">
-                            Строка {item.lineIndex || i + 1}
-                          </span>
-                        </div>
-                      </div>
-                      <input
-                        type="text"
-                        value={item.name || ''}
-                        onChange={(e) => {
-                          const newResults = [...ocrResults];
-                          if (sourceIndex >= 0) {
-                            newResults[sourceIndex].name = e.target.value;
-                            newResults[sourceIndex].serverError = '';
-                          }
-                          setOcrResults(newResults);
-                        }}
-                        className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none focus:border-sky-500"
-                      />
-                      {item.rawName && item.rawName !== item.name && (
-                        <p className="mt-1 text-[10px] font-bold text-slate-400">
-                          OCR: {formatProductName(item.rawName)}
-                        </p>
-                      )}
-                      {validationReason && item.enabled !== false && (
-                        <p className="mt-2 rounded-xl bg-white/80 px-3 py-2 text-[11px] font-bold text-rose-600 ring-1 ring-rose-200">
-                          Нужно проверить: {validationReason}
-                        </p>
-                      )}
-                      {item.rawQuantity && (
-                        <p className="mt-1 text-[10px] font-bold text-slate-400">Из накладной: {item.rawQuantity}</p>
-                      )}
-                      {item.lineTotal > 0 && (
-                        <p className="mt-1 text-[10px] font-bold text-slate-400">
-                          Сумма строки: {formatDollar(item.lineTotal)} / ≈ {formatMoney(item.lineTotal * parseFloat(usdRate || '0'))}
-                        </p>
-                      )}
-                      {item.note && <p className="mt-1 text-[10px] text-slate-500">{item.note}</p>}
-                    </div>
-                    <div className="sm:col-span-2 sm:text-center">
-                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Кол-во</p>
-                      <div className="flex items-center justify-center gap-1">
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.packageCount || ''}
-                          onChange={(e) => {
-                            const newResults = [...ocrResults];
-                            if (sourceIndex >= 0) {
-                              newResults[sourceIndex].packageCount = Number(e.target.value || 0);
-                              newResults[sourceIndex].serverError = '';
-                            }
-                            setOcrResults(newResults);
-                          }}
-                          className="w-16 rounded-lg border border-sky-200 bg-white px-2 py-1 text-center text-xs font-black text-sky-700 outline-none focus:border-sky-500"
-                        />
-                        <span className="text-xs font-black text-slate-400">x</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.unitsPerPackage || ''}
-                          onChange={(e) => {
-                            const newResults = [...ocrResults];
-                            if (sourceIndex >= 0) {
-                              newResults[sourceIndex].unitsPerPackage = Number(e.target.value || 0);
-                              newResults[sourceIndex].serverError = '';
-                            }
-                            setOcrResults(newResults);
-                          }}
-                          className="w-16 rounded-lg border border-sky-200 bg-white px-2 py-1 text-center text-xs font-black text-sky-700 outline-none focus:border-sky-500"
-                        />
-                      </div>
-                      <p className="text-[10px] font-bold text-slate-500">
-                        = {getOcrResolvedQuantity(item)} шт
-                      </p>
-                      <p className="text-[10px] font-bold text-slate-400">итог для склада</p>
-                      {item.price > 0 && item.packageCount > 0 && (
-                        <p className="mt-1 text-[10px] font-bold text-slate-400">
-                          {formatDollar(item.price)} x {item.packageCount} = {formatDollar(calculateLineTotal(item.packageCount, item.price))}
-                        </p>
-                      )}
-                    </div>
-                    <div className="sm:col-span-2 sm:text-right">
-                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Закупка</p>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.price || ''}
-                        onChange={(e) => {
-                          const newResults = [...ocrResults];
-                          if (sourceIndex >= 0) {
-                            newResults[sourceIndex].price = Number(e.target.value || 0);
-                            newResults[sourceIndex].serverError = '';
-                          }
-                          setOcrResults(newResults);
-                        }}
-                        className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2 text-right text-sm font-black text-slate-900 outline-none focus:border-sky-500"
-                      />
-                      <p className="mt-1 text-[10px] font-bold text-slate-400">≈ {formatMoney(item.price * parseFloat(usdRate || '0'))} / упаковка</p>
-                    </div>
-                    <div className="sm:col-span-2 sm:text-right">
-                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Наша закупка</p>
-                      {(() => {
-                        const quantity = getOcrResolvedQuantity(item);
-                        const baseCostPerPiece =
-                          item.lineTotal > 0 && quantity > 0
-                            ? calculateUnitCostFromLineTotal(item.lineTotal * parseFloat(usdRate || '0'), quantity)
-                            : item.unitsPerPackage > 0
-                              ? calculateUnitCostFromPackage(item.price * parseFloat(usdRate || '0'), item.unitsPerPackage)
-                              : calculateUnitCostFromLineTotal(item.price * parseFloat(usdRate || '0'), quantity);
-                        const expensePercent = Math.max(0, Number(scanExpensePercent || 0));
-                        const effectiveCostPerPiece = calculateEffectiveCost(baseCostPerPiece, expensePercent);
-
-                        return (
-                          <>
-                            <p className="font-black text-slate-900">
-                              {formatMoney(effectiveCostPerPiece)}
-                            </p>
-                            <p className="mt-1 text-[10px] font-bold text-slate-400">
-                              база: {formatMoney(baseCostPerPiece)}
-                            </p>
-                            <p className="mt-2 text-[10px] font-bold text-slate-400">
-                              расходы: {toFixedNumber(expensePercent)}%
-                            </p>
-                          </>
-                        );
-                      })()}
-                    </div>
-                    <div className="sm:col-span-2 sm:text-right">
-                      <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 sm:hidden">Цена продажи</p>
-                      <input 
-                        type="number"
-                        placeholder="Укажите цену"
-                        value={item.sellingPrice}
-                        onChange={(e) => {
-                          const newResults = [...ocrResults];
-                          if (sourceIndex >= 0) {
-                            newResults[sourceIndex].sellingPrice = e.target.value;
-                            newResults[sourceIndex].serverError = '';
-                          }
-                          setOcrResults(newResults);
-                        }}
-                        className="w-full text-right bg-white px-4 py-2 rounded-xl border border-sky-200 focus:border-sky-500 outline-none font-black text-emerald-600"
-                      />
-                    </div>
-                  </div>
-                )})}
-                {showOnlyProblematicOcrRows && visibleOcrResults.length === 0 && (
-                  <div className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-6 text-center text-sm font-bold text-emerald-700">
-                    Проблемных строк не осталось. Можно добавить все товары на склад.
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-sky-50/60 p-4 sm:flex-row sm:justify-end sm:space-x-3 sm:gap-0 sm:p-8">
-                <button onClick={closeOcrResultsModal} className="px-8 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-200 transition-all">Отмена</button>
-                <button 
-                  onClick={handleAddOcrToStock}
-                  disabled={isLoading}
-                  className="px-10 py-4 bg-sky-500 text-white rounded-2xl font-bold shadow-xl shadow-sky-500/20 hover:bg-sky-600 transition-all disabled:opacity-50 flex items-center space-x-2"
-                >
-                  {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Package size={20} />}
-                  <span>Добавить всё на склад</span>
-                </button>
-              </div>
             </motion.div>
           </motion.div>
         )}
