@@ -57,6 +57,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
   );
+  const [isCompactHeight, setIsCompactHeight] = useState(() =>
+    typeof window !== 'undefined' ? window.innerHeight <= 780 : false,
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -100,6 +103,19 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
       window.removeEventListener('focus', refreshRemindersCount);
       window.removeEventListener('reminders-updated', refreshRemindersCount as EventListener);
     };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncHeight = () => {
+      setIsCompactHeight(window.innerHeight <= 780);
+    };
+
+    syncHeight();
+    window.addEventListener('resize', syncHeight);
+
+    return () => window.removeEventListener('resize', syncHeight);
   }, []);
 
   const handleLogout = async () => {
@@ -153,14 +169,14 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-50 flex h-[100dvh] flex-col overflow-y-auto overflow-x-hidden border-r border-[#202c3c] bg-[#111927] text-[#eaf1f8] shadow-2xl transition-[width,transform] duration-300 ease-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:overflow-hidden lg:shadow-none',
+          'fixed inset-y-0 left-0 z-50 flex h-[100dvh] flex-col overflow-hidden border-r border-[#202c3c] bg-[#111927] text-[#eaf1f8] shadow-2xl transition-[width,transform] duration-300 ease-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:overflow-hidden lg:shadow-none',
           sidebarCollapsed
             ? 'w-[82vw] max-w-[312px] lg:w-[92px] lg:max-w-none'
             : 'w-[82vw] max-w-[312px] lg:w-[246px] lg:max-w-none',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className={clsx('border-b border-white/5', sidebarCollapsed ? 'px-3 py-2.5' : 'px-4 py-3.5')}>
+        <div className={clsx('border-b border-white/5', sidebarCollapsed ? 'px-3 py-2.5' : isCompactHeight ? 'px-3.5 py-2.5' : 'px-4 py-3.5')}>
           <div className={clsx('flex items-center', sidebarCollapsed ? 'justify-center' : 'gap-3')}>
             <button
               type="button"
@@ -178,7 +194,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                 'flex shrink-0 items-center justify-center transition-all duration-200',
                 sidebarCollapsed
                   ? 'h-[50px] w-[50px] rounded-[18px] bg-[linear-gradient(180deg,#5a49ff_0%,#4a2fe0_100%)] text-white shadow-[0_12px_28px_rgba(88,72,255,0.28)]'
-                  : 'h-11 w-11 rounded-[16px] bg-[linear-gradient(180deg,#5a49ff_0%,#4a2fe0_100%)] text-white shadow-[0_12px_24px_rgba(88,72,255,0.24)]',
+                  : isCompactHeight
+                    ? 'h-10 w-10 rounded-[16px] bg-[linear-gradient(180deg,#5a49ff_0%,#4a2fe0_100%)] text-white shadow-[0_10px_20px_rgba(88,72,255,0.22)]'
+                    : 'h-11 w-11 rounded-[16px] bg-[linear-gradient(180deg,#5a49ff_0%,#4a2fe0_100%)] text-white shadow-[0_12px_24px_rgba(88,72,255,0.24)]',
               )}
             >
               <Warehouse size={sidebarCollapsed ? 21 : 19} />
@@ -187,13 +205,16 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             {!sidebarCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[16px] font-semibold leading-[1.1] tracking-tight text-white">Оптовая торговля</div>
+                  <div className={clsx('font-semibold leading-[1.1] tracking-tight text-white', isCompactHeight ? 'text-[15px]' : 'text-[16px]')}>Оптовая торговля</div>
                 </div>
 
                 <button
                   type="button"
                   onClick={onToggleCollapse}
-                  className="ml-auto hidden h-9 w-9 items-center justify-center rounded-xl bg-[#1a2535] text-[#c6d3e3] transition-colors hover:bg-[#223247] hover:text-white lg:flex"
+                  className={clsx(
+                    'ml-auto hidden items-center justify-center rounded-xl bg-[#1a2535] text-[#c6d3e3] transition-colors hover:bg-[#223247] hover:text-white lg:flex',
+                    isCompactHeight ? 'h-8 w-8' : 'h-9 w-9'
+                  )}
                   title="Свернуть меню"
                 >
                   <ChevronLeft size={17} />
@@ -204,7 +225,10 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             <button
               type="button"
               onClick={onClose}
-              className="ml-auto flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a2535] text-[#c6d3e3] transition-colors hover:bg-[#223247] hover:text-white lg:hidden"
+              className={clsx(
+                'ml-auto flex items-center justify-center rounded-xl bg-[#1a2535] text-[#c6d3e3] transition-colors hover:bg-[#223247] hover:text-white lg:hidden',
+                isCompactHeight ? 'h-8 w-8' : 'h-9 w-9'
+              )}
               title="Закрыть меню"
             >
               <ChevronLeft size={17} />
@@ -214,18 +238,18 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
         <nav
           className={clsx(
-            'flex-1 overflow-visible lg:overflow-hidden',
-            sidebarCollapsed ? 'px-2.5 py-2' : 'px-3.5 py-3',
+            'min-h-0 flex-1 overflow-hidden',
+            sidebarCollapsed ? 'px-2.5 py-2' : isCompactHeight ? 'px-3 py-2' : 'px-3.5 py-3',
           )}
         >
-          <div className={clsx(sidebarCollapsed ? 'space-y-2' : 'space-y-2')}>
+          <div className={clsx(sidebarCollapsed ? 'space-y-1.5' : isCompactHeight ? 'space-y-1.5' : 'space-y-2')}>
             {Object.entries(navSections).map(([section, items]) => (
               <div key={section}>
                 {!sidebarCollapsed && (
-                  <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#74859a]">{section}</p>
+                  <p className={clsx('px-3 font-semibold uppercase tracking-[0.16em] text-[#74859a]', isCompactHeight ? 'mb-1.5 text-[9px]' : 'mb-2 text-[10px]')}>{section}</p>
                 )}
 
-                <div className={clsx(sidebarCollapsed ? 'space-y-1' : 'space-y-1')}>
+                <div className="space-y-1">
                   {items.map((item) => (
                     <NavLink
                       key={item.to}
@@ -240,7 +264,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                           'group relative flex border transition-all duration-200',
                           sidebarCollapsed
                             ? 'mx-auto h-[50px] w-[50px] items-center justify-center rounded-[16px]'
-                            : 'items-center gap-3 rounded-[18px] px-3.5 py-3',
+                            : isCompactHeight
+                              ? 'items-center gap-2.5 rounded-[16px] px-3 py-2'
+                              : 'items-center gap-3 rounded-[18px] px-3.5 py-3',
                           isActive
                             ? 'border-[#31426b] bg-[#192542] text-white shadow-[0_10px_22px_rgba(9,15,28,0.24)]'
                             : 'border-transparent bg-transparent text-[#9daec4] hover:border-[#243146] hover:bg-[#182231] hover:text-white',
@@ -249,9 +275,9 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                     >
                       {({ isActive }) => (
                         <>
-                          <item.icon size={sidebarCollapsed ? 22 : 18} className="shrink-0" strokeWidth={isActive ? 2.2 : 2} />
+                          <item.icon size={sidebarCollapsed ? 22 : isCompactHeight ? 17 : 18} className="shrink-0" strokeWidth={isActive ? 2.2 : 2} />
 
-                          {!sidebarCollapsed && <span className="truncate text-[14px] font-medium">{item.label}</span>}
+                          {!sidebarCollapsed && <span className={clsx('truncate font-medium', isCompactHeight ? 'text-[13px]' : 'text-[14px]')}>{item.label}</span>}
 
                           {item.to === '/reminders' && remindersCount > 0 && (
                             <span
@@ -277,15 +303,15 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
           </div>
         </nav>
 
-        <div className={clsx('mt-auto border-t border-white/5', sidebarCollapsed ? 'px-2.5 py-2' : 'px-3.5 py-3')}>
+        <div className={clsx('mt-auto border-t border-white/5', sidebarCollapsed ? 'px-2.5 py-2' : isCompactHeight ? 'px-3 py-2' : 'px-3.5 py-3')}>
           <div
             className={clsx(
               'rounded-[18px] border border-[#223043] bg-[#172133]',
-              sidebarCollapsed ? 'px-0 py-2' : 'p-2.5',
+              sidebarCollapsed ? 'px-0 py-2' : isCompactHeight ? 'p-2' : 'p-2.5',
             )}
           >
             <div className={clsx('flex items-center', sidebarCollapsed ? 'justify-center' : 'gap-3')}>
-              <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[14px] bg-[#223148] text-sm font-semibold text-white">
+              <div className={clsx('flex items-center justify-center rounded-[14px] bg-[#223148] font-semibold text-white', isCompactHeight ? 'h-[34px] w-[34px] text-xs' : 'h-[38px] w-[38px] text-sm')}>
                 {user.username?.[0]?.toUpperCase()}
               </div>
 
@@ -300,7 +326,10 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             {!sidebarCollapsed && (
               <button
                 onClick={handleLogout}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-[#223148] py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#c9d5e3] transition-colors hover:border-[#5a3441] hover:bg-[#3a2430] hover:text-[#fecdd3]"
+                className={clsx(
+                  'flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-[#223148] font-semibold uppercase tracking-[0.14em] text-[#c9d5e3] transition-colors hover:border-[#5a3441] hover:bg-[#3a2430] hover:text-[#fecdd3]',
+                  isCompactHeight ? 'mt-1.5 py-1 text-[8px]' : 'mt-2 py-1.5 text-[9px]'
+                )}
                 title="Выйти"
               >
                 <LogOut size={13} />
