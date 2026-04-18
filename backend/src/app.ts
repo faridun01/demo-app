@@ -14,6 +14,7 @@ import reminderRoutes from './routes/reminders.routes.js';
 import paymentRoutes from './routes/payments.routes.js';
 import expenseRoutes from './routes/expenses.routes.js';
 import { authenticate, authenticateUploadAccess } from './middlewares/auth.middleware.js';
+import { AppError, toErrorPayload } from './lib/http.js';
 import { corsMiddleware, securityHeaders } from './middlewares/security.middleware.js';
 import { allowedImageMimeTypes, assertFileSignature, imageUpload, uploadsDir } from './utils/upload.js';
 
@@ -62,7 +63,7 @@ app.use('/api/expenses', authenticate, expenseRoutes);
 app.post('/api/upload', authenticate, imageUpload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      throw new AppError('No file uploaded', { status: 400, code: 'UPLOAD_FILE_REQUIRED' });
     }
 
     await assertFileSignature(req.file.path, allowedImageMimeTypes);
@@ -99,11 +100,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     return res.status(400).json({ error: 'Uploaded file is too large' });
   }
 
-  if (typeof err.status === 'number') {
-    return res.status(err.status).json({ error: err.message || 'Request failed' });
-  }
-  
-  res.status(500).json({ error: err.message || 'Something went wrong!' });
+  const { status, body } = toErrorPayload(err);
+  res.status(status).json(body);
 });
 
 export default app;

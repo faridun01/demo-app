@@ -1,22 +1,22 @@
 import client from './client';
 
 export const login = async (data: { username: string; password: string }) => {
-  const response = await client.post('/auth/login', data);
+  const response = await client.post('/auth/login', data, { timeout: 15000 });
   return response.data;
 };
 
 export const loginWithTwoFactor = async (data: { twoFactorToken: string; code: string }) => {
-  const response = await client.post('/auth/2fa/login', data);
+  const response = await client.post('/auth/2fa/login', data, { timeout: 15000 });
   return response.data;
 };
 
 export const getSessionUser = async () => {
-  const response = await client.get('/auth/me');
+  const response = await client.get('/auth/me', { timeout: 10000 });
   return response.data;
 };
 
 export const logout = async () => {
-  const response = await client.post('/auth/logout');
+  const response = await client.post('/auth/logout', undefined, { timeout: 10000 });
   return response.data;
 };
 

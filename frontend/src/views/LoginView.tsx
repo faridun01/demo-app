@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSessionUser, login, loginWithTwoFactor } from '../api/auth.api';
+import { login, loginWithTwoFactor } from '../api/auth.api';
 import { ArrowLeft, ArrowRight, KeyRound, Loader2, Lock, User, Warehouse } from 'lucide-react';
 import { motion } from 'motion/react';
 import { setAuthSession } from '../utils/authStorage';
@@ -29,9 +29,7 @@ export default function LoginView() {
         return;
       }
 
-      let sessionUser = null;
-      try { sessionUser = await getSessionUser(); } catch {}
-      setAuthSession(null, sessionUser || result.user);
+      setAuthSession(null, result.user);
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Ошибка входа');
@@ -50,9 +48,7 @@ export default function LoginView() {
         twoFactorToken,
         code: twoFactorCode,
       });
-      let sessionUser = null;
-      try { sessionUser = await getSessionUser(); } catch {}
-      setAuthSession(null, sessionUser || result.user);
+      setAuthSession(null, result.user);
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Ошибка проверки двухфакторной аутентификации');

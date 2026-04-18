@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import React from 'react';
 import { clsx } from 'clsx';
-import { History, RotateCcw, Scissors, X } from 'lucide-react';
+import { History, RotateCcw, Scissors } from 'lucide-react';
 import { formatProductName } from '../../utils/productName';
+import { Dialog } from '../common/Dialog';
 
 interface ProductHistoryModalProps {
   isOpen: boolean;
@@ -15,10 +15,10 @@ interface ProductHistoryModalProps {
 }
 
 const getTypeLabel = (type: string) => {
-  if (type === 'incoming') return 'Приход';
-  if (type === 'outgoing') return 'Расход';
-  if (type === 'price_change' || type === 'adjustment') return 'Изменение';
-  return 'Перенос';
+  if (type === 'incoming') return 'ÐŸÑ€Ð¸Ñ…Ð¾Ð´';
+  if (type === 'outgoing') return 'Ð Ð°ÑÑ…Ð¾Ð´';
+  if (type === 'price_change' || type === 'adjustment') return 'Ð˜Ð·Ð¼ÐµÐ½ÐµÐ½Ð¸Ðµ';
+  return 'ÐŸÐµÑ€ÐµÐ½Ð¾Ñ';
 };
 
 const getTypeClassName = (type: string) =>
@@ -35,11 +35,11 @@ const getTypeClassName = (type: string) =>
 
 const normalizePackageName = (value: string) => {
   const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return 'упаковка';
-  if (['мешок', 'мешка', 'мешков', 'bag'].includes(normalized)) return 'мешок';
-  if (['коробка', 'коробки', 'коробок', 'box'].includes(normalized)) return 'коробка';
-  if (['упаковка', 'упаковки', 'упаковок', 'pack'].includes(normalized)) return 'упаковка';
-  if (['пачка', 'пачки', 'пачек'].includes(normalized)) return 'пачка';
+  if (!normalized) return 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°';
+  if (['Ð¼ÐµÑˆÐ¾Ðº', 'Ð¼ÐµÑˆÐºÐ°', 'Ð¼ÐµÑˆÐºÐ¾Ð²', 'bag'].includes(normalized)) return 'Ð¼ÐµÑˆÐ¾Ðº';
+  if (['ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°', 'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ¸', 'ÐºÐ¾Ñ€Ð¾Ð±Ð¾Ðº', 'box'].includes(normalized)) return 'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°';
+  if (['ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ¸', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²Ð¾Ðº', 'pack'].includes(normalized)) return 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°';
+  if (['Ð¿Ð°Ñ‡ÐºÐ°', 'Ð¿Ð°Ñ‡ÐºÐ¸', 'Ð¿Ð°Ñ‡ÐµÐº'].includes(normalized)) return 'Ð¿Ð°Ñ‡ÐºÐ°';
   return normalized;
 };
 
@@ -56,16 +56,16 @@ const pluralizeRu = (count: number, forms: [string, string, string]) => {
 const formatCountWithUnit = (count: number, unit: string) => {
   const normalized = String(unit || '').trim().toLowerCase();
   const formsMap: Record<string, [string, string, string]> = {
-    'шт': ['шт', 'шт', 'шт'],
-    'штука': ['штука', 'штуки', 'штук'],
-    'пачка': ['пачка', 'пачки', 'пачек'],
-    'мешок': ['мешок', 'мешка', 'мешков'],
-    'коробка': ['коробка', 'коробки', 'коробок'],
-    'упаковка': ['упаковка', 'упаковки', 'упаковок'],
-    'флакон': ['флакон', 'флакона', 'флаконов'],
-    'ёмкость': ['ёмкость', 'ёмкости', 'ёмкостей'],
-    'емкость': ['ёмкость', 'ёмкости', 'ёмкостей'],
-    'бутылка': ['бутылка', 'бутылки', 'бутылок'],
+    'ÑˆÑ‚': ['ÑˆÑ‚', 'ÑˆÑ‚', 'ÑˆÑ‚'],
+    'ÑˆÑ‚ÑƒÐºÐ°': ['ÑˆÑ‚ÑƒÐºÐ°', 'ÑˆÑ‚ÑƒÐºÐ¸', 'ÑˆÑ‚ÑƒÐº'],
+    'Ð¿Ð°Ñ‡ÐºÐ°': ['Ð¿Ð°Ñ‡ÐºÐ°', 'Ð¿Ð°Ñ‡ÐºÐ¸', 'Ð¿Ð°Ñ‡ÐµÐº'],
+    'Ð¼ÐµÑˆÐ¾Ðº': ['Ð¼ÐµÑˆÐ¾Ðº', 'Ð¼ÐµÑˆÐºÐ°', 'Ð¼ÐµÑˆÐºÐ¾Ð²'],
+    'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°': ['ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ°', 'ÐºÐ¾Ñ€Ð¾Ð±ÐºÐ¸', 'ÐºÐ¾Ñ€Ð¾Ð±Ð¾Ðº'],
+    'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°': ['ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ¸', 'ÑƒÐ¿Ð°ÐºÐ¾Ð²Ð¾Ðº'],
+    'Ñ„Ð»Ð°ÐºÐ¾Ð½': ['Ñ„Ð»Ð°ÐºÐ¾Ð½', 'Ñ„Ð»Ð°ÐºÐ¾Ð½Ð°', 'Ñ„Ð»Ð°ÐºÐ¾Ð½Ð¾Ð²'],
+    'Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÑŒ': ['Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÑŒ', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚Ð¸', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÐµÐ¹'],
+    'ÐµÐ¼ÐºÐ¾ÑÑ‚ÑŒ': ['Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÑŒ', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚Ð¸', 'Ñ‘Ð¼ÐºÐ¾ÑÑ‚ÐµÐ¹'],
+    'Ð±ÑƒÑ‚Ñ‹Ð»ÐºÐ°': ['Ð±ÑƒÑ‚Ñ‹Ð»ÐºÐ°', 'Ð±ÑƒÑ‚Ñ‹Ð»ÐºÐ¸', 'Ð±ÑƒÑ‚Ñ‹Ð»Ð¾Ðº'],
   };
 
   const forms = formsMap[normalized] || [unit, unit, unit];
@@ -87,8 +87,8 @@ const getQuantityBreakdown = (quantityValue: unknown, product: any) => {
   const sign = rawQuantity > 0 ? '+' : rawQuantity < 0 ? '-' : '';
   const preferredPackaging = getPreferredPackaging(product);
   const unitsPerPackage = Number(preferredPackaging?.unitsPerPackage || 0);
-  const packageName = normalizePackageName(preferredPackaging?.packageName || preferredPackaging?.name || 'упаковка');
-  const baseUnitName = product?.unit || 'шт';
+  const packageName = normalizePackageName(preferredPackaging?.packageName || preferredPackaging?.name || 'ÑƒÐ¿Ð°ÐºÐ¾Ð²ÐºÐ°');
+  const baseUnitName = product?.unit || 'ÑˆÑ‚';
 
   if (!preferredPackaging || unitsPerPackage <= 1 || !Number.isFinite(rawQuantity)) {
     return `${sign}${formatCountWithUnit(absoluteQuantity, baseUnitName)}`;
@@ -113,148 +113,107 @@ export default function ProductHistoryModal({
   onReverseIncoming,
   onWriteOff,
 }: ProductHistoryModalProps) {
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.96, opacity: 0 }}
-            onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[94vh] w-full max-w-[60rem] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2rem]"
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      title={<>Ð˜ÑÑ‚Ð¾Ñ€Ð¸Ñ Ñ‚Ð¾Ð²Ð°Ñ€Ð°: {formatProductName(productName)}</>}
+      icon={<History size={18} />}
+      widthClassName="max-w-[60rem]"
+      actions={
+        onWriteOff ? (
+          <button
+            type="button"
+            onClick={() => void onWriteOff()}
+            className="app-button border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
           >
-            <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/50 p-5 sm:p-6">
-              <h3 className="flex items-center space-x-3 text-xl font-black text-slate-900">
-                <div className="rounded-2xl bg-sky-500 p-2.5 text-white">
-                  <History size={20} />
-                </div>
-                <span>История товара: {formatProductName(productName)}</span>
-              </h3>
-              <div className="flex items-center gap-2">
-                {onWriteOff && (
+            <Scissors size={14} />
+            <span>Ð¡Ð¿Ð¸ÑÐ°Ñ‚ÑŒ</span>
+          </button>
+        ) : null
+      }
+    >
+      <div className="space-y-3 sm:hidden">
+        {productHistory.map((t, i) => (
+          <div key={i} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">{new Date(t.createdAt).toLocaleString('ru-RU')}</p>
+                <p className="mt-1 text-xs text-slate-500">{t.warehouseName || t.warehouse?.name || '---'}</p>
+              </div>
+              <span className={getTypeClassName(t.type)}>{getTypeLabel(t.type)}</span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-white px-3 py-3">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">ÐšÐ¾Ð»-Ð²Ð¾</p>
+                <p className="mt-1 whitespace-pre-line text-sm font-black text-slate-900">{getQuantityBreakdown(t.qtyChange ?? 0, product)}</p>
+              </div>
+              <div className="rounded-2xl bg-white px-3 py-3">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">ÐŸÐ¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑŒ</p>
+                <p className="mt-1 break-words text-sm font-medium text-slate-900">{t.username || '---'}</p>
+              </div>
+            </div>
+            <div className="mt-3 rounded-2xl bg-white px-3 py-3">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">ÐŸÑ€Ð¸Ñ‡Ð¸Ð½Ð°</p>
+              <p className="mt-1 break-words text-sm text-slate-600">{t.reason || '---'}</p>
+            </div>
+            {t.canReverseIncoming && onReverseIncoming && (
+              <button
+                type="button"
+                onClick={() => onReverseIncoming(Number(t.transactionId))}
+                className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 transition-all hover:bg-rose-100"
+              >
+                <RotateCcw size={14} />
+                <span>ÐžÑ‚Ð¼ÐµÐ½Ð¸Ñ‚ÑŒ Ð¿Ñ€Ð¸Ñ…Ð¾Ð´</span>
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <table className="hidden w-full table-fixed text-left sm:table">
+        <thead>
+          <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <th className="w-[17%] pb-4">Ð”Ð°Ñ‚Ð°</th>
+            <th className="w-[10%] pb-4">Ð¢Ð¸Ð¿</th>
+            <th className="w-[14%] pb-4">ÐšÐ¾Ð»-Ð²Ð¾</th>
+            <th className="w-[13%] pb-4">Ð¡ÐºÐ»Ð°Ð´</th>
+            <th className="w-[24%] pb-4">ÐŸÑ€Ð¸Ñ‡Ð¸Ð½Ð°</th>
+            <th className="w-[12%] pb-4">ÐŸÐ¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑŒ</th>
+            <th className="w-[10%] pb-4 text-right">Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ðµ</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {productHistory.map((t, i) => (
+            <tr key={i} className="text-[13px]">
+              <td className="py-3 pr-3 align-top text-slate-500">{new Date(t.createdAt).toLocaleString('ru-RU')}</td>
+              <td className="py-3 pr-3 align-top">
+                <span className={getTypeClassName(t.type)}>{getTypeLabel(t.type)}</span>
+              </td>
+              <td className="py-3 pr-3 align-top font-black">
+                <div className="whitespace-pre-line">{getQuantityBreakdown(t.qtyChange ?? 0, product)}</div>
+              </td>
+              <td className="py-3 pr-3 align-top break-words text-slate-600">{t.warehouseName || t.warehouse?.name || '---'}</td>
+              <td className="py-3 pr-3 align-top break-words italic text-slate-500">{t.reason || '---'}</td>
+              <td className="py-3 pr-3 align-top break-words text-slate-500">{t.username || '---'}</td>
+              <td className="py-3 align-top text-right">
+                {t.canReverseIncoming && onReverseIncoming ? (
                   <button
                     type="button"
-                    onClick={() => void onWriteOff()}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-black text-amber-700 transition-all hover:bg-amber-100"
+                    onClick={() => onReverseIncoming(Number(t.transactionId))}
+                    className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 transition-all hover:bg-rose-100"
                   >
-                    <Scissors size={14} />
-                    <span>Списать</span>
+                    <RotateCcw size={12} />
+                    <span>ÐžÑ‚Ð¼ÐµÐ½Ð¸Ñ‚ÑŒ</span>
                   </button>
+                ) : (
+                  <span className="text-xs text-slate-300">-</span>
                 )}
-                <button type="button" onClick={onClose} className="text-slate-400 transition-colors hover:text-slate-600">
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              <div className="space-y-3 sm:hidden">
-                {productHistory.map((t, i) => (
-                  <div key={i} className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{new Date(t.createdAt).toLocaleString('ru-RU')}</p>
-                        <p className="mt-1 text-xs text-slate-500">{t.warehouseName || t.warehouse?.name || '---'}</p>
-                      </div>
-                      <span className={getTypeClassName(t.type)}>{getTypeLabel(t.type)}</span>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="rounded-2xl bg-white px-3 py-3">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Кол-во</p>
-                        <p className="mt-1 whitespace-pre-line text-sm font-black text-slate-900">
-                          {getQuantityBreakdown(t.qtyChange ?? 0, product)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-white px-3 py-3">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Пользователь</p>
-                        <p className="mt-1 break-words text-sm font-medium text-slate-900">{t.username || '---'}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3 rounded-2xl bg-white px-3 py-3">
-                      <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Причина</p>
-                      <p className="mt-1 break-words text-sm text-slate-600">{t.reason || '---'}</p>
-                    </div>
-                    {t.canReverseIncoming && onReverseIncoming && (
-                      <button
-                        type="button"
-                        onClick={() => onReverseIncoming(Number(t.transactionId))}
-                        className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 transition-all hover:bg-rose-100"
-                      >
-                        <RotateCcw size={14} />
-                        <span>Отменить приход</span>
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <table className="hidden w-full table-fixed text-left sm:table">
-                <thead>
-                  <tr className="border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    <th className="w-[17%] pb-4">Дата</th>
-                    <th className="w-[10%] pb-4">Тип</th>
-                    <th className="w-[14%] pb-4">Кол-во</th>
-                    <th className="w-[13%] pb-4">Склад</th>
-                    <th className="w-[24%] pb-4">Причина</th>
-                    <th className="w-[12%] pb-4">Пользователь</th>
-                    <th className="w-[10%] pb-4 text-right">Действие</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {productHistory.map((t, i) => (
-                    <tr key={i} className="text-[13px]">
-                      <td className="py-3 pr-3 align-top text-slate-500">{new Date(t.createdAt).toLocaleString('ru-RU')}</td>
-                      <td className="py-3 pr-3 align-top">
-                        <span className={getTypeClassName(t.type)}>{getTypeLabel(t.type)}</span>
-                      </td>
-                      <td className="py-3 pr-3 align-top font-black">
-                        <div className="whitespace-pre-line">{getQuantityBreakdown(t.qtyChange ?? 0, product)}</div>
-                      </td>
-                      <td className="py-3 pr-3 align-top break-words text-slate-600">{t.warehouseName || t.warehouse?.name || '---'}</td>
-                      <td className="py-3 pr-3 align-top break-words italic text-slate-500">{t.reason || '---'}</td>
-                      <td className="py-3 pr-3 align-top break-words text-slate-500">{t.username || '---'}</td>
-                      <td className="py-3 align-top text-right">
-                        {t.canReverseIncoming && onReverseIncoming ? (
-                          <button
-                            type="button"
-                            onClick={() => onReverseIncoming(Number(t.transactionId))}
-                            className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-black text-rose-700 transition-all hover:bg-rose-100"
-                          >
-                            <RotateCcw size={12} />
-                            <span>Отменить</span>
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-300">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Dialog>
   );
 }

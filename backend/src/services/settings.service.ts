@@ -1,4 +1,5 @@
 import prisma from '../db/prisma.js';
+import { AppError } from '../lib/http.js';
 
 export class SettingsService {
   static async getSettings() {
@@ -27,7 +28,7 @@ export class SettingsService {
   static async ensureCategory(name: string) {
     const normalizedName = String(name || '').trim();
     if (!normalizedName) {
-      throw new Error('Category name is required');
+      throw new AppError('Category name is required', { status: 400, code: 'CATEGORY_NAME_REQUIRED' });
     }
 
     const existing = await prisma.category.findFirst({

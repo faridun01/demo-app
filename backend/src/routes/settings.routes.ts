@@ -1,14 +1,36 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { SettingsService } from '../services/settings.service.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
-import prisma from '../db/prisma.js';
+import { AppError, created, ok } from '../lib/http.js';
+import { parseSchema, trimToNull } from '../lib/validation.js';
+import { CompanyProfileService } from '../services/company-profile.service.js';
 
 const router = Router();
+
+const settingsPayloadSchema = z.object({
+  key: z.string().trim().min(1),
+  value: z.string(),
+});
+
+const categoryPayloadSchema = z.object({
+  name: z.string().trim().min(1),
+});
+
+const companyProfileSchema = z.object({
+  name: z.string().trim().min(1),
+  country: z.union([z.string(), z.undefined(), z.null()]).optional(),
+  region: z.union([z.string(), z.undefined(), z.null()]).optional(),
+  city: z.union([z.string(), z.undefined(), z.null()]).optional(),
+  addressLine: z.union([z.string(), z.undefined(), z.null()]).optional(),
+  phone: z.union([z.string(), z.undefined(), z.null()]).optional(),
+  note: z.union([z.string(), z.undefined(), z.null()]).optional(),
+});
 
 router.get('/public', async (req, res, next) => {
   try {
     const settings = await SettingsService.getSettings();
-    res.json({
+    ok(res, {
       priceVisibility: settings.priceVisibility || 'everyone',
     });
   } catch (error) {
@@ -18,8 +40,7 @@ router.get('/public', async (req, res, next) => {
 
 router.get('/', authenticate, authorize(['ADMIN']), async (req, res, next) => {
   try {
-    const settings = await SettingsService.getSettings();
-    res.json(settings);
+    ok(res, await SettingsService.getSettings());
   } catch (error) {
     next(error);
   }
@@ -27,9 +48,8 @@ router.get('/', authenticate, authorize(['ADMIN']), async (req, res, next) => {
 
 router.post('/', authenticate, authorize(['ADMIN']), async (req, res, next) => {
   try {
-    const { key, value } = req.body;
-    const setting = await SettingsService.updateSetting(key, value);
-    res.json(setting);
+    const { key, value } = parseSchema(settingsPayloadSchema, req.body);
+    ok(res, await SettingsService.updateSetting(key, value));
   } catch (error) {
     next(error);
   }
@@ -37,8 +57,7 @@ router.post('/', authenticate, authorize(['ADMIN']), async (req, res, next) => {
 
 router.get('/categories', authenticate, async (req, res, next) => {
   try {
-    const categories = await SettingsService.getCategories();
-    res.json(categories);
+    ok(res, await SettingsService.getCategories());
   } catch (error) {
     next(error);
   }
@@ -46,8 +65,8 @@ router.get('/categories', authenticate, async (req, res, next) => {
 
 router.post('/categories', authenticate, authorize(['ADMIN']), async (req, res, next) => {
   try {
-    const category = await SettingsService.ensureCategory(req.body?.name);
-    res.status(201).json(category);
+    const { name } = parseSchema(categoryPayloadSchema, req.body);
+    created(res, await SettingsService.ensureCategory(name));
   } catch (error) {
     next(error);
   }
@@ -55,11 +74,7 @@ router.post('/categories', authenticate, authorize(['ADMIN']), async (req, res, 
 
 router.get('/company-profile', authenticate, async (req, res, next) => {
   try {
-    const profile = await prisma.companyProfile.findFirst({
-      where: { isActive: true },
-      orderBy: { id: 'asc' },
-    });
-    res.json(profile);
+    ok(res, await CompanyProfileService.getActiveProfile());
   } catch (error) {
     next(error);
   }
@@ -67,36 +82,24 @@ router.get('/company-profile', authenticate, async (req, res, next) => {
 
 router.post('/company-profile', authenticate, authorize(['ADMIN']), async (req, res, next) => {
   try {
-    const payload = {
-      name: String(req.body?.name || '').trim(),
-      country: req.body?.country ? String(req.body.country).trim() : null,
-      region: req.body?.region ? String(req.body.region).trim() : null,
-      city: req.body?.city ? String(req.body.city).trim() : null,
-      addressLine: req.body?.addressLine ? String(req.body.addressLine).trim() : null,
-      phone: req.body?.phone ? String(req.body.phone).trim() : null,
-      note: req.body?.note ? String(req.body.note).trim() : null,
-      isActive: true,
-    };
+    const body = parseSchema(companyProfileSchema, req.body);
 
-    if (!payload.name) {
-      return res.status(400).json({ error: 'Название компании обязательно' });
+    if (!body.name) {
+      throw new AppError('Название компании обязательно', { status: 400, code: 'COMPANY_PROFILE_NAME_REQUIRED' });
     }
 
-    const existing = await prisma.companyProfile.findFirst({
-      where: { isActive: true },
-      orderBy: { id: 'asc' },
-    });
-
-    const profile = existing
-      ? await prisma.companyProfile.update({
-          where: { id: existing.id },
-          data: payload,
-        })
-      : await prisma.companyProfile.create({
-          data: payload,
-        });
-
-    res.json(profile);
+    ok(
+      res,
+      await CompanyProfileService.upsertActiveProfile({
+        name: body.name,
+        country: trimToNull(body.country),
+        region: trimToNull(body.region),
+        city: trimToNull(body.city),
+        addressLine: trimToNull(body.addressLine),
+        phone: trimToNull(body.phone),
+        note: trimToNull(body.note),
+      }),
+    );
   } catch (error) {
     next(error);
   }
