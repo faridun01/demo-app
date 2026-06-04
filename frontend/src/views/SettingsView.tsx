@@ -514,7 +514,7 @@ export default function SettingsView() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[94vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[2.5rem]"
+              className="max-h-[94vh] w-full max-w-md overflow-y-auto rounded-t-4xl bg-white shadow-2xl sm:max-h-[92vh] sm:rounded-[2.5rem]"
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-5 sm:p-8">
                 <h3 className="flex items-center space-x-3 text-xl font-semibold text-slate-900 sm:text-2xl">
@@ -596,7 +596,7 @@ export default function SettingsView() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="max-h-[94vh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
+              className="max-h-[94vh] w-full max-w-xl overflow-y-auto rounded-t-4xl bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-5 sm:p-6">
                 <h3 className="flex items-center space-x-3 text-lg font-semibold text-slate-900 sm:text-xl">
@@ -729,9 +729,9 @@ export default function SettingsView() {
 
       {activeTab === 'warehouses' && (
         <div className="space-y-5">
-          <div className="overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(14,165,233,0.24)]">
+          <div className="overflow-hidden rounded-[28px] border border-sky-100 bg-linear-to-br from-sky-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(14,165,233,0.24)]">
             <div className="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-[1.4fr_0.9fr]">
-              <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 backdrop-blur">
+              <div className="rounded-3xl border border-white/80 bg-white/80 p-5 backdrop-blur">
                 <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500 text-white shadow-lg shadow-sky-500/20 ring-4 ring-sky-100">
                   <Warehouse size={26} />
                 </div>
@@ -741,11 +741,11 @@ export default function SettingsView() {
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-sm">
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-sm">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Всего складов</p>
                   <p className="mt-2 text-xl font-medium text-slate-900">{warehouses.length}</p>
                 </div>
-                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-sm">
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-sm">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Основной склад</p>
                   <p className="mt-2 text-xl font-medium text-slate-900">{warehouses.find((warehouse) => warehouse.isDefault)?.name || 'Не выбран'}</p>
                 </div>
@@ -788,7 +788,7 @@ export default function SettingsView() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <h3 className="break-words text-xl font-semibold text-slate-900">{w.name}</h3>
+                <h3 className="wrap-break-word text-xl font-semibold text-slate-900">{w.name}</h3>
                 {w.isDefault && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700">
                     <Star size={12} />
@@ -801,13 +801,13 @@ export default function SettingsView() {
                   <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center mr-3 text-slate-400">
                     <MapPin size={16} />
                   </div>
-                  <span className="break-words">{[w.city, w.address].filter(Boolean).join(', ') || 'Адрес не указан'}</span>
+                  <span className="wrap-break-word">{[w.city, w.address].filter(Boolean).join(', ') || 'Адрес не указан'}</span>
                 </div>
                 <div className="flex items-start text-slate-500 font-medium">
                   <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center mr-3 text-slate-400">
                     <Phone size={16} />
                   </div>
-                  <span className="break-words">{w.phone || 'Телефон не указан'}</span>
+                  <span className="wrap-break-word">{w.phone || 'Телефон не указан'}</span>
                 </div>
                 {isAdmin && !w.isDefault && (
                   <button
@@ -834,7 +834,7 @@ export default function SettingsView() {
         </div>
 
           {warehouses.length > warehousesPageSize && (
-            <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <PaginationControls
                 currentPage={warehousePage}
                 totalPages={warehousesTotalPages}
@@ -850,9 +850,9 @@ export default function SettingsView() {
 
       {activeTab === 'users' && (
         <div className="space-y-6">
-          <div className="overflow-hidden rounded-[28px] border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(124,58,237,0.28)]">
+          <div className="overflow-hidden rounded-[28px] border border-violet-100 bg-linear-to-br from-violet-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(124,58,237,0.28)]">
             <div className="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-[1.35fr_0.85fr]">
-              <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 backdrop-blur">
+              <div className="rounded-3xl border border-white/80 bg-white/80 p-5 backdrop-blur">
                 <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500 text-white shadow-lg shadow-violet-500/20 ring-4 ring-violet-100">
                   <Users size={26} />
                 </div>
@@ -861,10 +861,10 @@ export default function SettingsView() {
                   Управляйте ролями, складами доступа и статусом двухфакторной защиты в одном месте.
                 </p>
               </div>
-              <div className="rounded-[24px] border border-white/80 bg-white/80 p-4 backdrop-blur">
+              <div className="rounded-3xl border border-white/80 bg-white/80 p-4 backdrop-blur">
                 <button 
                   onClick={() => setShowAddUser(true)}
-                  className="inline-flex min-h-[88px] w-full items-center justify-center gap-2.5 rounded-[18px] bg-violet-500 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-violet-500/20 transition-all hover:-translate-y-0.5 hover:bg-violet-600 active:scale-95"
+                  className="inline-flex min-h-22 w-full items-center justify-center gap-2.5 rounded-[18px] bg-violet-500 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-violet-500/20 transition-all hover:-translate-y-0.5 hover:bg-violet-600 active:scale-95"
                 >
                   <Plus size={18} />
                   <span>Добавить пользователя</span>
@@ -1094,9 +1094,9 @@ export default function SettingsView() {
 
       {activeTab === 'profile' && (
         <div className="max-w-4xl space-y-8">
-          <div className="overflow-hidden rounded-[28px] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(16,185,129,0.28)]">
+          <div className="overflow-hidden rounded-[28px] border border-emerald-100 bg-linear-to-br from-emerald-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(16,185,129,0.28)]">
             <div className="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-[1.4fr_0.9fr]">
-              <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 backdrop-blur">
+              <div className="rounded-3xl border border-white/80 bg-white/80 p-5 backdrop-blur">
                 <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-100">
                   <User size={26} />
                 </div>
@@ -1106,11 +1106,11 @@ export default function SettingsView() {
                 </p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm">
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Текущий логин</p>
                   <p className="mt-2 text-xl font-medium text-slate-900">{profileForm.username || '—'}</p>
                 </div>
-                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm">
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-sm">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Склад доступа</p>
                   <p className="mt-2 text-xl font-medium text-slate-900">{currentUserWarehouseLabel}</p>
                 </div>
@@ -1169,9 +1169,9 @@ export default function SettingsView() {
       )}
       {activeTab === 'general' && (
           <div className="max-w-5xl space-y-8">
-            <div className="overflow-hidden rounded-[28px] border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(245,158,11,0.28)]">
+            <div className="overflow-hidden rounded-[28px] border border-amber-100 bg-linear-to-br from-amber-50 via-white to-slate-50 shadow-[0_16px_40px_-30px_rgba(245,158,11,0.28)]">
               <div className="grid grid-cols-1 gap-4 p-5 sm:p-6 lg:grid-cols-[1.4fr_0.9fr]">
-                <div className="rounded-[24px] border border-white/80 bg-white/80 p-5 backdrop-blur">
+                <div className="rounded-3xl border border-white/80 bg-white/80 p-5 backdrop-blur">
                   <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20 ring-4 ring-amber-100">
                     <SettingsIcon size={26} />
                   </div>
@@ -1180,12 +1180,12 @@ export default function SettingsView() {
                     Здесь находятся реквизиты компании для печати, параметры каталога и важные системные напоминания.
                   </p>
                 </div>
-                <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-sm">
+                <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-inner transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-sm">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Предпросмотр печати</p>
                   <div className="mt-3 space-y-2 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-700">
                     {companyPreviewLines.length > 0 ? (
                       companyPreviewLines.map((line) => (
-                        <p key={line} className="break-words">{line}</p>
+                        <p key={line} className="wrap-break-word">{line}</p>
                       ))
                     ) : (
                       <p className="text-slate-400">Данные компании пока не заполнены</p>
@@ -1309,7 +1309,7 @@ export default function SettingsView() {
                 <button 
                   key={option.id}
                   onClick={() => handleUpdateSetting('priceVisibility', option.id)}
-                  className={`flex items-center justify-between p-8 rounded-[2rem] border-2 transition-all text-left group ${settings.priceVisibility === option.id ? 'border-amber-400 bg-amber-50/80' : 'border-slate-50 hover:border-amber-100 hover:bg-amber-50/40'}`}
+                  className={`flex items-center justify-between p-8 rounded-4xl border-2 transition-all text-left group ${settings.priceVisibility === option.id ? 'border-amber-400 bg-amber-50/80' : 'border-slate-50 hover:border-amber-100 hover:bg-amber-50/40'}`}
                 >
                   <div>
                     <p className="font-semibold text-slate-900 text-lg">{option.label}</p>

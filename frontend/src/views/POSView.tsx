@@ -1596,58 +1596,126 @@ export default function POSView() {
                               </div>
                             </div>
 
-                            <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_88px_96px]">
-                              <select
-                                value={item.selectedPackagingId || ''}
-                                onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
-                                className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-xs text-[#1f2933] outline-none"
-                              >
-                                <option value="">{'\u0422\u043e\u043b\u044c\u043a\u043e'} {item.baseUnitName}</option>
-                                {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
-                                  <option key={packaging.id} value={packaging.id}>
-                                    {packaging.packageName} x {packaging.unitsPerPackage}
-                                  </option>
-                                ))}
-                              </select>
+                            {isCartExpanded ? (
+                              <div className="grid gap-2 md:grid-cols-[240px_96px_96px_96px]">
+                                <label className="min-w-0">
+                                  <span className="mb-1 block text-[10px] font-semibold text-[#48627f]">Упаковка</span>
+                                  <select
+                                    value={item.selectedPackagingId || ''}
+                                    onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
+                                    title="Выберите коробку или продажу поштучно"
+                                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8]"
+                                  >
+                                    <option value="">{'\u0422\u043e\u043b\u044c\u043a\u043e'} {item.baseUnitName}</option>
+                                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
+                                      <option key={packaging.id} value={packaging.id}>
+                                        {packaging.packageName} = {packaging.unitsPerPackage} {item.baseUnitName}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
 
-                              <input
-                                type="number"
-                                min={0}
-                                value={item.packageQuantityInput ?? String(item.packageQuantity)}
-                                onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
-                                onBlur={() => commitPackageQuantityInput(item.id)}
-                                disabled={!item.selectedPackagingId}
-                                placeholder={'\u0423\u043f\u0430\u043a.'}
-                                className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                              />
+                                <label>
+                                  <span className="mb-1 block text-[10px] font-semibold text-[#48627f]">Коробок</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={item.packageQuantityInput ?? String(item.packageQuantity)}
+                                    onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
+                                    onBlur={() => commitPackageQuantityInput(item.id)}
+                                    disabled={!item.selectedPackagingId}
+                                    placeholder={'\u0423\u043f\u0430\u043a.'}
+                                    title="Количество выбранных упаковок"
+                                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8] disabled:cursor-not-allowed disabled:opacity-50"
+                                  />
+                                </label>
 
-                              <input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
-                                onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
-                                onBlur={() => commitExtraUnitQuantityInput(item.id)}
-                                placeholder={`+ ${item.baseUnitName}`}
-                                className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
-                              />
-                            </div>
+                                <label>
+                                  <span className="mb-1 block text-[10px] font-semibold text-[#48627f]">{item.baseUnitName}</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
+                                    onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
+                                    onBlur={() => commitExtraUnitQuantityInput(item.id)}
+                                    placeholder={`+ ${item.baseUnitName}`}
+                                    title="Дополнительное количество поштучно"
+                                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8]"
+                                  />
+                                </label>
 
-                            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_140px]">
-                              <div className="rounded border border-[#d6c07a] bg-[#fff8dc] px-2 py-1.5 text-[10px] text-[#7a5a00]">
-                                Скидка на этот товар
+                                <label>
+                                  <span className="mb-1 block text-[10px] font-semibold text-[#7a5a00]">Скидка %</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={item.lineDiscountInput !== undefined ? item.lineDiscountInput : (item.lineDiscountPercent > 0 ? String(item.lineDiscountPercent) : '')}
+                                    onChange={(e) => updateLineDiscountInput(item.id, e.target.value)}
+                                    onBlur={() => commitLineDiscountInput(item.id)}
+                                    placeholder="%"
+                                    title="Процент скидки на этот товар"
+                                    className="h-9 w-full rounded border border-[#d6c07a] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#b08a28]"
+                                  />
+                                </label>
                               </div>
-                              <input
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={item.lineDiscountInput !== undefined ? item.lineDiscountInput : (item.lineDiscountPercent > 0 ? String(item.lineDiscountPercent) : '')}
-                                onChange={(e) => updateLineDiscountInput(item.id, e.target.value)}
-                                onBlur={() => commitLineDiscountInput(item.id)}
-                                placeholder="%"
-                                className="rounded border border-[#d6c07a] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
-                              />
-                            </div>
+                            ) : (
+                              <>
+                                <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_88px_96px]">
+                                  <select
+                                    value={item.selectedPackagingId || ''}
+                                    onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
+                                    className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-xs text-[#1f2933] outline-none"
+                                  >
+                                    <option value="">{'\u0422\u043e\u043b\u044c\u043a\u043e'} {item.baseUnitName}</option>
+                                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
+                                      <option key={packaging.id} value={packaging.id}>
+                                        {packaging.packageName} x {packaging.unitsPerPackage}
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={item.packageQuantityInput ?? String(item.packageQuantity)}
+                                    onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
+                                    onBlur={() => commitPackageQuantityInput(item.id)}
+                                    disabled={!item.selectedPackagingId}
+                                    placeholder={'\u0423\u043f\u0430\u043a.'}
+                                    className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                  />
+
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
+                                    onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
+                                    onBlur={() => commitExtraUnitQuantityInput(item.id)}
+                                    placeholder={`+ ${item.baseUnitName}`}
+                                    className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
+                                  />
+                                </div>
+
+                                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_140px]">
+                                  <div className="rounded border border-[#d6c07a] bg-[#fff8dc] px-2 py-1.5 text-[10px] text-[#7a5a00]">
+                                    Скидка на этот товар
+                                  </div>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={item.lineDiscountInput !== undefined ? item.lineDiscountInput : (item.lineDiscountPercent > 0 ? String(item.lineDiscountPercent) : '')}
+                                    onChange={(e) => updateLineDiscountInput(item.id, e.target.value)}
+                                    onBlur={() => commitLineDiscountInput(item.id)}
+                                    placeholder="%"
+                                    className="rounded border border-[#d6c07a] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
+                                  />
+                                </div>
+                              </>
+                            )}
 
                             <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
                               <span>

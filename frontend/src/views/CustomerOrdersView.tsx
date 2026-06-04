@@ -126,7 +126,7 @@ export default function CustomerOrdersView() {
                       <Package size={18} />
                     </div>
                     <div className="min-w-0">
-                      <p className="break-words text-sm font-semibold text-slate-900">{item.product?.name || `Товар #${item.productId}`}</p>
+                      <p className="wrap-break-word text-sm font-semibold text-slate-900">{item.product?.name || `Товар #${item.productId}`}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         {item.packageName ? `${item.packageQuantity || 0} ${item.packageName}` : `${item.quantity} ${item.baseUnitName || 'шт'}`}
                         {item.extraUnitQuantity ? ` + ${item.extraUnitQuantity} ${item.baseUnitName || 'шт'}` : ''}

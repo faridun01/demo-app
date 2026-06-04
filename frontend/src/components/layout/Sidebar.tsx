@@ -221,10 +221,10 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-50 flex h-[100dvh] flex-col overflow-y-auto overflow-x-hidden border-r border-white/10 bg-[linear-gradient(180deg,#101a28_0%,#0d1521_100%)] text-[#eaf1f8] shadow-[0_28px_60px_rgba(2,8,23,0.38)] transition-[width,transform] duration-300 ease-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:overflow-y-auto lg:border-r lg:border-t-0 lg:border-l-0 lg:border-b-0 lg:border-[#202c3c] lg:bg-[#111927] lg:shadow-none',
+          'fixed inset-y-0 left-0 z-50 flex h-dvh flex-col overflow-y-auto overflow-x-hidden border-r border-white/10 bg-[linear-gradient(180deg,#101a28_0%,#0d1521_100%)] text-[#eaf1f8] shadow-[0_28px_60px_rgba(2,8,23,0.38)] transition-[width,transform] duration-300 ease-out [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:overflow-y-auto lg:border-r lg:border-t-0 lg:border-l-0 lg:border-b-0 lg:border-[#202c3c] lg:bg-[#111927] lg:shadow-none',
           sidebarCollapsed
-            ? 'w-[84px] rounded-r-[28px] lg:w-[84px] lg:max-w-none lg:rounded-none'
-            : 'w-[min(86vw,340px)] rounded-r-[28px] lg:w-[248px] lg:max-w-none lg:rounded-none',
+            ? 'w-21 rounded-r-[28px] lg:w-21 lg:max-w-none lg:rounded-none'
+            : 'w-[min(86vw,340px)] rounded-r-[28px] lg:w-62 lg:max-w-none lg:rounded-none',
           isOpen ? 'translate-x-0' : '-translate-x-[110%]',
         )}
       >
@@ -250,8 +250,8 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
               className={clsx(
                 'flex shrink-0 items-center justify-center transition-all duration-200',
                 sidebarCollapsed
-                  ? 'h-[46px] w-[46px] rounded-[16px] bg-[linear-gradient(180deg,#0f9f6e_0%,#0b7d59_100%)] text-white shadow-[0_12px_28px_rgba(15,159,110,0.28)]'
-                  : 'h-11 w-11 rounded-[16px] bg-[linear-gradient(180deg,#0f9f6e_0%,#0b7d59_100%)] text-white shadow-[0_12px_24px_rgba(15,159,110,0.26)]',
+                  ? 'h-11.5 w-11.5 rounded-2xl bg-[linear-gradient(180deg,#0f9f6e_0%,#0b7d59_100%)] text-white shadow-[0_12px_28px_rgba(15,159,110,0.28)]'
+                  : 'h-11 w-11 rounded-2xl bg-[linear-gradient(180deg,#0f9f6e_0%,#0b7d59_100%)] text-white shadow-[0_12px_24px_rgba(15,159,110,0.26)]',
               )}
             >
               <Warehouse size={sidebarCollapsed ? 21 : 19} />
@@ -314,11 +314,11 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                         clsx(
                           'group relative flex border transition-all duration-200',
                           sidebarCollapsed
-                            ? 'mx-auto h-[46px] w-[46px] items-center justify-center rounded-[16px]'
+                            ? 'mx-auto h-11.5 w-11.5 items-center justify-center rounded-2xl'
                             : 'items-center gap-3 rounded-[18px] px-3.5 py-3',
                           isActive
                             ? 'border-[#285449] bg-[linear-gradient(180deg,rgba(22,163,74,0.18)_0%,rgba(13,27,34,0.95)_100%)] text-white shadow-[0_12px_26px_rgba(9,15,28,0.26)]'
-                            : 'border-transparent bg-transparent text-[#a5b4c7] hover:border-white/10 hover:bg-white/[0.045] hover:text-white',
+                            : 'border-transparent bg-transparent text-[#a5b4c7] hover:border-white/10 hover:bg-white/4.5 hover:text-white',
                         )
                       }
                     >
@@ -355,7 +355,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                           )}
 
                           {sidebarCollapsed && isActive && (
-                            <span className="absolute inset-0 rounded-[16px] bg-[linear-gradient(180deg,rgba(15,159,110,0.22)_0%,rgba(11,125,89,0.2)_100%)]" />
+                            <span className="absolute inset-0 rounded-2xl bg-[linear-gradient(180deg,rgba(15,159,110,0.22)_0%,rgba(11,125,89,0.2)_100%)]" />
                           )}
                         </>
                       )}
@@ -375,7 +375,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
             )}
           >
             <div className={clsx('flex items-center', sidebarCollapsed ? 'justify-center' : 'gap-3')}>
-              <div className="flex h-[38px] w-[38px] items-center justify-center rounded-[14px] bg-[#223148] text-sm font-semibold text-white">
+              <div className="flex h-9.5 w-9.5 items-center justify-center rounded-[14px] bg-[#223148] text-sm font-semibold text-white">
                 {user.username?.[0]?.toUpperCase()}
               </div>
 
