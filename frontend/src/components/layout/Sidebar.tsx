@@ -33,8 +33,12 @@ type NavItem = {
   section: NavSection;
 };
 
+const SHOW_CUSTOMER_ORDERS = false;
+
 const navItems: NavItem[] = [
-  { to: '/customer-orders', icon: ShoppingBag, label: 'Заказы клиентов', section: 'Управление' },
+  ...(SHOW_CUSTOMER_ORDERS
+    ? [{ to: '/customer-orders', icon: ShoppingBag, label: '?????? ????????', section: '??????????' }]
+    : []),
   { to: '/', icon: LayoutDashboard, label: 'Дашборд', section: 'Управление' },
   { to: '/pos', icon: ShoppingCart, label: 'POS терминал', section: 'Управление' },
   { to: '/catalog', icon: BookOpen, label: 'Каталог', section: 'Управление' },
@@ -111,7 +115,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   }, []);
 
   useEffect(() => {
-    if (!hasStoredSession() || isCustomer) return;
+    if (!SHOW_CUSTOMER_ORDERS || !hasStoredSession() || isCustomer) return;
 
     const refreshCustomerOrdersCount = () => {
       client
@@ -343,7 +347,7 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                             </span>
                           )}
 
-                          {item.to === '/customer-orders' && customerOrdersCount > 0 && (
+                          {SHOW_CUSTOMER_ORDERS && item.to === '/customer-orders' && customerOrdersCount > 0 && (
                             <span
                               className={clsx(
                                 'flex items-center justify-center rounded-full bg-[#f59e0b] text-[9px] font-semibold text-white',

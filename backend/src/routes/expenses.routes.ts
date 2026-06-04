@@ -137,6 +137,57 @@ const recalculateExpensePaidAmount = async (tx: any, expenseId: number) => {
   });
 };
 
+const trimExpensePaymentsToAmount = async (tx: any, expenseId: number, targetPaidAmount: number) => {
+  const payments = await tx.expensePayment.findMany({
+    where: { expenseId },
+    orderBy: [{ paymentDate: 'desc' as const }, { id: 'desc' as const }],
+    select: { id: true, amount: true },
+  });
+
+  let currentPaidAmount = roundMoney(payments.reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0));
+  let amountToTrim = roundMoney(currentPaidAmount - targetPaidAmount);
+
+  if (amountToTrim <= 0) {
+    return;
+  }
+
+  for (const payment of payments) {
+    if (amountToTrim <= 0) {
+      break;
+    }
+
+    const paymentAmount = Number(payment.amount || 0);
+    if (paymentAmount <= 0) {
+      continue;
+    }
+
+    const trimFromPayment = Math.min(paymentAmount, amountToTrim);
+    const nextPaymentAmount = roundMoney(paymentAmount - trimFromPayment);
+
+    if (nextPaymentAmount <= 0) {
+      await tx.expensePayment.delete({ where: { id: payment.id } });
+    } else {
+      await tx.expensePayment.update({
+        where: { id: payment.id },
+        data: { amount: nextPaymentAmount },
+      });
+    }
+
+    amountToTrim = roundMoney(amountToTrim - trimFromPayment);
+  }
+
+  currentPaidAmount = roundMoney(
+    (await tx.expensePayment.findMany({
+      where: { expenseId },
+      select: { amount: true },
+    })).reduce((sum: number, payment: any) => sum + Number(payment.amount || 0), 0),
+  );
+
+  if (currentPaidAmount > targetPaidAmount) {
+    throw Object.assign(new Error('Не удалось скорректировать оплаты расхода'), { status: 400 });
+  }
+};
+
 const ensureAdminOnly = (isAdmin: boolean) => {
   if (!isAdmin) {
     throw Object.assign(new Error('Forbidden'), { status: 403 });
@@ -362,30 +413,20 @@ router.post('/:id/refunds', async (req: AuthRequest, res, next) => {
       return res.status(400).json({ error: 'Сумма возврата не может быть больше суммы расхода' });
     }
 
-    if (amount > currentPaidAmount) {
-      return res.status(400).json({ error: 'Сумма возврата не может быть больше внесенной оплаты' });
-    }
-
     const updated = await prisma.$transaction(async (tx: any) => {
-      await tx.expense.update({
+      const nextAmount = roundMoney(currentAmount - amount);
+      const nextPaidAmount = roundMoney(Math.min(currentPaidAmount, nextAmount));
+
+      await trimExpensePaymentsToAmount(tx, expenseId, nextPaidAmount);
+
+      return tx.expense.update({
         where: { id: expenseId },
         data: {
-          amount: roundMoney(currentAmount - amount),
+          amount: nextAmount,
+          paidAmount: nextPaidAmount,
         },
+        include: includeExpenseDetails,
       });
-
-      await tx.expensePayment.create({
-        data: {
-          expenseId,
-          userId: req.user!.id,
-          amount: -amount,
-          method: 'refund',
-          paymentDate: normalizePaymentDate(req.body?.refundDate ?? req.body?.paymentDate),
-          note: normalizeOptionalString(req.body?.note),
-        },
-      });
-
-      return recalculateExpensePaidAmount(tx, expenseId);
     });
 
     res.json(normalizeExpenseResponse(updated));

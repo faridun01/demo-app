@@ -25,7 +25,6 @@ import { createCustomerOrder } from '../api/customer-orders.api';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import { filterWarehousesForUser, getCurrentUser, getUserCustomerId, getUserWarehouseId, isAdminUser, isCustomerUser } from '../utils/userAccess';
 import { formatMoney, roundMoney, ceilMoney, toFixedNumber } from '../utils/format';
-import { handleBrokenImage, resolveMediaUrl } from '../utils/media';
 import { formatProductName } from '../utils/productName';
 import { getDefaultWarehouseId } from '../utils/warehouse';
 
@@ -1192,7 +1191,7 @@ export default function POSView() {
     .map((entry) => entry.customer);
 
   return (
-    <div className="app-page-shell min-h-full bg-[#e9edf2] text-[#1f2933]">
+    <div className="min-h-full w-full bg-[#e9edf2] text-[#1f2933]">
         <ConfirmationModal
           isOpen={Boolean(pendingWarehouseId)}
           onClose={closeWarehouseConfirm}
@@ -1204,8 +1203,8 @@ export default function POSView() {
           type="warning"
         />
 
-      <div className="overflow-hidden rounded-lg border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm">
-        <div className="space-y-3 px-3 py-3 md:px-4 md:py-4">
+      <div className="flex min-h-screen flex-col overflow-hidden border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:border-0">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 md:px-4 md:py-4">
           <div className="-mx-3 -mt-3 border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 md:-mx-4 md:-mt-4">
             <h1 className="text-xl font-semibold tracking-normal text-[#1f2933] sm:text-2xl">POS Терминал</h1>
             <p className="mt-0.5 text-xs text-[#5f6f7f]">Оформление продаж, выбор клиента и создание накладной.</p>
@@ -1234,7 +1233,7 @@ export default function POSView() {
 
           <div
             className={clsx(
-              'grid items-stretch gap-3',
+              'grid min-h-0 flex-1 items-stretch gap-3',
               isCartExpanded ? 'lg:grid-cols-[minmax(0,1fr)]' : 'lg:grid-cols-[1.55fr_0.95fr]',
             )}
           >
@@ -1306,7 +1305,7 @@ export default function POSView() {
                   <div className="text-right">Действие</div>
                 </div>
 
-                <div ref={productListRef} className="h-140 overflow-y-auto bg-white">
+                <div ref={productListRef} className="min-h-0 flex-1 overflow-y-auto bg-white">
                   <div className="space-y-3 p-3 md:hidden">
                     {filteredProducts.map((product, index) => {
                       const stockParts = getProductStockParts(product, product.unit);
@@ -1423,19 +1422,19 @@ export default function POSView() {
                 className={clsx(
                   'h-full rounded-md border border-[#b7c2ce] bg-white shadow-sm',
                   isCartExpanded
-                    ? 'flex flex-col overflow-visible lg:grid lg:min-h-[calc(100vh-220px)] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_auto] lg:border-b-0'
+                    ? 'flex flex-col overflow-visible lg:grid lg:h-full lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:overflow-hidden lg:border-b-0'
                     : 'flex flex-col overflow-hidden',
                 )}
               >
-                <div className={clsx('flex items-center justify-between border-b border-[#b7c2ce] bg-[#fff7d6] px-4 py-2.5', isCartExpanded && 'lg:col-span-2')}>
-                  <div>
+                <div className={clsx('flex items-center justify-between border-b border-[#b7c2ce] bg-[#fff7d6] px-4 py-2.5', isCartExpanded && 'lg:col-start-1 lg:row-start-1')}>
+                  <div className={clsx(isCartExpanded && 'lg:hidden')}>
                     <h2 className="text-lg font-semibold text-[#1f2933]">Корзина</h2>
                     <p className="mt-1 text-xs text-slate-500">Выбрано позиций: {cart.length}</p>
                     <p className="mt-1 text-xs font-semibold text-emerald-700">
                       Масса/объем: {formatWeightKg(cartWeightSummary.totalWeightKg)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className={clsx('flex items-center gap-2', isCartExpanded && 'lg:ml-auto')}>
                     <button
                       type="button"
                       onClick={() => setIsCartExpanded((value) => !value)}
@@ -1444,14 +1443,14 @@ export default function POSView() {
                     >
                       {isCartExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                     </button>
-                    <div className="flex items-center gap-2 rounded border border-[#c8a64a] bg-[#fff0b3] px-2.5 py-1.5 text-[#7a5a00]">
+                    <div className={clsx('flex items-center gap-2 rounded border border-[#c8a64a] bg-[#fff0b3] px-2.5 py-1.5 text-[#7a5a00]', isCartExpanded && 'lg:hidden')}>
                       <ShoppingCart size={18} />
                       <span className="text-xs font-semibold">{cart.length}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4">
+                <div className={clsx('space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4', isCartExpanded && 'lg:col-start-1 lg:row-start-2')}>
                   <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00] md:hidden">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium">Сумма корзины</span>
@@ -1525,8 +1524,8 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'max-h-none overflow-visible' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
-                  {cart.map((item) => (
+                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'max-h-none overflow-visible lg:col-start-1 lg:row-start-3 lg:min-h-0 lg:overflow-y-auto' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
+                  {cart.map((item, index) => (
                     <div key={item.id} className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
                       {(() => {
                         const stockSummary = getCartStockSummary(item);
@@ -1537,18 +1536,11 @@ export default function POSView() {
 
                         return (
                       <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[#c8a64a] bg-[#fff7d6] text-xs font-semibold text-[#7a5a00]">
+                          {index + 1}
+                        </div>
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[#c8d2df] bg-[#f7f9fb] text-[#23527c]">
-                          {item.photoUrl ? (
-                            <img
-                              src={resolveMediaUrl(item.photoUrl, item.id)}
-                              alt={item.name}
-                              className="h-full w-full rounded object-cover"
-                              referrerPolicy="no-referrer"
-                              onError={(event) => handleBrokenImage(event, item.id)}
-                            />
-                          ) : (
-                            <Package size={16} />
-                          )}
+                          <Package size={16} />
                         </div>
 
                         <div className="min-w-0 flex-1">
@@ -1749,10 +1741,35 @@ export default function POSView() {
                   className={clsx(
                     'space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3',
                     isCartExpanded
-                      ? 'lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-2 lg:border-l lg:border-t-0 lg:self-start'
+                      ? 'lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:h-full lg:self-stretch lg:overflow-hidden lg:border-l lg:border-t-0'
                       : 'sticky bottom-0 z-10',
                   )}
                 >
+                  {isCartExpanded && (
+                    <div className="hidden rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-3 lg:block">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h2 className="text-lg font-semibold text-[#1f2933]">Корзина</h2>
+                          <p className="mt-1 text-xs text-slate-500">Выбрано позиций: {cart.length}</p>
+                        </div>
+                        <div className="flex items-center gap-2 rounded border border-[#c8a64a] bg-[#fff0b3] px-2.5 py-1.5 text-[#7a5a00]">
+                          <ShoppingCart size={18} />
+                          <span className="text-xs font-semibold">{cart.length}</span>
+                        </div>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded border border-[#d6c07a] bg-white px-2.5 py-2">
+                          <p className="text-[10px] font-medium text-[#7a5a00]">Сумма</p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">{formatMoney(total)}</p>
+                        </div>
+                        <div className="rounded border border-[#a9d8c7] bg-white px-2.5 py-2">
+                          <p className="text-[10px] font-medium text-emerald-700">Масса/объем</p>
+                          <p className="mt-1 text-sm font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <input
                       type="number"

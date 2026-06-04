@@ -15,7 +15,6 @@ type ExpenseRow = {
   category: string;
   amount: number;
   paidAmount: number;
-  refundedAmount?: number;
   expenseDate: string;
   note?: string | null;
   warehouse?: { id: number; name: string };
@@ -88,19 +87,8 @@ export default function ExpensesView() {
   const getExpenseRemaining = (expense: ExpenseRow) =>
     Math.max(0, Number(expense.amount || 0) - Number(expense.paidAmount || 0));
 
-  const getExpenseRefundedAmount = (expense: ExpenseRow) => {
-    const providedRefundedAmount = Number(expense.refundedAmount || 0);
-    if (providedRefundedAmount > 0) {
-      return providedRefundedAmount;
-    }
-
-    return Array.isArray(expense.payments)
-      ? expense.payments.reduce((sum, payment) => sum + (Number(payment.amount || 0) < 0 ? Math.abs(Number(payment.amount || 0)) : 0), 0)
-      : 0;
-  };
-
   const getExpenseRefundLimit = (expense: ExpenseRow) =>
-    Math.max(0, Math.min(Number(expense.amount || 0), Number(expense.paidAmount || 0)));
+    Math.max(0, Number(expense.amount || 0));
 
   const fetchExpenses = async (warehouseIdParam?: string) => {
     try {
@@ -170,7 +158,6 @@ export default function ExpensesView() {
 
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const totalPaidAmount = filteredExpenses.reduce((sum, expense) => sum + Number(expense.paidAmount || 0), 0);
-  const totalRefundedAmount = filteredExpenses.reduce((sum, expense) => sum + getExpenseRefundedAmount(expense), 0);
   const totalRemainingAmount = Math.max(0, totalAmount - totalPaidAmount);
   const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / pageSize));
   const paginatedExpenses = filteredExpenses.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -277,7 +264,7 @@ export default function ExpensesView() {
   const openRefundModal = (expense: ExpenseRow) => {
     const refundLimit = getExpenseRefundLimit(expense);
     if (refundLimit <= 0) {
-      toast.error('По этому расходу нет оплаченной суммы для возврата');
+      toast.error('По этому расходу нечего уменьшать');
       return;
     }
 
@@ -344,7 +331,7 @@ export default function ExpensesView() {
     }
 
     if (amount > refundLimit) {
-      toast.error('Сумма возврата не может быть больше оплаченной суммы расхода');
+      toast.error('Сумма возврата не может быть больше суммы расхода');
       return;
     }
 
@@ -478,7 +465,7 @@ export default function ExpensesView() {
               <h1 className="text-3xl font-medium tracking-tight text-slate-900 sm:text-4xl">Расходы</h1>
               <p className="mt-1 text-slate-500">Учитывайте расходы по каждому складу отдельно.</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-right">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-rose-400">Всего расходов</p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(totalAmount)}</p>
@@ -486,10 +473,6 @@ export default function ExpensesView() {
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-400">Оплачено</p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(totalPaidAmount)}</p>
-              </div>
-              <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-right">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-sky-500">Возвраты</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(totalRefundedAmount)}</p>
               </div>
               <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-right">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-amber-500">Остаток</p>
@@ -716,7 +699,6 @@ export default function ExpensesView() {
               <div className="space-y-3 p-3 md:hidden">
                 {paginatedExpenses.map((expense) => {
                   const remaining = getExpenseRemaining(expense);
-                  const refunded = getExpenseRefundedAmount(expense);
                   const refundLimit = getExpenseRefundLimit(expense);
 
                   return (
@@ -740,12 +722,6 @@ export default function ExpensesView() {
                           <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Оплачено</p>
                           <p className="mt-1 text-sm font-semibold text-emerald-600">{formatMoney(expense.paidAmount || 0)}</p>
                         </div>
-                        {refunded > 0 ? (
-                          <div className="rounded-2xl bg-sky-50 px-3 py-3">
-                            <p className="text-[10px] uppercase tracking-[0.16em] text-sky-500">Возврат</p>
-                            <p className="mt-1 text-sm font-semibold text-sky-700">{formatMoney(refunded)}</p>
-                          </div>
-                        ) : null}
                         <div className="rounded-2xl bg-slate-50 px-3 py-3">
                           <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
                           <p className="mt-1 text-sm font-semibold text-amber-600">{formatMoney(remaining)}</p>
@@ -832,7 +808,6 @@ export default function ExpensesView() {
                   <tbody>
                     {paginatedExpenses.map((expense) => {
                       const remaining = getExpenseRemaining(expense);
-                      const refunded = getExpenseRefundedAmount(expense);
                       const refundLimit = getExpenseRefundLimit(expense);
 
                       return (
@@ -841,7 +816,6 @@ export default function ExpensesView() {
                           <td className="px-2 py-3">
                             <div className="font-medium leading-4 text-slate-900">{expense.title}</div>
                             {expense.note ? <div className="mt-1 text-[11px] leading-4 text-slate-400">{expense.note}</div> : null}
-                            {refunded > 0 ? <div className="mt-1 text-[11px] font-semibold leading-4 text-sky-700">Возврат: {formatMoney(refunded)}</div> : null}
                           </td>
                           <td className="whitespace-nowrap px-2 py-3">{expense.category}</td>
                           <td className="px-2 py-3 leading-4">{expense.warehouse?.name || '-'}</td>
