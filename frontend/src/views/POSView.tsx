@@ -1232,12 +1232,12 @@ export default function POSView() {
 
           <div
             className={clsx(
-              'grid min-h-0 flex-1 items-stretch gap-3 overflow-hidden',
+              'grid h-full min-h-0 flex-1 items-stretch gap-3 overflow-hidden',
               isCartExpanded ? 'lg:grid-cols-[minmax(0,1fr)]' : 'lg:grid-cols-[1.55fr_0.95fr]',
             )}
           >
-            <section className={clsx(activeTab === 'products' ? 'block min-h-0 lg:h-full' : 'hidden min-h-0 lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
-              <div className="flex h-full flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm">
+            <section className={clsx(activeTab === 'products' ? 'block min-h-0 overflow-hidden lg:h-full' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm">
                 <div className="border-b border-[#b7c2ce] bg-[#eef3f8] px-4 py-3">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -1296,15 +1296,15 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className="hidden grid-cols-[52px_minmax(0,1.7fr)_90px_110px_110px] border-y border-[#b7c2ce] bg-[#dbe5f1] px-4 py-2 text-xs font-semibold text-[#32465a] md:grid">
+                <div className="hidden grid-cols-[52px_minmax(0,1fr)_150px_110px_130px] border-y border-[#b7c2ce] bg-[#dbe5f1] px-4 py-2 text-xs font-semibold text-[#32465a] md:grid">
                   <div className="text-center">№</div>
                   <div>Товар</div>
                   <div className="text-center">Остаток</div>
                   <div className="text-center">Цена</div>
-                  <div className="text-right">Действие</div>
+                  <div className="text-center">Действие</div>
                 </div>
 
-                <div ref={productListRef} className="min-h-0 flex-1 overflow-y-auto bg-white">
+                <div ref={productListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
                   <div className="space-y-3 p-3 md:hidden">
                     {filteredProducts.map((product, index) => {
                       const stockParts = getProductStockParts(product, product.unit);
@@ -1364,7 +1364,7 @@ export default function POSView() {
                           key={product.id}
                           onClick={() => handleAddFromList(product)}
                           className={clsx(
-                            'grid grid-cols-[52px_minmax(0,1.7fr)_150px_110px_110px] items-center border-b border-[#d5dde6] px-4 py-2 last:border-b-0 transition-colors even:bg-[#fbfcfd]',
+                            'grid grid-cols-[52px_minmax(0,1fr)_150px_110px_130px] items-center border-b border-[#d5dde6] px-4 py-2 last:border-b-0 transition-colors even:bg-[#fbfcfd]',
                             highlightedProductId === Number(product.id) && 'bg-[#fff7d6]',
                             canAddProductFromList(product) ? 'cursor-pointer hover:bg-[#fff8dc]' : '',
                           )}
@@ -1386,7 +1386,7 @@ export default function POSView() {
 
                           <div className="text-center text-xs text-slate-900">{formatMoney(product.sellingPrice)}</div>
 
-                          <div className="text-right">
+                          <div className="text-center">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1416,7 +1416,7 @@ export default function POSView() {
               </div>
             </section>
 
-            <aside className={clsx(activeTab === 'cart' ? 'block min-h-0 lg:h-full' : 'hidden min-h-0 lg:block lg:h-full')}>
+            <aside className={clsx(activeTab === 'cart' ? 'block min-h-0 overflow-hidden lg:h-full' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full')}>
               <div
                 className={clsx(
                   'h-full min-h-0 rounded-md border border-[#b7c2ce] bg-white shadow-sm',
@@ -1523,7 +1523,7 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'min-h-0 overflow-y-auto overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
+                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'min-h-0 overflow-y-auto overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full lg:max-h-full' : 'max-h-[360px] overflow-y-auto overscroll-contain')}>
                   {cart.map((item, index) => (
                     <div key={item.id} className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
                       {(() => {
@@ -1738,7 +1738,7 @@ export default function POSView() {
                     'space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3',
                     isCartExpanded
                       ? 'lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:h-full lg:self-stretch lg:overflow-hidden lg:border-l lg:border-t-0'
-                      : 'sticky bottom-0 z-10',
+                      : 'z-10 shrink-0',
                   )}
                 >
                   {isCartExpanded && (
@@ -1766,7 +1766,7 @@ export default function POSView() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <input
                       type="number"
                       min={0}
@@ -1810,7 +1810,7 @@ export default function POSView() {
                     ))}
                   </div>
 
-                  <div className="space-y-2 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-3 text-xs">
+                  <div className="space-y-1.5 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2 text-xs">
                     <div className="flex items-center justify-between text-slate-500">
                       <span>Подытог</span>
                       <span className="text-slate-900">{formatMoney(subtotal)}</span>
@@ -1840,7 +1840,7 @@ export default function POSView() {
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between border-t border-slate-200 pt-2.5 text-sm font-semibold text-slate-900">
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm font-semibold text-slate-900">
                       <span>Итого</span>
                       <span>{formatMoney(total)}</span>
                     </div>
@@ -1849,7 +1849,7 @@ export default function POSView() {
                   <button
                     onClick={handleCheckout}
                     disabled={isSubmitting || cart.length === 0 || !customerId}
-                    className="flex w-full items-center justify-center rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-3 text-sm font-semibold text-[#2f2f2f] shadow-sm transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex w-full items-center justify-center rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2.5 text-sm font-semibold text-[#2f2f2f] shadow-sm transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubmitting ? 'Обработка...' : 'Оформить'}
                     {!isSubmitting && <ChevronRight className="ml-2" size={18} />}
