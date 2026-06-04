@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Banknote,
@@ -11,18 +11,20 @@ import {
   LogOut,
   Package,
   Settings,
+  ShoppingBag,
   ShoppingCart,
   Users,
   Warehouse,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { clsx } from 'clsx';
+import toast from 'react-hot-toast';
 import client from '../../api/client';
 import { logout } from '../../api/auth.api';
 import { clearAuthSession, hasStoredSession } from '../../utils/authStorage';
-import { getCurrentUser, isAdminUser } from '../../utils/userAccess';
+import { getCurrentUser, isAdminUser, isCustomerUser } from '../../utils/userAccess';
 
-type NavSection = 'Управление' | 'Отношения' | 'Система';
+type NavSection = string;
 
 type NavItem = {
   to: string;
@@ -32,6 +34,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  { to: '/customer-orders', icon: ShoppingBag, label: 'Заказы клиентов', section: 'Управление' },
   { to: '/', icon: LayoutDashboard, label: 'Дашборд', section: 'Управление' },
   { to: '/pos', icon: ShoppingCart, label: 'POS терминал', section: 'Управление' },
   { to: '/catalog', icon: BookOpen, label: 'Каталог', section: 'Управление' },
@@ -55,7 +58,10 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   const navigate = useNavigate();
   const user = getCurrentUser();
   const isAdmin = isAdminUser(user);
+  const isCustomer = isCustomerUser(user);
   const [remindersCount, setRemindersCount] = useState(0);
+  const [customerOrdersCount, setCustomerOrdersCount] = useState(0);
+  const previousCustomerOrdersCountRef = useRef<number | null>(null);
   const [isDesktopViewport, setIsDesktopViewport] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth >= 1024 : true,
   );
@@ -105,6 +111,36 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
   }, []);
 
   useEffect(() => {
+    if (!hasStoredSession() || isCustomer) return;
+
+    const refreshCustomerOrdersCount = () => {
+      client
+        .get('/customer-orders/pending-count')
+        .then((res) => {
+          const nextCount = Number(res.data?.count || 0);
+          const previousCount = previousCustomerOrdersCountRef.current;
+          if (previousCount !== null && nextCount > previousCount) {
+            toast.success('Новый заказ клиента ожидает проверки');
+          }
+          previousCustomerOrdersCountRef.current = nextCount;
+          setCustomerOrdersCount(nextCount);
+        })
+        .catch(() => setCustomerOrdersCount(0));
+    };
+
+    refreshCustomerOrdersCount();
+    const intervalId = window.setInterval(refreshCustomerOrdersCount, 30000);
+    window.addEventListener('focus', refreshCustomerOrdersCount);
+    window.addEventListener('customer-orders-updated', refreshCustomerOrdersCount as EventListener);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshCustomerOrdersCount);
+      window.removeEventListener('customer-orders-updated', refreshCustomerOrdersCount as EventListener);
+    };
+  }, [isCustomer]);
+
+  useEffect(() => {
     if (typeof document === 'undefined' || isDesktopViewport) return;
 
     const previousOverflow = document.body.style.overflow;
@@ -128,6 +164,10 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
 
   const filteredNavItems = navItems
     .filter((item) => {
+      if (isCustomer) {
+        return item.to === '/catalog' || item.to === '/pos';
+      }
+
       if (
         !isAdmin &&
         (item.to === '/' ||
@@ -300,6 +340,17 @@ export default function Sidebar({ isOpen, isCollapsed, onClose, onToggleCollapse
                               )}
                             >
                               {remindersCount > 9 ? '9+' : remindersCount}
+                            </span>
+                          )}
+
+                          {item.to === '/customer-orders' && customerOrdersCount > 0 && (
+                            <span
+                              className={clsx(
+                                'flex items-center justify-center rounded-full bg-[#f59e0b] text-[9px] font-semibold text-white',
+                                sidebarCollapsed ? 'absolute right-1.5 top-1.5 h-4 min-w-4 px-1' : 'ml-auto h-4 min-w-4 px-1',
+                              )}
+                            >
+                              {customerOrdersCount > 9 ? '9+' : customerOrdersCount}
                             </span>
                           )}
 

@@ -5,11 +5,17 @@ export type AppUser = {
   username?: string;
   role?: string;
   warehouseId?: number | string | null;
+  customerId?: number | string | null;
   twoFactorEnabled?: boolean;
   warehouse?: {
     id?: number;
     name?: string;
     city?: string | null;
+  } | null;
+  customer?: {
+    id?: number;
+    name?: string;
+    phone?: string | null;
   } | null;
 };
 
@@ -24,6 +30,21 @@ export function getCurrentUser(): AppUser {
 export function isAdminUser(user: AppUser): boolean {
   const role = String(user.role || '').toUpperCase();
   return role === 'ADMIN';
+}
+
+export function isCustomerUser(user: AppUser): boolean {
+  const role = String(user.role || '').toUpperCase();
+  return role === 'CUSTOMER';
+}
+
+export function getUserCustomerId(user: AppUser): number | null {
+  const value = user.customerId || user.customer?.id;
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function getUserWarehouseId(user: AppUser): number | null {

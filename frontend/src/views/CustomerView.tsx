@@ -526,7 +526,7 @@ export default function CustomerView() {
   });
 
   const handlePrintAllReconciliation = async () => {
-    if (sortedCustomers.length === 0) {
+    if (customers.length === 0) {
       toast.error('Список клиентов пуст');
       return;
     }
@@ -535,7 +535,7 @@ export default function CustomerView() {
 
     try {
       const customersWithHistory = await Promise.all(
-        sortedCustomers.map(async (customer) => {
+        customers.map(async (customer) => {
           const res = await client.get(`/customers/${customer.id}/history`);
           const invoices = Array.isArray(res.data) ? res.data : [];
           return buildReconciliationCustomer(customer, invoices);
@@ -557,8 +557,8 @@ export default function CustomerView() {
       const { printCustomerReconciliationBatch } = await import('../utils/print/customerInvoicePrint');
       const result = printCustomerReconciliationBatch({
         customers: printableCustomers,
-        filterLabel: searchTerm.trim() || segmentFilter !== 'all' ? 'Текущий фильтр клиентов' : 'Все клиенты',
-        sortLabel: 'Список клиентов',
+        filterLabel: 'Все клиенты',
+        sortLabel: 'Без фильтра страницы',
       });
 
       if (!result.ok) {
@@ -607,7 +607,7 @@ export default function CustomerView() {
                 <button
                   type="button"
                   onClick={handlePrintAllReconciliation}
-                  disabled={isPrintingReconciliation || sortedCustomers.length === 0}
+                  disabled={isPrintingReconciliation || customers.length === 0}
                   className="flex items-center justify-center space-x-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Printer size={18} />

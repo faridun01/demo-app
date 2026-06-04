@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { Loader2, Menu, X, Warehouse } from 'lucide-react';
 import LoginView from './views/LoginView';
 import Sidebar from './components/layout/Sidebar';
-import { getCurrentUser, isAdminUser } from './utils/userAccess';
+import { getCurrentUser, isAdminUser, isCustomerUser } from './utils/userAccess';
 import { clearAuthSession, getStoredUser, hasStoredSession, setAuthSession } from './utils/authStorage';
 import { getSessionUser } from './api/auth.api';
 
@@ -20,6 +20,7 @@ const ExpensesView = React.lazy(() => import('./views/ExpensesView'));
 const RemindersView = React.lazy(() => import('./views/RemindersView'));
 const HistoryView = React.lazy(() => import('./views/HistoryView'));
 const POSView = React.lazy(() => import('./views/POSView'));
+const CustomerOrdersView = React.lazy(() => import('./views/CustomerOrdersView'));
 
 const RouteLoading = () => (
   <div className="flex min-h-[40vh] items-center justify-center">
@@ -39,8 +40,16 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return isAdminUser(user) ? <>{children}</> : <Navigate to="/pos" replace />;
 };
 
+const StaffRoute = ({ children }: { children: React.ReactNode }) => {
+  const user = getCurrentUser();
+  return isCustomerUser(user) ? <Navigate to="/catalog" replace /> : <>{children}</>;
+};
+
 const RootRoute = () => {
   const user = getCurrentUser();
+  if (isCustomerUser(user)) {
+    return <Navigate to="/catalog" replace />;
+  }
   return isAdminUser(user) ? <DashboardView /> : <Navigate to="/pos" replace />;
 };
 
@@ -176,12 +185,48 @@ export default function App() {
           }
         >
           <Route path="/" element={<RootRoute />} />
-          <Route path="/products" element={<ProductsView />} />
+          <Route
+            path="/products"
+            element={
+              <StaffRoute>
+                <ProductsView />
+              </StaffRoute>
+            }
+          />
           <Route path="/catalog" element={<CatalogView />} />
-          <Route path="/sales" element={<SalesView />} />
+          <Route
+            path="/sales"
+            element={
+              <StaffRoute>
+                <SalesView />
+              </StaffRoute>
+            }
+          />
           <Route path="/pos" element={<POSView />} />
-          <Route path="/customers" element={<CustomerView />} />
-          <Route path="/customers/debts" element={<CustomerDebtsView />} />
+          <Route
+            path="/customer-orders"
+            element={
+              <StaffRoute>
+                <CustomerOrdersView />
+              </StaffRoute>
+            }
+          />
+          <Route
+            path="/customers"
+            element={
+              <StaffRoute>
+                <CustomerView />
+              </StaffRoute>
+            }
+          />
+          <Route
+            path="/customers/debts"
+            element={
+              <StaffRoute>
+                <CustomerDebtsView />
+              </StaffRoute>
+            }
+          />
           <Route
             path="/expenses"
             element={
@@ -202,7 +247,14 @@ export default function App() {
               </AdminRoute>
             }
           />
-          <Route path="/reminders" element={<RemindersView />} />
+          <Route
+            path="/reminders"
+            element={
+              <StaffRoute>
+                <RemindersView />
+              </StaffRoute>
+            }
+          />
           <Route
             path="/history"
             element={

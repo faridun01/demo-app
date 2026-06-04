@@ -38,10 +38,12 @@ export default function SettingsView() {
     confirmPassword: '',
     role: 'SELLER',
     warehouseId: '',
+    customerId: '',
     canCancelInvoices: false,
     canDeleteData: false,
   };
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [customerOptions, setCustomerOptions] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
   const [companyProfile, setCompanyProfile] = useState({
@@ -242,6 +244,8 @@ export default function SettingsView() {
       if (canViewUsers) {
         const uRes = await client.get('/auth/users');
         setUsers(uRes.data || []);
+        const cRes = await client.get('/customers');
+        setCustomerOptions(Array.isArray(cRes.data) ? cRes.data : []);
       }
     } catch (err) {
       console.error(err);
@@ -332,7 +336,8 @@ export default function SettingsView() {
       const { confirmPassword, ...payload } = newUser;
       await client.post('/auth/register', {
         ...payload,
-        warehouseId: payload.warehouseId ? Number(payload.warehouseId) : undefined
+        warehouseId: payload.warehouseId ? Number(payload.warehouseId) : undefined,
+        customerId: payload.customerId ? Number(payload.customerId) : undefined,
       });
       toast.success('Пользователь создан');
       closeUserModal();
@@ -357,7 +362,8 @@ export default function SettingsView() {
       const { confirmPassword, ...payload } = newUser;
       await client.put(`/auth/users/${selectedUser.id}`, {
         ...payload,
-        warehouseId: payload.warehouseId ? Number(payload.warehouseId) : null
+        warehouseId: payload.warehouseId ? Number(payload.warehouseId) : null,
+        customerId: payload.customerId ? Number(payload.customerId) : null,
       });
       toast.success('Пользователь обновлен');
       closeUserModal();
@@ -653,6 +659,7 @@ export default function SettingsView() {
                       <option value="ADMIN">Админ</option>
                       <option value="MANAGER">Менеджер</option>
                       <option value="SELLER">Продавец</option>
+                      <option value="CUSTOMER">Клиент</option>
                     </select>
                   </div>
                   <div>
@@ -666,6 +673,22 @@ export default function SettingsView() {
                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
+                  {String(newUser.role || '').toUpperCase() === 'CUSTOMER' && (
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 uppercase tracking-widest">Клиент</label>
+                      <select
+                        value={newUser.customerId}
+                        onChange={e => setNewUser({...newUser, customerId: e.target.value})}
+                        required
+                        className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-slate-300/40 focus:border-slate-300 transition-all font-medium appearance-none bg-white"
+                      >
+                        <option value="">Выберите клиента</option>
+                        {customerOptions.map(customer => (
+                          <option key={customer.id} value={customer.id}>{customer.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:justify-end sm:space-x-3 sm:gap-0 sm:pt-6">
@@ -900,6 +923,7 @@ export default function SettingsView() {
                         confirmPassword: '',
                         role: u.role || 'SELLER',
                         warehouseId: u.warehouseId ? String(u.warehouseId) : '',
+                        customerId: u.customerId ? String(u.customerId) : '',
                         canCancelInvoices: !!u.canCancelInvoices,
                         canDeleteData: !!u.canDeleteData
                       });
@@ -1027,6 +1051,7 @@ export default function SettingsView() {
                               confirmPassword: '',
                               role: u.role || 'SELLER',
                               warehouseId: u.warehouseId ? String(u.warehouseId) : '',
+                              customerId: u.customerId ? String(u.customerId) : '',
                               canCancelInvoices: !!u.canCancelInvoices,
                               canDeleteData: !!u.canDeleteData
                             });

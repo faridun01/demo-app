@@ -468,7 +468,6 @@ const renderReconciliationOverviewSection = (
               <th style="width: 120px;">Дебет</th>
               <th style="width: 120px;">Кредит</th>
               <th style="width: 120px;">Сальдо</th>
-              <th style="width: 120px;">Статус</th>
             </tr>
           </thead>
           <tbody>
@@ -482,7 +481,6 @@ const renderReconciliationOverviewSection = (
                     <td>${escapeHtml(formatMoney(customer.purchasedTotal))}</td>
                     <td>${escapeHtml(formatMoney(customer.paidTotal))}</td>
                     <td>${escapeHtml(formatMoney(customer.debtTotal))}</td>
-                    <td>${escapeHtml(normalizeStatusLabel(customer.statusLabel))}</td>
                   </tr>
                 `,
               )
@@ -492,7 +490,6 @@ const renderReconciliationOverviewSection = (
               <td><strong>${escapeHtml(formatMoney(totals.debit))}</strong></td>
               <td><strong>${escapeHtml(formatMoney(totals.credit))}</strong></td>
               <td><strong>${escapeHtml(formatMoney(totals.balance))}</strong></td>
-              <td></td>
             </tr>
           </tbody>
         </table>
@@ -506,27 +503,55 @@ const renderCustomerReconciliationSection = (
   index: number,
   generatedAt: Date,
 ) => {
-  const entries = customer.invoices
-    .flatMap(getInvoiceStatementEntries)
-    .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
-  let balance = 0;
+  const invoiceRows = [...customer.invoices]
+    .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())
+    .map((invoice: any, entryIndex: number) => {
+      const invoiceTotal = Math.max(0, Number(invoice?.netAmount || invoice?.totalAmount || 0));
+      const paidByEvents = Array.isArray(invoice?.paymentEvents)
+        ? invoice.paymentEvents.reduce((sum: number, payment: any) => sum + Math.max(0, Number(payment?.amount || 0)), 0)
+        : 0;
+      const paidAmount = Math.max(0, Math.max(Number(invoice?.paidAmount || 0), paidByEvents));
+      const returnedByEvents = Array.isArray(invoice?.returnEvents)
+        ? invoice.returnEvents.reduce((sum: number, itemReturn: any) => sum + Math.max(0, Number(itemReturn?.totalValue || 0)), 0)
+        : 0;
+      const returnedAmount = Math.max(0, Math.max(Number(invoice?.returnedAmount || 0), returnedByEvents));
+      const invoiceBalance = Math.max(0, Number(invoice?.invoiceBalance ?? invoiceTotal - paidAmount));
 
-  const rows = entries
-    .map((entry, entryIndex) => {
-      balance += Number(entry.debit || 0) - Number(entry.credit || 0);
       return `
         <tr>
           <td>${entryIndex + 1}</td>
-          <td>${escapeHtml(formatRuDate(entry.date))}</td>
-          <td>${escapeHtml(entry.document)}</td>
-          <td>${escapeHtml(entry.description)}</td>
-          <td>${entry.debit > 0 ? escapeHtml(formatMoney(entry.debit)) : ''}</td>
-          <td>${entry.credit > 0 ? escapeHtml(formatMoney(entry.credit)) : ''}</td>
-          <td>${escapeHtml(formatMoney(balance))}</td>
+          <td>${escapeHtml(formatRuDate(invoice.createdAt))}</td>
+          <td>${escapeHtml(`Накладная №${invoice.id}`)}</td>
+          <td>${escapeHtml(invoice.warehouse?.name || '---')}</td>
+          <td>${escapeHtml(formatMoney(invoiceTotal))}</td>
+          <td>${escapeHtml(formatMoney(paidAmount))}</td>
+          <td>${escapeHtml(formatMoney(returnedAmount))}</td>
+          <td>${escapeHtml(formatMoney(invoiceBalance))}</td>
         </tr>
       `;
     })
     .join('');
+
+  const invoiceTotals = customer.invoices.reduce(
+    (acc, invoice: any) => {
+      const invoiceTotal = Math.max(0, Number(invoice?.netAmount || invoice?.totalAmount || 0));
+      const paidByEvents = Array.isArray(invoice?.paymentEvents)
+        ? invoice.paymentEvents.reduce((sum: number, payment: any) => sum + Math.max(0, Number(payment?.amount || 0)), 0)
+        : 0;
+      const paidAmount = Math.max(0, Math.max(Number(invoice?.paidAmount || 0), paidByEvents));
+      const returnedByEvents = Array.isArray(invoice?.returnEvents)
+        ? invoice.returnEvents.reduce((sum: number, itemReturn: any) => sum + Math.max(0, Number(itemReturn?.totalValue || 0)), 0)
+        : 0;
+      const returnedAmount = Math.max(0, Math.max(Number(invoice?.returnedAmount || 0), returnedByEvents));
+      const invoiceBalance = Math.max(0, Number(invoice?.invoiceBalance ?? invoiceTotal - paidAmount));
+      acc.total += invoiceTotal;
+      acc.paid += paidAmount;
+      acc.returned += returnedAmount;
+      acc.balance += invoiceBalance;
+      return acc;
+    },
+    { total: 0, paid: 0, returned: 0, balance: 0 },
+  );
 
   return `
     <section class="sheet customer-group-sheet">
@@ -552,30 +577,32 @@ const renderCustomerReconciliationSection = (
         <div class="party-block party-meta">
           <p class="label">Сальдо</p>
           <p class="value">${escapeHtml(formatMoney(customer.debtTotal))}</p>
-          <p class="subvalue">${escapeHtml(normalizeStatusLabel(customer.statusLabel))}</p>
+          <p class="subvalue">Накладные: ${escapeHtml(String(customer.invoices.length))}</p>
         </div>
       </div>
       <div class="section">
-        <h3>Движения по взаиморасчетам</h3>
+        <h3>Накладные и оплаты</h3>
         <table>
           <thead>
             <tr>
               <th style="width: 38px;">№</th>
               <th style="width: 82px;">Дата</th>
               <th>Документ</th>
-              <th>Операция</th>
-              <th style="width: 110px;">Дебет</th>
-              <th style="width: 110px;">Кредит</th>
-              <th style="width: 110px;">Сальдо</th>
+              <th style="width: 110px;">Склад</th>
+              <th style="width: 110px;">Сумма</th>
+              <th style="width: 110px;">Оплачено</th>
+              <th style="width: 110px;">Возврат</th>
+              <th style="width: 110px;">Остаток</th>
             </tr>
           </thead>
           <tbody>
-            ${rows || '<tr><td colspan="7">Движений нет</td></tr>'}
+            ${invoiceRows || '<tr><td colspan="8">Накладных нет</td></tr>'}
             <tr>
               <td colspan="4"><strong>Итого по клиенту</strong></td>
-              <td><strong>${escapeHtml(formatMoney(customer.purchasedTotal))}</strong></td>
-              <td><strong>${escapeHtml(formatMoney(customer.paidTotal))}</strong></td>
-              <td><strong>${escapeHtml(formatMoney(customer.debtTotal))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(invoiceTotals.total || customer.purchasedTotal))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(invoiceTotals.paid || customer.paidTotal))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(invoiceTotals.returned))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(invoiceTotals.balance || customer.debtTotal))}</strong></td>
             </tr>
           </tbody>
         </table>

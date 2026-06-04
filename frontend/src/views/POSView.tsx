@@ -1,4 +1,4 @@
-import React, { startTransition, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react';
+﻿import React, { startTransition, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Banknote,
@@ -21,8 +21,9 @@ import { getProducts } from '../api/products.api';
 import { createInvoice } from '../api/invoices.api';
 import { getCustomers } from '../api/customers.api';
 import { getWarehouses } from '../api/warehouses.api';
+import { createCustomerOrder } from '../api/customer-orders.api';
 import ConfirmationModal from '../components/common/ConfirmationModal';
-import { filterWarehousesForUser, getCurrentUser, getUserWarehouseId, isAdminUser } from '../utils/userAccess';
+import { filterWarehousesForUser, getCurrentUser, getUserCustomerId, getUserWarehouseId, isAdminUser, isCustomerUser } from '../utils/userAccess';
 import { formatMoney, roundMoney, ceilMoney, toFixedNumber } from '../utils/format';
 import { handleBrokenImage, resolveMediaUrl } from '../utils/media';
 import { formatProductName } from '../utils/productName';
@@ -51,23 +52,23 @@ function getStoredWarehouseId() {
 
 const posTheme = {
   products: {
-    soft: 'bg-sky-50',
-    icon: 'bg-sky-100 text-sky-600',
-    accent: 'bg-sky-500 text-white hover:bg-sky-600',
-    tab: 'bg-sky-500 text-white',
-    pill: 'bg-sky-100 text-sky-700',
+    soft: 'bg-[#eef3f8]',
+    icon: 'bg-[#dbe7f3] text-[#23527c]',
+    accent: 'border border-[#7f9db9] bg-[#eaf2fb] text-[#1f3f63] hover:bg-[#dbeafd]',
+    tab: 'border border-[#9fb7d5] bg-[#dbeafd] text-[#143a5a]',
+    pill: 'bg-[#eaf2fb] text-[#23527c]',
   },
   cart: {
-    soft: 'bg-emerald-50',
-    icon: 'bg-emerald-100 text-emerald-600',
-    accent: 'bg-emerald-500 text-white hover:bg-emerald-600',
-    tab: 'bg-emerald-500 text-white',
-    pill: 'bg-emerald-100 text-emerald-700',
+    soft: 'bg-[#fff7d6]',
+    icon: 'bg-[#fff0b3] text-[#7a5a00]',
+    accent: 'border border-[#c8a64a] bg-[#ffe184] text-[#2f2f2f] hover:bg-[#ffd45f]',
+    tab: 'border border-[#c8a64a] bg-[#ffe184] text-[#2f2f2f]',
+    pill: 'bg-[#fff0b3] text-[#7a5a00]',
   },
   payment: {
-    active: 'border-amber-500 bg-amber-500 text-white',
-    idle: 'border-amber-100 bg-amber-50 text-amber-700',
-    summary: 'bg-amber-50',
+    active: 'border-[#b08a28] bg-[#ffd966] text-[#2f2f2f]',
+    idle: 'border-[#c8d2df] bg-[#f5f7fa] text-[#32465a]',
+    summary: 'bg-[#fff8dc]',
   },
 };
 
@@ -256,7 +257,9 @@ export default function POSView() {
   const hasLoadedReferenceDataRef = useRef(false);
   const user = React.useMemo(() => getCurrentUser(), []);
   const isAdmin = isAdminUser(user);
+  const isCustomerPortal = isCustomerUser(user);
   const userWarehouseId = getUserWarehouseId(user);
+  const userCustomerId = getUserCustomerId(user);
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
@@ -538,9 +541,13 @@ export default function POSView() {
     }
 
     hasLoadedReferenceDataRef.current = true;
-    getCustomers()
-      .then((data) => setCustomers(Array.isArray(data) ? data : []))
-      .catch(console.error);
+    if (isCustomerPortal) {
+      setCustomers(userCustomerId ? [{ id: userCustomerId, name: user.customer?.name || user.username, phone: user.customer?.phone }] : []);
+    } else {
+      getCustomers()
+        .then((data) => setCustomers(Array.isArray(data) ? data : []))
+        .catch(console.error);
+    }
     getWarehouses()
       .then((data) => {
         const filteredWarehouses = filterWarehousesForUser(Array.isArray(data) ? data : [], user);
@@ -556,7 +563,7 @@ export default function POSView() {
         hasLoadedReferenceDataRef.current = false;
         console.error(error);
       });
-  }, [isAdmin, user]);
+  }, [isAdmin, isCustomerPortal, user, userCustomerId]);
 
   useEffect(() => {
     if (!isStorageHydrated) {
@@ -578,6 +585,15 @@ export default function POSView() {
       setCustomerSearch(selectedCustomer.name || '');
     }
   }, [customerId, customers]);
+
+  useEffect(() => {
+    if (!isCustomerPortal || !userCustomerId) {
+      return;
+    }
+
+    setCustomerId(userCustomerId);
+    setCustomerSearch(user.customer?.name || user.username || '');
+  }, [isCustomerPortal, userCustomerId, user.customer?.name, user.username]);
 
   useEffect(() => {
     if (warehouseId) {
@@ -604,7 +620,7 @@ export default function POSView() {
 
     if (showToast) {
       toast('Склад изменён. Черновик продажи сброшен автоматически.', {
-        icon: 'â†º',
+        icon: '↺',
       });
     }
   };
@@ -1070,7 +1086,7 @@ export default function POSView() {
     try {
 
 
-      await createInvoice({
+      const checkoutPayload = {
         customerId,
         warehouseId: Number(warehouseId),
         items: cart.map((item) => ({
@@ -1088,17 +1104,28 @@ export default function POSView() {
         })),
         discount: Number(normalizedDiscount),
         paidAmount: paid,
-        paymentMethod,
-      });
+      };
 
-      toast.success('Продажа оформлена');
+      if (isCustomerPortal) {
+        await createCustomerOrder(checkoutPayload);
+      } else {
+        await createInvoice({
+          ...checkoutPayload,
+          paidAmount: paid,
+          paymentMethod,
+        });
+      }
+
+      toast.success(isCustomerPortal ? 'Заказ отправлен на проверку' : 'Продажа оформлена');
       setCart([]);
       sessionStorage.removeItem(cartStorageKey);
       sessionStorage.removeItem(pendingCartStorageKey);
       setPaidAmount('');
-      setCustomerId(null);
+      setCustomerId(isCustomerPortal ? userCustomerId : null);
       setDiscount(0);
+      if (!isCustomerPortal) {
         navigate('/sales', { state: { warehouseId: String(warehouseId) } });
+      }
     } catch (err: any) {
       const message = err.response?.data?.error || err.message || 'Ошибка при создании продажи';
       toast.error(message);
@@ -1165,7 +1192,7 @@ export default function POSView() {
     .map((entry) => entry.customer);
 
   return (
-    <div className="app-page-shell min-h-full">
+    <div className="app-page-shell min-h-full bg-[#e9edf2] text-[#1f2933]">
         <ConfirmationModal
           isOpen={Boolean(pendingWarehouseId)}
           onClose={closeWarehouseConfirm}
@@ -1177,19 +1204,19 @@ export default function POSView() {
           type="warning"
         />
 
-      <div className="overflow-hidden rounded-[28px] bg-[#f4f5fb]">
-        <div className="space-y-5 px-5 py-5">
-          <div className="-mx-5 -mt-5 app-surface space-y-1 px-5 py-5">
-            <h1 className="text-3xl font-medium tracking-tight text-slate-900 sm:text-4xl">POS Терминал</h1>
-            <p className="text-sm text-slate-500">Оформление продаж, выбор клиента и создание накладной.</p>
+      <div className="overflow-hidden rounded-lg border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm">
+        <div className="space-y-3 px-3 py-3 md:px-4 md:py-4">
+          <div className="-mx-3 -mt-3 border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 md:-mx-4 md:-mt-4">
+            <h1 className="text-xl font-semibold tracking-normal text-[#1f2933] sm:text-2xl">POS Терминал</h1>
+            <p className="mt-0.5 text-xs text-[#5f6f7f]">Оформление продаж, выбор клиента и создание накладной.</p>
           </div>
 
-          <div className="flex gap-4 border-b border-slate-200 bg-white px-4 py-3 rounded-3xl lg:hidden">
+          <div className="flex gap-2 rounded-md border border-[#b7c2ce] bg-[#eef3f8] px-2 py-2 lg:hidden">
             <button
               onClick={() => setActiveTab('products')}
               className={clsx(
-                'flex-1 rounded-2xl px-4 py-3 text-xs uppercase tracking-wide transition-all',
-                activeTab === 'products' ? posTheme.products.tab : 'bg-sky-50 text-sky-700'
+                'flex-1 rounded px-3 py-2 text-xs font-semibold uppercase tracking-normal transition-colors',
+                activeTab === 'products' ? posTheme.products.tab : 'border border-[#c8d2df] bg-white text-[#32465a]'
               )}
             >
               Товары
@@ -1197,8 +1224,8 @@ export default function POSView() {
             <button
               onClick={() => setActiveTab('cart')}
               className={clsx(
-                'flex-1 rounded-2xl px-4 py-3 text-xs uppercase tracking-wide transition-all',
-                activeTab === 'cart' ? posTheme.cart.tab : 'bg-emerald-50 text-emerald-700'
+                'flex-1 rounded px-3 py-2 text-xs font-semibold uppercase tracking-normal transition-colors',
+                activeTab === 'cart' ? posTheme.cart.tab : 'border border-[#c8d2df] bg-white text-[#32465a]'
               )}
             >
               Корзина {cart.length ? `(${cart.length})` : ''}
@@ -1207,26 +1234,26 @@ export default function POSView() {
 
           <div
             className={clsx(
-              'grid items-stretch gap-4',
+              'grid items-stretch gap-3',
               isCartExpanded ? 'lg:grid-cols-[minmax(0,1fr)]' : 'lg:grid-cols-[1.55fr_0.95fr]',
             )}
           >
             <section className={clsx(activeTab === 'products' ? 'block lg:h-full' : 'hidden lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
-              <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white bg-white shadow-sm">
-                <div className="border-b border-slate-200 px-5 py-4">
+              <div className="flex h-full flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm">
+                <div className="border-b border-[#b7c2ce] bg-[#eef3f8] px-4 py-3">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <h2 className="text-2xl font-semibold text-slate-900">Товары</h2>
+                      <h2 className="text-lg font-semibold text-[#1f2933]">Товары</h2>
                       <p className="mt-1 text-xs text-slate-500">{filteredProducts.length} доступных позиций</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 shadow-sm">
+                      <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2 shadow-sm">
                         <Warehouse size={16} className="text-sky-500" />
                         <select
                           value={warehouseId}
                           onChange={(e) => handleWarehouseChange(e.target.value)}
                           disabled={!isAdmin}
-                          className="min-w-42.5 appearance-none bg-transparent text-sm text-slate-700 outline-none"
+                          className="min-w-42.5 appearance-none bg-transparent text-sm text-[#1f2933] outline-none"
                         >
                           <option value="">Выберите склад</option>
                           {warehouses.map((warehouse) => (
@@ -1239,7 +1266,7 @@ export default function POSView() {
 
                       <button
                         onClick={() => navigate('/sales')}
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 text-sky-600 transition-colors hover:bg-sky-100"
+                        className="flex h-9 w-9 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]"
                       >
                         <X size={18} />
                       </button>
@@ -1259,7 +1286,7 @@ export default function POSView() {
                           });
                         }}
                         placeholder="Поиск товара или ID..."
-                        className="w-full rounded-3xl border border-sky-100 bg-sky-50 py-4 pl-12 pr-5 text-sm text-slate-700 outline-none transition-colors focus:border-sky-300"
+                        className="w-full rounded border border-[#9fb7d5] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                       />
                     </div>
                   </div>
@@ -1271,7 +1298,7 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className="hidden grid-cols-[52px_minmax(0,1.7fr)_90px_110px_110px] bg-sky-50 px-5 py-3 text-xs text-slate-500 md:grid">
+                <div className="hidden grid-cols-[52px_minmax(0,1.7fr)_90px_110px_110px] border-y border-[#b7c2ce] bg-[#dbe5f1] px-4 py-2 text-xs font-semibold text-[#32465a] md:grid">
                   <div className="text-center">№</div>
                   <div>Товар</div>
                   <div className="text-center">Остаток</div>
@@ -1279,7 +1306,7 @@ export default function POSView() {
                   <div className="text-right">Действие</div>
                 </div>
 
-                <div ref={productListRef} className="h-140 overflow-y-auto">
+                <div ref={productListRef} className="h-140 overflow-y-auto bg-white">
                   <div className="space-y-3 p-3 md:hidden">
                     {filteredProducts.map((product, index) => {
                       const stockParts = getProductStockParts(product, product.unit);
@@ -1289,28 +1316,28 @@ export default function POSView() {
                         key={`mobile-pos-${product.id}`}
                         onClick={() => handleAddFromList(product)}
                         className={clsx(
-                          'rounded-2xl border border-sky-100 bg-white p-3 shadow-sm transition-colors',
-                          highlightedProductId === Number(product.id) && 'ring-2 ring-sky-300 bg-sky-50/60',
-                          canAddProductFromList(product) ? 'cursor-pointer hover:bg-sky-50/50' : '',
+                          'rounded border border-[#c8d2df] bg-white p-2 shadow-sm transition-colors',
+                          highlightedProductId === Number(product.id) && 'ring-1 ring-[#4f81bd] bg-[#fff7d6]',
+                          canAddProductFromList(product) ? 'cursor-pointer hover:bg-[#fff8dc]' : '',
                         )}
                       >
                         <div className="min-w-0">
-                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-500">#{index + 1}</p>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-normal text-[#23527c]">#{index + 1}</p>
                           <p className="wrap-break-word text-[12px] leading-4 text-slate-900">{formatProductName(product.name)}</p>
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-xl bg-sky-50 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Остаток</p>
-                            <div className="mt-1 inline-flex flex-col rounded-xl border border-sky-100 bg-white px-2.5 py-2 text-sky-700">
+                          <div className="rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">Остаток</p>
+                            <div className="mt-1 inline-flex flex-col rounded border border-[#c8d2df] bg-white px-2 py-1.5 text-[#23527c]">
                               <span className="whitespace-nowrap text-[13px] font-semibold leading-4">{stockParts.primary}</span>
                               {stockParts.secondary ? (
                                 <span className="mt-1 whitespace-nowrap text-[11px] font-medium leading-4 text-sky-600/90">{stockParts.secondary}</span>
                               ) : null}
                             </div>
                           </div>
-                          <div className="rounded-xl bg-sky-50 px-3 py-2">
-                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-400">Цена</p>
+                          <div className="rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
+                            <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">Цена</p>
                             <p className="mt-1 wrap-break-word text-sm text-slate-900">{formatMoney(product.sellingPrice)}</p>
                           </div>
                         </div>
@@ -1321,7 +1348,7 @@ export default function POSView() {
                             handleAddFromList(product);
                           }}
                           disabled={!canAddProductFromList(product)}
-                          className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-xl bg-sky-500 px-3 py-2.5 text-sm text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded border border-[#7f9db9] bg-[#eaf2fb] px-3 py-2 text-sm text-[#1f3f63] transition-colors hover:bg-[#dbeafd] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <Plus size={15} />
                           <span>Добавить</span>
@@ -1339,19 +1366,19 @@ export default function POSView() {
                           key={product.id}
                           onClick={() => handleAddFromList(product)}
                           className={clsx(
-                            'grid grid-cols-[52px_minmax(0,1.7fr)_150px_110px_110px] items-center border-b border-slate-100 px-5 py-3 last:border-b-0 transition-colors',
-                            highlightedProductId === Number(product.id) && 'bg-sky-100/60',
-                            canAddProductFromList(product) ? 'cursor-pointer hover:bg-sky-50/40' : '',
+                            'grid grid-cols-[52px_minmax(0,1.7fr)_150px_110px_110px] items-center border-b border-[#d5dde6] px-4 py-2 last:border-b-0 transition-colors even:bg-[#fbfcfd]',
+                            highlightedProductId === Number(product.id) && 'bg-[#fff7d6]',
+                            canAddProductFromList(product) ? 'cursor-pointer hover:bg-[#fff8dc]' : '',
                           )}
                         >
-                          <div className="text-center text-sm font-semibold text-sky-600">{index + 1}</div>
+                          <div className="text-center text-sm font-semibold text-[#23527c]">{index + 1}</div>
 
                           <div className="min-w-0">
                             <p className="wrap-break-word text-[12px] leading-4 text-slate-900">{formatProductName(product.name)}</p>
                           </div>
 
                           <div className="flex justify-center">
-                            <div className="inline-flex min-w-27 flex-col items-center rounded-2xl border border-sky-100 bg-sky-50 px-2.5 py-1.5 text-center text-sky-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]">
+                            <div className="inline-flex min-w-27 flex-col items-center rounded border border-[#c8d2df] bg-[#f7f9fb] px-2 py-1 text-center text-[#23527c]">
                               <span className="whitespace-nowrap text-[13px] font-semibold leading-4">{stockParts.primary}</span>
                               {stockParts.secondary ? (
                                 <span className="mt-1 whitespace-nowrap text-[11px] font-medium leading-4 text-sky-600/90">{stockParts.secondary}</span>
@@ -1368,7 +1395,7 @@ export default function POSView() {
                                 handleAddFromList(product);
                               }}
                               disabled={!canAddProductFromList(product)}
-                              className="inline-flex items-center gap-1 rounded-xl bg-sky-500 px-2.5 py-1.5 text-xs text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded border border-[#7f9db9] bg-[#eaf2fb] px-2.5 py-1.5 text-xs text-[#1f3f63] transition-colors hover:bg-[#dbeafd] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Plus size={15} />
                               <span>Добавить</span>
@@ -1384,7 +1411,7 @@ export default function POSView() {
                       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-300">
                         <Search size={28} />
                       </div>
-                      <p className="text-sm text-slate-500">Товары не найдены</p>
+                      <p className="mt-0.5 text-xs text-[#5f6f7f]">Товары не найдены</p>
                     </div>
                   )}
                 </div>
@@ -1394,15 +1421,15 @@ export default function POSView() {
             <aside className={clsx(activeTab === 'cart' ? 'block lg:h-full' : 'hidden lg:block lg:h-full')}>
               <div
                 className={clsx(
-                  'h-full rounded-3xl border border-white bg-white shadow-sm',
+                  'h-full rounded-md border border-[#b7c2ce] bg-white shadow-sm',
                   isCartExpanded
                     ? 'flex flex-col overflow-visible lg:grid lg:min-h-[calc(100vh-220px)] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_auto] lg:border-b-0'
                     : 'flex flex-col overflow-hidden',
                 )}
               >
-                <div className={clsx('flex items-center justify-between border-b border-slate-200 px-5 py-3', isCartExpanded && 'lg:col-span-2')}>
+                <div className={clsx('flex items-center justify-between border-b border-[#b7c2ce] bg-[#fff7d6] px-4 py-2.5', isCartExpanded && 'lg:col-span-2')}>
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-900">Корзина</h2>
+                    <h2 className="text-lg font-semibold text-[#1f2933]">Корзина</h2>
                     <p className="mt-1 text-xs text-slate-500">Выбрано позиций: {cart.length}</p>
                     <p className="mt-1 text-xs font-semibold text-emerald-700">
                       Масса/объем: {formatWeightKg(cartWeightSummary.totalWeightKg)}
@@ -1413,19 +1440,19 @@ export default function POSView() {
                       type="button"
                       onClick={() => setIsCartExpanded((value) => !value)}
                       title={isCartExpanded ? 'Свернуть корзину' : 'Развернуть корзину'}
-                      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-100 bg-white text-emerald-600 transition-colors hover:bg-emerald-50"
+                      className="flex h-8 w-8 items-center justify-center rounded border border-[#c8a64a] bg-white text-[#7a5a00] transition-colors hover:bg-[#fff0b3]"
                     >
                       {isCartExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                     </button>
-                    <div className="flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-2 text-emerald-700">
+                    <div className="flex items-center gap-2 rounded border border-[#c8a64a] bg-[#fff0b3] px-2.5 py-1.5 text-[#7a5a00]">
                       <ShoppingCart size={18} />
                       <span className="text-xs font-semibold">{cart.length}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-2.5 border-b border-slate-200 px-4 py-3 md:px-5">
-                  <div className="rounded-2xl bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700 md:hidden">
+                <div className="space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4">
+                  <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00] md:hidden">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium">Сумма корзины</span>
                       <span className="text-sm font-semibold text-slate-900">{formatMoney(total)}</span>
@@ -1437,16 +1464,17 @@ export default function POSView() {
                   </div>
 
                   {cartOverflowMessage && (
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-medium text-rose-700">
+                    <div className="rounded border border-[#d89aa2] bg-[#fff0f1] px-3 py-2 text-xs font-medium text-[#8a1f2d]">
                       {cartOverflowMessage}
                     </div>
                   )}
 
                   <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={16} />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a5a00]" size={16} />
                     <input
                       value={customerSearch}
                       onChange={(e) => {
+                        if (isCustomerPortal) return;
                         const value = e.target.value;
                         startTransition(() => {
                           setCustomerSearch(value);
@@ -1454,17 +1482,18 @@ export default function POSView() {
                           setIsCustomerDropdownOpen(true);
                         });
                       }}
-                      onFocus={() => setIsCustomerDropdownOpen(true)}
+                      onFocus={() => !isCustomerPortal && setIsCustomerDropdownOpen(true)}
                       onBlur={() => {
                         window.setTimeout(() => {
                           setIsCustomerDropdownOpen(false);
                         }, 150);
                       }}
                       placeholder="Поиск клиента по имени"
-                      className="w-full rounded-2xl border border-emerald-100 bg-emerald-50 py-2.5 pl-11 pr-4 text-xs text-slate-700 outline-none transition-all focus:border-emerald-300 focus:bg-white"
+                      readOnly={isCustomerPortal}
+                      className="w-full rounded border border-[#9fb7d5] bg-white py-2 pl-9 pr-3 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                     />
                     {isCustomerDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 max-h-60 overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-2 shadow-xl">
+                      <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-60 overflow-y-auto rounded border border-[#9fb7d5] bg-white p-1 shadow-xl">
                         {filteredCustomers.map((customer) => (
                           <button
                             key={customer.id}
@@ -1476,8 +1505,8 @@ export default function POSView() {
                               setIsCustomerDropdownOpen(false);
                             }}
                             className={clsx(
-                              'flex w-full rounded-xl px-3 py-2 text-left text-xs transition-colors hover:bg-emerald-50',
-                              customerId === customer.id ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700',
+                              'flex w-full rounded px-3 py-2 text-left text-xs transition-colors hover:bg-[#fff8dc]',
+                              customerId === customer.id ? 'border border-[#c8d2df] bg-white text-[#32465a]' : 'text-slate-700',
                             )}
                           >
                             {customer.name}
@@ -1490,15 +1519,15 @@ export default function POSView() {
                     )}
                   </div>
                   {!customerId && (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-700">
+                    <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00]">
                       Выберите клиента, иначе оформить продажу нельзя.
                     </div>
                   )}
                 </div>
 
-                <div className={clsx('px-4 md:px-5', isCartExpanded ? 'max-h-none overflow-visible' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
+                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'max-h-none overflow-visible' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
                   {cart.map((item) => (
-                    <div key={item.id} className="border-b border-slate-100 py-3 last:border-b-0">
+                    <div key={item.id} className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
                       {(() => {
                         const stockSummary = getCartStockSummary(item);
                         const itemLineSubtotal = getLineSubtotal(item);
@@ -1508,12 +1537,12 @@ export default function POSView() {
 
                         return (
                       <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[#c8d2df] bg-[#f7f9fb] text-[#23527c]">
                           {item.photoUrl ? (
                             <img
                               src={resolveMediaUrl(item.photoUrl, item.id)}
                               alt={item.name}
-                              className="h-full w-full rounded-2xl object-cover"
+                              className="h-full w-full rounded object-cover"
                               referrerPolicy="no-referrer"
                               onError={(event) => handleBrokenImage(event, item.id)}
                             />
@@ -1525,7 +1554,7 @@ export default function POSView() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <p
-                              className="wrap-break-word whitespace-normal text-[12px] font-semibold leading-4 text-slate-950"
+                              className="wrap-break-word whitespace-normal text-[12px] font-semibold leading-4 text-[#1f2933]"
                               style={{ overflowWrap: 'anywhere' }}
                             >
                               {formatProductName(item.name)}
@@ -1537,12 +1566,12 @@ export default function POSView() {
 
                           <div className="mt-3 space-y-3">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 border-t border-slate-100 pt-2">
+                              <div className="min-w-0 border-t border-[#d5dde6] pt-2">
                                 <p className="text-[10px] font-medium text-slate-500">
                                   {formatMoney(item.sellingPrice)} x {item.quantity} {item.baseUnitName}
                                 </p>
                                 {itemWeightKg > 0 ? (
-                                  <p className="mt-1 text-[10px] font-semibold text-emerald-700">
+                                  <p className="mt-1 text-[10px] font-semibold text-[#7a5a00]">
                                     Масса/объем: {formatWeightKg(itemWeightKg)}
                                   </p>
                                 ) : null}
@@ -1560,7 +1589,7 @@ export default function POSView() {
                                 </div>
                                 <button
                                   onClick={() => removeFromCart(item.id)}
-                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-transparent text-[#7b8794] transition-colors hover:border-[#d89aa2] hover:bg-[#fff0f1] hover:text-[#8a1f2d]"
                                 >
                                   <Trash2 size={14} />
                                 </button>
@@ -1571,7 +1600,7 @@ export default function POSView() {
                               <select
                                 value={item.selectedPackagingId || ''}
                                 onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
-                                className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs text-slate-700 outline-none"
+                                className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-xs text-[#1f2933] outline-none"
                               >
                                 <option value="">{'\u0422\u043e\u043b\u044c\u043a\u043e'} {item.baseUnitName}</option>
                                 {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
@@ -1589,7 +1618,7 @@ export default function POSView() {
                                 onBlur={() => commitPackageQuantityInput(item.id)}
                                 disabled={!item.selectedPackagingId}
                                 placeholder={'\u0423\u043f\u0430\u043a.'}
-                                className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-center text-xs text-slate-900 outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none disabled:cursor-not-allowed disabled:opacity-50"
                               />
 
                               <input
@@ -1600,12 +1629,12 @@ export default function POSView() {
                                 onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
                                 onBlur={() => commitExtraUnitQuantityInput(item.id)}
                                 placeholder={`+ ${item.baseUnitName}`}
-                                className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-center text-xs text-slate-900 outline-none"
+                                className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
                               />
                             </div>
 
                             <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_140px]">
-                              <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-1.5 text-[10px] text-amber-700">
+                              <div className="rounded border border-[#d6c07a] bg-[#fff8dc] px-2 py-1.5 text-[10px] text-[#7a5a00]">
                                 Скидка на этот товар
                               </div>
                               <input
@@ -1616,7 +1645,7 @@ export default function POSView() {
                                 onChange={(e) => updateLineDiscountInput(item.id, e.target.value)}
                                 onBlur={() => commitLineDiscountInput(item.id)}
                                 placeholder="%"
-                                className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-1.5 text-center text-xs text-slate-900 outline-none"
+                                className="rounded border border-[#d6c07a] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
                               />
                             </div>
 
@@ -1650,7 +1679,7 @@ export default function POSView() {
 
                 <div
                   className={clsx(
-                    'space-y-3 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:bg-white md:px-5 md:py-4',
+                    'space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3',
                     isCartExpanded
                       ? 'lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-2 lg:border-l lg:border-t-0 lg:self-start'
                       : 'sticky bottom-0 z-10',
@@ -1663,7 +1692,7 @@ export default function POSView() {
                       value={discount === 0 ? '' : discount}
                       onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
                       placeholder="Скидка %"
-                      className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-2.5 text-xs text-slate-700 outline-none transition-all focus:border-amber-300 focus:bg-white"
+                      className="rounded border border-[#d6c07a] bg-white px-3 py-2 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#b08a28]"
                     />
                         <input
                           type="number"
@@ -1675,7 +1704,7 @@ export default function POSView() {
                         setPaidAmount(value === '' ? '' : String(Math.max(0, Number(value) || 0)));
                       }}
                       placeholder="Оплачено"
-                      className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-xs text-slate-700 outline-none transition-all focus:border-emerald-300 focus:bg-white"
+                      className="rounded border border-[#9fb7d5] bg-white px-3 py-2 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                     />
                   </div>
 
@@ -1688,7 +1717,7 @@ export default function POSView() {
                         key={method.id}
                         onClick={() => setPaymentMethod(method.id as PaymentMethod)}
                         className={clsx(
-                          'flex items-center justify-center gap-2 rounded-2xl border px-3 py-2.5 text-xs transition-all',
+                          'flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs transition-colors',
                           paymentMethod === method.id
                             ? posTheme.payment.active
                             : posTheme.payment.idle
@@ -1700,7 +1729,7 @@ export default function POSView() {
                     ))}
                   </div>
 
-                  <div className="space-y-2.5 rounded-[20px] bg-amber-50 px-4 py-3 text-xs shadow-[0_12px_28px_rgba(245,158,11,0.08)]">
+                  <div className="space-y-2 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-3 text-xs">
                     <div className="flex items-center justify-between text-slate-500">
                       <span>Подытог</span>
                       <span className="text-slate-900">{formatMoney(subtotal)}</span>
@@ -1739,7 +1768,7 @@ export default function POSView() {
                   <button
                     onClick={handleCheckout}
                     disabled={isSubmitting || cart.length === 0 || !customerId}
-                    className="flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-3.5 text-sm font-medium text-white shadow-[0_18px_35px_rgba(16,185,129,0.25)] transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex w-full items-center justify-center rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-3 text-sm font-semibold text-[#2f2f2f] shadow-sm transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubmitting ? 'Обработка...' : 'Оформить'}
                     {!isSubmitting && <ChevronRight className="ml-2" size={18} />}
@@ -1753,5 +1782,10 @@ export default function POSView() {
     </div>
   );
 }
+
+
+
+
+
 
 

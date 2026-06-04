@@ -154,6 +154,7 @@ router.put(
     if (!isAdmin) {
       delete updateData.role;
       delete updateData.warehouseId;
+      delete updateData.customerId;
       delete updateData.canCancelInvoices;
       delete updateData.canDeleteData;
     }
