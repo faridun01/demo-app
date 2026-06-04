@@ -1190,7 +1190,7 @@ export default function POSView() {
     .map((entry) => entry.customer);
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#e9edf2] text-[#1f2933]">
+    <div className="max-h-screen min-h-screen w-full overflow-y-auto bg-[#e9edf2] text-[#1f2933]">
         <ConfirmationModal
           isOpen={Boolean(pendingWarehouseId)}
           onClose={closeWarehouseConfirm}
@@ -1202,7 +1202,7 @@ export default function POSView() {
           type="warning"
         />
 
-      <div className="flex h-full min-h-0 flex-col overflow-hidden border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:border-0">
+      <div className="flex min-h-[calc(100vh+96px)] flex-col overflow-hidden border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:border-0">
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 md:px-4 md:py-4">
           <div className="-mx-3 -mt-3 border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 md:-mx-4 md:-mt-4">
             <h1 className="text-xl font-semibold tracking-normal text-[#1f2933] sm:text-2xl">POS Терминал</h1>
