@@ -1,14 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import fs from "fs";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const getGeminiApiKey = () => process.env.GEMINI_API_KEY || process.env.OCR_API_KEY || "";
 
 export class OCRService {
   static async parseInvoice(imagePath: string, mimeType: string = "image/jpeg") {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      throw Object.assign(new Error("Gemini API key is not configured. Set GEMINI_API_KEY or OCR_API_KEY."), { status: 500 });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const imageData = fs.readFileSync(imagePath).toString("base64");
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: process.env.OCR_MODEL || "gemini-1.5-flash",
       contents: [
         {
           parts: [

@@ -25,6 +25,7 @@ type PublicUser = {
   phone: string | null;
   role: string;
   warehouseId: number | null;
+  customerId: number | null;
   active: boolean;
   canCancelInvoices: boolean;
   canDeleteData: boolean;
@@ -32,6 +33,7 @@ type PublicUser = {
   createdAt: Date;
   updatedAt: Date;
   warehouse: { id: number; name: string; city: string | null } | null;
+  customer: { id: number; name: string; phone: string | null } | null;
 };
 
 type LoginResult =
@@ -48,6 +50,7 @@ const toPublicUser = (user: any): PublicUser => ({
   phone: user.phone ?? null,
   role: user.role,
   warehouseId: user.warehouseId ?? null,
+  customerId: user.customerId ?? null,
   active: user.active,
   canCancelInvoices: Boolean(user.canCancelInvoices),
   canDeleteData: Boolean(user.canDeleteData),
@@ -56,6 +59,9 @@ const toPublicUser = (user: any): PublicUser => ({
   updatedAt: user.updatedAt,
   warehouse: user.warehouse
     ? { id: user.warehouse.id, name: user.warehouse.name, city: user.warehouse.city ?? null }
+    : null,
+  customer: user.customer
+    ? { id: user.customer.id, name: user.customer.name, phone: user.customer.phone ?? null }
     : null,
 });
 
@@ -99,6 +105,7 @@ const signAccessToken = (user: {
   username: string;
   role: string;
   warehouseId: number | null;
+  customerId: number | null;
   canCancelInvoices: boolean;
   canDeleteData: boolean;
 }) =>
@@ -108,6 +115,7 @@ const signAccessToken = (user: {
       username: user.username,
       role: user.role,
       warehouseId: user.warehouseId,
+      customerId: user.customerId,
       canCancelInvoices: user.canCancelInvoices,
       canDeleteData: user.canDeleteData,
     },
@@ -175,7 +183,7 @@ export class AuthService {
         },
         active: true,
       },
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
@@ -210,6 +218,7 @@ export class AuthService {
     phone?: string;
     role?: string;
     warehouseId?: number;
+    customerId?: number;
     canCancelInvoices?: boolean;
     canDeleteData?: boolean;
   }) {
@@ -225,10 +234,11 @@ export class AuthService {
         phone: data.phone,
         role: data.role || 'SELLER',
         warehouseId: data.warehouseId,
+        customerId: data.customerId,
         canCancelInvoices: data.canCancelInvoices || false,
         canDeleteData: data.canDeleteData || false,
       },
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     return toPublicUser(user);
@@ -267,7 +277,7 @@ export class AuthService {
     const user = await prisma.user.update({
       where: { id },
       data: updateData,
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     return toPublicUser(user);
@@ -276,7 +286,7 @@ export class AuthService {
   static async getAllUsers() {
     const users = await prisma.user.findMany({
       where: { active: true },
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     return users.map(toPublicUser);
@@ -292,7 +302,7 @@ export class AuthService {
   static async getCurrentUser(userId: number) {
     const user: any = await prisma.user.findUnique({
       where: { id: userId },
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     if (!user || !user.active) {
@@ -367,7 +377,7 @@ export class AuthService {
         twoFactorSecret: secret,
         twoFactorBackupCodes: backupCodeHashes,
       } as any,
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     return { user: toPublicUser(user) };
@@ -381,7 +391,7 @@ export class AuthService {
 
     const user: any = await prisma.user.findUnique({
       where: { id: Number(payload.userId) },
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     if (!user || !user.active || !user.twoFactorEnabled || !user.twoFactorSecret) {
@@ -414,7 +424,7 @@ export class AuthService {
   static async disableTwoFactor(userId: number, currentPassword: string, code: string) {
     const user: any = await prisma.user.findUnique({
       where: { id: userId },
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     if (!user || !user.active) {
@@ -446,7 +456,7 @@ export class AuthService {
         twoFactorSecret: null,
         twoFactorBackupCodes: [],
       } as any,
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     return { user: toPublicUser(updatedUser) };
@@ -455,7 +465,7 @@ export class AuthService {
   static async adminDisableTwoFactor(userId: number) {
     const user: any = await prisma.user.findUnique({
       where: { id: userId },
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     if (!user || !user.active) {
@@ -469,7 +479,7 @@ export class AuthService {
         twoFactorSecret: null,
         twoFactorBackupCodes: [],
       } as any,
-      include: { warehouse: true },
+      include: { warehouse: true, customer: true },
     });
 
     return { user: toPublicUser(updatedUser) };

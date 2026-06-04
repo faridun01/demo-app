@@ -33,6 +33,15 @@ const normalizePaidAmount = (value: unknown, totalAmount: number) => {
   return amount;
 };
 
+const normalizeRefundAmount = (value: unknown) => {
+  const amount = normalizeMoney(value, 'Expense refund amount', { allowZero: false });
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw Object.assign(new Error('Сумма возврата должна быть больше нуля'), { status: 400 });
+  }
+
+  return amount;
+};
+
 const normalizeExpenseDate = (value: unknown) => {
   if (value === undefined || value === null || value === '') {
     return new Date();
@@ -76,8 +85,19 @@ const includeExpenseDetails = {
   },
 };
 
+const getExpenseRefundedAmount = (expense: any) =>
+  Array.isArray(expense?.payments)
+    ? roundMoney(
+        expense.payments.reduce(
+          (sum: number, payment: any) => sum + (Number(payment.amount || 0) < 0 ? Math.abs(Number(payment.amount || 0)) : 0),
+          0,
+        ),
+      )
+    : 0;
+
 const normalizeExpenseResponse = (expense: any) => ({
   ...expense,
+  refundedAmount: getExpenseRefundedAmount(expense),
   payments: Array.isArray(expense?.payments)
     ? expense.payments.map((payment: any) => ({
         ...payment,
@@ -100,6 +120,10 @@ const recalculateExpensePaidAmount = async (tx: any, expenseId: number) => {
 
   if (!expense) {
     throw Object.assign(new Error('Расход не найден'), { status: 404 });
+  }
+
+  if (paidAmount < 0) {
+    throw Object.assign(new Error('Сумма возвратов не может быть больше внесенных оплат'), { status: 400 });
   }
 
   if (paidAmount > Number(expense.amount || 0)) {
@@ -316,6 +340,60 @@ router.post('/:id/payments', async (req: AuthRequest, res, next) => {
   }
 });
 
+router.post('/:id/refunds', async (req: AuthRequest, res, next) => {
+  try {
+    const access = await getAccessContext(req);
+    ensureAdminOnly(access.isAdmin);
+    const expenseId = Number(req.params.id);
+    const expense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      include: includeExpenseDetails,
+    });
+
+    if (!expense) {
+      return res.status(404).json({ error: 'Расход не найден' });
+    }
+
+    const amount = normalizeRefundAmount(req.body?.amount);
+    const currentAmount = Number(expense.amount || 0);
+    const currentPaidAmount = Number(expense.paidAmount || 0);
+
+    if (amount > currentAmount) {
+      return res.status(400).json({ error: 'Сумма возврата не может быть больше суммы расхода' });
+    }
+
+    if (amount > currentPaidAmount) {
+      return res.status(400).json({ error: 'Сумма возврата не может быть больше внесенной оплаты' });
+    }
+
+    const updated = await prisma.$transaction(async (tx: any) => {
+      await tx.expense.update({
+        where: { id: expenseId },
+        data: {
+          amount: roundMoney(currentAmount - amount),
+        },
+      });
+
+      await tx.expensePayment.create({
+        data: {
+          expenseId,
+          userId: req.user!.id,
+          amount: -amount,
+          method: 'refund',
+          paymentDate: normalizePaymentDate(req.body?.refundDate ?? req.body?.paymentDate),
+          note: normalizeOptionalString(req.body?.note),
+        },
+      });
+
+      return recalculateExpensePaidAmount(tx, expenseId);
+    });
+
+    res.json(normalizeExpenseResponse(updated));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
@@ -325,7 +403,7 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res, next) =>
 
     const payment = await (prisma as any).expensePayment.findUnique({
       where: { id: paymentId },
-      select: { id: true, expenseId: true },
+      select: { id: true, expenseId: true, amount: true },
     });
 
     if (!payment || Number(payment.expenseId) !== expenseId) {
@@ -333,6 +411,16 @@ router.delete('/:id/payments/:paymentId', async (req: AuthRequest, res, next) =>
     }
 
     const updated = await prisma.$transaction(async (tx: any) => {
+      const paymentAmount = Number(payment.amount || 0);
+      if (paymentAmount < 0) {
+        await tx.expense.update({
+          where: { id: expenseId },
+          data: {
+            amount: { increment: Math.abs(paymentAmount) },
+          },
+        });
+      }
+
       await tx.expensePayment.delete({ where: { id: paymentId } });
       return recalculateExpensePaidAmount(tx, expenseId);
     });

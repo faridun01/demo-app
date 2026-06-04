@@ -15,6 +15,7 @@ export const registerBodySchema = z.object({
   phone: z.string().trim().min(1).optional(),
   role: z.string().trim().min(1).optional(),
   warehouseId: z.coerce.number().int().positive().optional(),
+  customerId: z.coerce.number().int().positive().optional(),
   canCancelInvoices: z.boolean().optional(),
   canDeleteData: z.boolean().optional(),
 });
@@ -26,6 +27,7 @@ export const updateUserBodySchema = z
     phone: z.string().trim().min(1).optional(),
     role: z.string().trim().min(1).optional(),
     warehouseId: z.coerce.number().int().positive().nullable().optional(),
+    customerId: z.coerce.number().int().positive().nullable().optional(),
     canCancelInvoices: z.boolean().optional(),
     canDeleteData: z.boolean().optional(),
     active: z.boolean().optional(),
@@ -53,4 +55,3 @@ export const twoFactorDisableBodySchema = z.object({
   currentPassword: z.string().min(1),
   code: z.string().trim().min(1),
 });
-

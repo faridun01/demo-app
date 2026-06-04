@@ -116,9 +116,27 @@ export interface CustomerInvoicesBatchCustomer {
   invoices: CustomerInvoicePrintOptions[];
 }
 
+export interface CustomerReconciliationBatchCustomer {
+  id: number;
+  name: string;
+  phone?: string;
+  purchasedTotal: number;
+  paidTotal: number;
+  debtTotal: number;
+  statusLabel: string;
+  invoices: any[];
+}
+
 interface BatchCustomerInvoicePrintOptions {
   customers: CustomerInvoicesBatchCustomer[];
   filterLabel: string;
+  generatedAt?: Date;
+}
+
+interface ReconciliationBatchPrintOptions {
+  customers: CustomerReconciliationBatchCustomer[];
+  filterLabel: string;
+  sortLabel: string;
   generatedAt?: Date;
 }
 
@@ -376,6 +394,200 @@ const renderCustomerGroupHeader = (customer: CustomerInvoicesBatchCustomer) => `
   </section>
 `;
 
+const getInvoiceStatementEntries = (invoice: any) => {
+  const invoiceDate = invoice?.createdAt || new Date().toISOString();
+  const invoiceNumber = invoice?.id ? `Накладная №${invoice.id}` : 'Накладная';
+  const invoiceDebit = Math.max(0, Number(invoice?.netAmount || 0));
+  const entries = [
+    {
+      date: invoiceDate,
+      document: invoiceNumber,
+      description: 'Реализация товара',
+      debit: invoiceDebit,
+      credit: 0,
+    },
+  ];
+
+  if (Array.isArray(invoice?.paymentEvents)) {
+    invoice.paymentEvents.forEach((payment: any) => {
+      entries.push({
+        date: payment?.createdAt || invoiceDate,
+        document: `Оплата по ${invoiceNumber}`,
+        description: payment?.method ? `Оплата (${payment.method})` : 'Оплата',
+        debit: 0,
+        credit: Math.max(0, Number(payment?.amount || 0)),
+      });
+    });
+  }
+
+  if (Array.isArray(invoice?.returnEvents)) {
+    invoice.returnEvents.forEach((itemReturn: any) => {
+      entries.push({
+        date: itemReturn?.createdAt || invoiceDate,
+        document: `Возврат по ${invoiceNumber}`,
+        description: itemReturn?.reason || 'Возврат товара',
+        debit: 0,
+        credit: Math.max(0, Number(itemReturn?.totalValue || 0)),
+      });
+    });
+  }
+
+  return entries;
+};
+
+const renderReconciliationOverviewSection = (
+  customers: CustomerReconciliationBatchCustomer[],
+  filterLabel: string,
+  sortLabel: string,
+  generatedAt: Date,
+) => {
+  const totals = customers.reduce(
+    (acc, customer) => {
+      acc.debit += Number(customer.purchasedTotal || 0);
+      acc.credit += Number(customer.paidTotal || 0);
+      acc.balance += Number(customer.debtTotal || 0);
+      return acc;
+    },
+    { debit: 0, credit: 0, balance: 0 },
+  );
+
+  return `
+    <section class="sheet">
+      <div class="header">
+        <h1 class="title">Акт сверки взаиморасчетов</h1>
+        <div class="subtitle">Все клиенты | Фильтр: ${escapeHtml(filterLabel)} | Сортировка: ${escapeHtml(sortLabel)} | ${escapeHtml(generatedAt.toLocaleString('ru-RU'))}</div>
+      </div>
+      <div class="section section-no-gap">
+        <h3>Сводная таблица</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 42px;">№</th>
+              <th>Клиент</th>
+              <th style="width: 120px;">Телефон</th>
+              <th style="width: 120px;">Дебет</th>
+              <th style="width: 120px;">Кредит</th>
+              <th style="width: 120px;">Сальдо</th>
+              <th style="width: 120px;">Статус</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${customers
+              .map(
+                (customer, index) => `
+                  <tr>
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(customer.name)}</td>
+                    <td>${escapeHtml(customer.phone || 'Нет телефона')}</td>
+                    <td>${escapeHtml(formatMoney(customer.purchasedTotal))}</td>
+                    <td>${escapeHtml(formatMoney(customer.paidTotal))}</td>
+                    <td>${escapeHtml(formatMoney(customer.debtTotal))}</td>
+                    <td>${escapeHtml(normalizeStatusLabel(customer.statusLabel))}</td>
+                  </tr>
+                `,
+              )
+              .join('')}
+            <tr>
+              <td colspan="3"><strong>Итого</strong></td>
+              <td><strong>${escapeHtml(formatMoney(totals.debit))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(totals.credit))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(totals.balance))}</strong></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+};
+
+const renderCustomerReconciliationSection = (
+  customer: CustomerReconciliationBatchCustomer,
+  index: number,
+  generatedAt: Date,
+) => {
+  const entries = customer.invoices
+    .flatMap(getInvoiceStatementEntries)
+    .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
+  let balance = 0;
+
+  const rows = entries
+    .map((entry, entryIndex) => {
+      balance += Number(entry.debit || 0) - Number(entry.credit || 0);
+      return `
+        <tr>
+          <td>${entryIndex + 1}</td>
+          <td>${escapeHtml(formatRuDate(entry.date))}</td>
+          <td>${escapeHtml(entry.document)}</td>
+          <td>${escapeHtml(entry.description)}</td>
+          <td>${entry.debit > 0 ? escapeHtml(formatMoney(entry.debit)) : ''}</td>
+          <td>${entry.credit > 0 ? escapeHtml(formatMoney(entry.credit)) : ''}</td>
+          <td>${escapeHtml(formatMoney(balance))}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <section class="sheet customer-group-sheet">
+      <div class="doc-meta">
+        <div>Клиент ${index + 1}</div>
+        <div>Сформировано: ${escapeHtml(generatedAt.toLocaleString('ru-RU'))}</div>
+      </div>
+      <div class="header">
+        <h1 class="title">Акт сверки</h1>
+        <div class="subtitle">${escapeHtml(customer.name)}${customer.phone ? ` | ${escapeHtml(customer.phone)}` : ''}</div>
+      </div>
+      <div class="parties">
+        <div class="party-block">
+          <p class="label">Клиент</p>
+          <p class="value">${escapeHtml(customer.name)}</p>
+          ${customer.phone ? `<p class="subvalue">Телефон: ${escapeHtml(customer.phone)}</p>` : ''}
+        </div>
+        <div class="party-block">
+          <p class="label">Итоги</p>
+          <p class="value">Дебет: ${escapeHtml(formatMoney(customer.purchasedTotal))}</p>
+          <p class="subvalue">Кредит: ${escapeHtml(formatMoney(customer.paidTotal))}</p>
+        </div>
+        <div class="party-block party-meta">
+          <p class="label">Сальдо</p>
+          <p class="value">${escapeHtml(formatMoney(customer.debtTotal))}</p>
+          <p class="subvalue">${escapeHtml(normalizeStatusLabel(customer.statusLabel))}</p>
+        </div>
+      </div>
+      <div class="section">
+        <h3>Движения по взаиморасчетам</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 38px;">№</th>
+              <th style="width: 82px;">Дата</th>
+              <th>Документ</th>
+              <th>Операция</th>
+              <th style="width: 110px;">Дебет</th>
+              <th style="width: 110px;">Кредит</th>
+              <th style="width: 110px;">Сальдо</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="7">Движений нет</td></tr>'}
+            <tr>
+              <td colspan="4"><strong>Итого по клиенту</strong></td>
+              <td><strong>${escapeHtml(formatMoney(customer.purchasedTotal))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(customer.paidTotal))}</strong></td>
+              <td><strong>${escapeHtml(formatMoney(customer.debtTotal))}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="signatures">
+        <div>От организации ____________________</div>
+        <div>От клиента ____________________</div>
+      </div>
+    </section>
+  `;
+};
+
 const buildDocumentHtml = (sectionsHtml: string, title: string, autoClose = false) => `<!doctype html>
   <html lang="ru">
     <head>
@@ -410,6 +622,7 @@ const buildDocumentHtml = (sectionsHtml: string, title: string, autoClose = fals
         .customer-group-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
         .customer-group-stat { border: 1px solid #0f172a; padding: 8px 10px; }
         .customer-group-stat-label { display: block; margin-bottom: 3px; color: #64748b; font-size: 8px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+        .signatures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 28px; font-size: 11px; font-weight: 800; }
         @page { size: A4 portrait; margin: 10mm; }
       </style>
     </head>
@@ -486,6 +699,60 @@ export function printCustomerInvoicesBatch({
 
   iframeDocument.open();
   iframeDocument.write(buildDocumentHtml(sectionsHtml, `Клиенты и долги - ${filterLabel}`));
+  iframeDocument.close();
+
+  iframe.onload = () => {
+    iframeWindow.focus();
+    iframeWindow.print();
+    cleanup();
+  };
+
+  return { ok: true as const };
+}
+
+export function printCustomerReconciliationBatch({
+  customers,
+  filterLabel,
+  sortLabel,
+  generatedAt = new Date(),
+}: ReconciliationBatchPrintOptions) {
+  if (typeof window === 'undefined' || !Array.isArray(customers) || customers.length === 0) {
+    return { ok: false as const, reason: 'invalid' as const };
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.opacity = '0';
+
+  const cleanup = () => {
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 300);
+  };
+
+  document.body.appendChild(iframe);
+
+  const iframeDocument = iframe.contentDocument || iframe.contentWindow?.document;
+  const iframeWindow = iframe.contentWindow;
+
+  if (!iframeDocument || !iframeWindow) {
+    cleanup();
+    return { ok: false as const, reason: 'unavailable' as const };
+  }
+
+  const sectionsHtml = [
+    renderReconciliationOverviewSection(customers, filterLabel, sortLabel, generatedAt),
+    ...customers.map((customer, index) => renderCustomerReconciliationSection(customer, index, generatedAt)),
+  ].join('');
+
+  iframeDocument.open();
+  iframeDocument.write(buildDocumentHtml(sectionsHtml, `Акт сверки - ${filterLabel}`));
   iframeDocument.close();
 
   iframe.onload = () => {

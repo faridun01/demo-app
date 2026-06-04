@@ -17,6 +17,7 @@ export interface AuthRequest extends Request {
     username: string;
     role: string;
     warehouseId?: number;
+    customerId?: number;
     canCancelInvoices?: boolean;
     canDeleteData?: boolean;
   };
@@ -27,6 +28,7 @@ const buildAuthUser = (user: {
   username: string;
   role: string;
   warehouseId: number | null;
+  customerId: number | null;
   canCancelInvoices: boolean;
   canDeleteData: boolean;
 }) => ({
@@ -34,6 +36,7 @@ const buildAuthUser = (user: {
   username: user.username,
   role: user.role,
   warehouseId: user.warehouseId ?? undefined,
+  customerId: user.customerId ?? undefined,
   canCancelInvoices: user.canCancelInvoices,
   canDeleteData: user.canDeleteData,
 });
@@ -102,6 +105,7 @@ const resolveUserFromToken = async (token: string) => {
       username: true,
       role: true,
       warehouseId: true,
+      customerId: true,
       active: true,
       canCancelInvoices: true,
       canDeleteData: true,

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Banknote, CalendarDays, Pencil, Plus, Search, Trash2, Wallet, Warehouse, X } from 'lucide-react';
+import { Banknote, CalendarDays, Pencil, Plus, RotateCcw, Search, Trash2, Wallet, Warehouse, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { addExpensePayment, cancelExpensePayment, createExpense, deleteExpense, getExpenses, updateExpense } from '../api/expenses.api';
+import { addExpensePayment, addExpenseRefund, cancelExpensePayment, createExpense, deleteExpense, getExpenses, updateExpense } from '../api/expenses.api';
 import { getWarehouses } from '../api/warehouses.api';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import PaginationControls from '../components/common/PaginationControls';
@@ -15,6 +15,7 @@ type ExpenseRow = {
   category: string;
   amount: number;
   paidAmount: number;
+  refundedAmount?: number;
   expenseDate: string;
   note?: string | null;
   warehouse?: { id: number; name: string };
@@ -63,10 +64,14 @@ export default function ExpensesView() {
   const [payingExpenseId, setPayingExpenseId] = useState<number | null>(null);
   const [cancellingPaymentId, setCancellingPaymentId] = useState<number | null>(null);
   const [selectedExpenseForPayment, setSelectedExpenseForPayment] = useState<ExpenseRow | null>(null);
+  const [selectedExpenseForRefund, setSelectedExpenseForRefund] = useState<ExpenseRow | null>(null);
   const [selectedExpenseForDelete, setSelectedExpenseForDelete] = useState<ExpenseRow | null>(null);
   const [selectedExpenseForEdit, setSelectedExpenseForEdit] = useState<ExpenseRow | null>(null);
   const [isUpdatingExpense, setIsUpdatingExpense] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundNote, setRefundNote] = useState('');
+  const [refundDate, setRefundDate] = useState(todayValue);
   const [expensePaymentDate, setExpensePaymentDate] = useState(todayValue);
   const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState({
@@ -82,6 +87,20 @@ export default function ExpensesView() {
 
   const getExpenseRemaining = (expense: ExpenseRow) =>
     Math.max(0, Number(expense.amount || 0) - Number(expense.paidAmount || 0));
+
+  const getExpenseRefundedAmount = (expense: ExpenseRow) => {
+    const providedRefundedAmount = Number(expense.refundedAmount || 0);
+    if (providedRefundedAmount > 0) {
+      return providedRefundedAmount;
+    }
+
+    return Array.isArray(expense.payments)
+      ? expense.payments.reduce((sum, payment) => sum + (Number(payment.amount || 0) < 0 ? Math.abs(Number(payment.amount || 0)) : 0), 0)
+      : 0;
+  };
+
+  const getExpenseRefundLimit = (expense: ExpenseRow) =>
+    Math.max(0, Math.min(Number(expense.amount || 0), Number(expense.paidAmount || 0)));
 
   const fetchExpenses = async (warehouseIdParam?: string) => {
     try {
@@ -151,6 +170,7 @@ export default function ExpensesView() {
 
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const totalPaidAmount = filteredExpenses.reduce((sum, expense) => sum + Number(expense.paidAmount || 0), 0);
+  const totalRefundedAmount = filteredExpenses.reduce((sum, expense) => sum + getExpenseRefundedAmount(expense), 0);
   const totalRemainingAmount = Math.max(0, totalAmount - totalPaidAmount);
   const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / pageSize));
   const paginatedExpenses = filteredExpenses.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -169,6 +189,13 @@ export default function ExpensesView() {
     setSelectedExpenseForPayment(null);
     setPaymentAmount('');
     setExpensePaymentDate(todayValue);
+  };
+
+  const closeRefundModal = () => {
+    setSelectedExpenseForRefund(null);
+    setRefundAmount('');
+    setRefundNote('');
+    setRefundDate(todayValue);
   };
 
   const closeEditModal = () => {
@@ -247,6 +274,19 @@ export default function ExpensesView() {
     setExpensePaymentDate(todayValue);
   };
 
+  const openRefundModal = (expense: ExpenseRow) => {
+    const refundLimit = getExpenseRefundLimit(expense);
+    if (refundLimit <= 0) {
+      toast.error('По этому расходу нет оплаченной суммы для возврата');
+      return;
+    }
+
+    setSelectedExpenseForRefund(expense);
+    setRefundAmount(String(roundMoney(refundLimit)));
+    setRefundNote('');
+    setRefundDate(todayValue);
+  };
+
   const openEditModal = (expense: ExpenseRow) => {
     setSelectedExpenseForEdit(expense);
     setEditForm(buildExpenseFormState(expense, selectedWarehouseId || (userWarehouseId ? String(userWarehouseId) : '')));
@@ -290,17 +330,57 @@ export default function ExpensesView() {
     }
   };
 
+  const handleAddRefund = async () => {
+    if (!selectedExpenseForRefund) {
+      return;
+    }
+
+    const refundLimit = getExpenseRefundLimit(selectedExpenseForRefund);
+    const amount = Number(String(refundAmount).replace(',', '.'));
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Введите корректную сумму возврата');
+      return;
+    }
+
+    if (amount > refundLimit) {
+      toast.error('Сумма возврата не может быть больше оплаченной суммы расхода');
+      return;
+    }
+
+    setPayingExpenseId(selectedExpenseForRefund.id);
+    try {
+      await addExpenseRefund(selectedExpenseForRefund.id, {
+        amount,
+        refundDate: refundDate || todayValue,
+        note: refundNote.trim(),
+      });
+      toast.success('Возврат расхода сохранен');
+      closeRefundModal();
+      await fetchExpenses(selectedWarehouseId);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Ошибка при сохранении возврата расхода');
+    } finally {
+      setPayingExpenseId(null);
+    }
+  };
+
   const handleCancelExpensePayment = async (expense: ExpenseRow, payment: NonNullable<ExpenseRow['payments']>[number]) => {
     if (!payment?.id) return;
 
-    if (!window.confirm(`Отменить оплату ${formatMoney(payment.amount || 0)}? Остаток расхода будет пересчитан.`)) {
+    const isRefund = Number(payment.amount || 0) < 0;
+    const confirmLabel = isRefund
+      ? `возврат ${formatMoney(Math.abs(Number(payment.amount || 0)))}`
+      : `оплату ${formatMoney(payment.amount || 0)}`;
+
+    if (!window.confirm(`Отменить ${confirmLabel}? Остаток расхода будет пересчитан.`)) {
       return;
     }
 
     setCancellingPaymentId(Number(payment.id));
     try {
       await cancelExpensePayment(expense.id, payment.id);
-      toast.success('Оплата расхода отменена');
+      toast.success(isRefund ? 'Возврат расхода отменен' : 'Оплата расхода отменена');
       await fetchExpenses(selectedWarehouseId);
     } catch (err: any) {
       toast.error(err?.response?.data?.error || 'Ошибка при отмене оплаты расхода');
@@ -398,7 +478,7 @@ export default function ExpensesView() {
               <h1 className="text-3xl font-medium tracking-tight text-slate-900 sm:text-4xl">Расходы</h1>
               <p className="mt-1 text-slate-500">Учитывайте расходы по каждому складу отдельно.</p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-right">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-rose-400">Всего расходов</p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(totalAmount)}</p>
@@ -406,6 +486,10 @@ export default function ExpensesView() {
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-right">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-400">Оплачено</p>
                 <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(totalPaidAmount)}</p>
+              </div>
+              <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-right">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-sky-500">Возвраты</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{formatMoney(totalRefundedAmount)}</p>
               </div>
               <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-right">
                 <p className="text-[11px] uppercase tracking-[0.16em] text-amber-500">Остаток</p>
@@ -632,6 +716,8 @@ export default function ExpensesView() {
               <div className="space-y-3 p-3 md:hidden">
                 {paginatedExpenses.map((expense) => {
                   const remaining = getExpenseRemaining(expense);
+                  const refunded = getExpenseRefundedAmount(expense);
+                  const refundLimit = getExpenseRefundLimit(expense);
 
                   return (
                     <article key={`expense-mobile-${expense.id}`} className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
@@ -654,6 +740,12 @@ export default function ExpensesView() {
                           <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Оплачено</p>
                           <p className="mt-1 text-sm font-semibold text-emerald-600">{formatMoney(expense.paidAmount || 0)}</p>
                         </div>
+                        {refunded > 0 ? (
+                          <div className="rounded-2xl bg-sky-50 px-3 py-3">
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-sky-500">Возврат</p>
+                            <p className="mt-1 text-sm font-semibold text-sky-700">{formatMoney(refunded)}</p>
+                          </div>
+                        ) : null}
                         <div className="rounded-2xl bg-slate-50 px-3 py-3">
                           <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
                           <p className="mt-1 text-sm font-semibold text-amber-600">{formatMoney(remaining)}</p>
@@ -689,6 +781,17 @@ export default function ExpensesView() {
                             aria-label="Оплатить"
                           >
                             <Wallet size={16} className={payingExpenseId === expense.id ? 'animate-pulse' : ''} />
+                          </button>
+                        ) : null}
+                        {refundLimit > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => openRefundModal(expense)}
+                            disabled={payingExpenseId === expense.id}
+                            className="inline-flex h-11 w-11 items-center justify-center justify-self-center rounded-2xl border border-sky-200 bg-sky-50 text-sky-700 disabled:opacity-50"
+                            aria-label="Возврат расхода"
+                          >
+                            <RotateCcw size={16} className={payingExpenseId === expense.id ? 'animate-pulse' : ''} />
                           </button>
                         ) : null}
                         <button
@@ -729,6 +832,8 @@ export default function ExpensesView() {
                   <tbody>
                     {paginatedExpenses.map((expense) => {
                       const remaining = getExpenseRemaining(expense);
+                      const refunded = getExpenseRefundedAmount(expense);
+                      const refundLimit = getExpenseRefundLimit(expense);
 
                       return (
                         <tr key={expense.id} className="border-t border-slate-100 text-[12px] text-slate-700">
@@ -736,6 +841,7 @@ export default function ExpensesView() {
                           <td className="px-2 py-3">
                             <div className="font-medium leading-4 text-slate-900">{expense.title}</div>
                             {expense.note ? <div className="mt-1 text-[11px] leading-4 text-slate-400">{expense.note}</div> : null}
+                            {refunded > 0 ? <div className="mt-1 text-[11px] font-semibold leading-4 text-sky-700">Возврат: {formatMoney(refunded)}</div> : null}
                           </td>
                           <td className="whitespace-nowrap px-2 py-3">{expense.category}</td>
                           <td className="px-2 py-3 leading-4">{expense.warehouse?.name || '-'}</td>
@@ -767,6 +873,17 @@ export default function ExpensesView() {
                                   aria-label="Внести оплату"
                                 >
                                   <Wallet size={14} className={payingExpenseId === expense.id ? 'animate-pulse' : ''} />
+                                </button>
+                              ) : null}
+                              {refundLimit > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openRefundModal(expense)}
+                                  disabled={payingExpenseId === expense.id}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-sky-100 bg-sky-50 text-sky-700 transition-colors hover:bg-sky-100 disabled:opacity-50"
+                                  title="Возврат расхода"
+                                >
+                                  <RotateCcw size={14} className={payingExpenseId === expense.id ? 'animate-pulse' : ''} />
                                 </button>
                               ) : null}
                               {(isAdmin || expense.user?.id === user.id) && (
@@ -909,6 +1026,103 @@ export default function ExpensesView() {
                 className="flex-1 rounded-2xl bg-emerald-600 py-4 font-black uppercase tracking-widest text-white shadow-lg shadow-emerald-600/20 transition-all hover:bg-emerald-700 disabled:opacity-50"
               >
                 {payingExpenseId === selectedExpenseForPayment.id ? 'Сохранение...' : 'Внести оплату'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedExpenseForRefund && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          onClick={closeRefundModal}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 p-5 sm:p-7">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-600/20">
+                  <RotateCcw size={22} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 sm:text-2xl">Возврат расхода</h3>
+                  <p className="mt-1 text-sm text-slate-500">{selectedExpenseForRefund.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeRefundModal}
+                className="rounded-2xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="space-y-5 overflow-y-auto p-5 sm:p-7">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Сумма</p>
+                  <p className="mt-1 text-sm font-black text-slate-900">{formatMoney(selectedExpenseForRefund.amount)}</p>
+                </div>
+                <div className="rounded-2xl bg-emerald-50 px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-500">Оплачено</p>
+                  <p className="mt-1 text-sm font-black text-emerald-700">{formatMoney(selectedExpenseForRefund.paidAmount || 0)}</p>
+                </div>
+                <div className="rounded-2xl bg-sky-50 px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-500">Можно</p>
+                  <p className="mt-1 text-sm font-black text-sky-700">{formatMoney(getExpenseRefundLimit(selectedExpenseForRefund))}</p>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.10),_transparent_60%)] p-4">
+                <label className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Сумма возврата</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={refundAmount}
+                  onChange={(event) => setRefundAmount(event.target.value)}
+                  autoFocus
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-2xl font-black text-slate-900 outline-none transition-all focus:border-sky-400 focus:ring-8 focus:ring-sky-500/5"
+                  placeholder="0.00"
+                />
+                <label className="ml-1 mt-4 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Дата возврата</label>
+                <div className="mt-2 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <CalendarDays size={16} className="text-sky-500" />
+                  <input
+                    type="date"
+                    value={refundDate}
+                    onChange={(event) => setRefundDate(event.target.value)}
+                    className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none"
+                  />
+                </div>
+                <label className="ml-1 mt-4 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Примечание</label>
+                <textarea
+                  value={refundNote}
+                  onChange={(event) => setRefundNote(event.target.value)}
+                  rows={3}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none"
+                  placeholder="Например: поставщик вернул часть суммы"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:p-6">
+              <button
+                type="button"
+                onClick={closeRefundModal}
+                className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 transition-all hover:bg-slate-50"
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleAddRefund}
+                disabled={payingExpenseId === selectedExpenseForRefund.id || !refundAmount}
+                className="flex-1 rounded-2xl bg-sky-600 py-4 font-black uppercase tracking-widest text-white shadow-lg shadow-sky-600/20 transition-all hover:bg-sky-700 disabled:opacity-50"
+              >
+                {payingExpenseId === selectedExpenseForRefund.id ? 'Сохранение...' : 'Сохранить возврат'}
               </button>
             </div>
           </div>

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Card, Badge } from '../components/UI';
 import client from '../api/client';
 import { createCustomer, deleteCustomer, getCustomers, updateCustomer } from '../api/customers.api';
-import { formatCount, formatMoney, formatPercent } from '../utils/format';
+import { formatCount, formatMoney } from '../utils/format';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import PaginationControls from '../components/common/PaginationControls';
 import { useMemo } from 'react';
@@ -106,30 +106,6 @@ const sectionTabClassName = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100',
   ].join(' ');
 
-const getCustomerEfficiencyMetrics = (customer: Customer) => {
-  const totalInvoiced = Number(customer.total_invoiced || 0);
-  const totalPaid = Number(customer.total_paid || 0);
-  const balance = Number(customer.balance || 0);
-  const paymentEfficiency = totalInvoiced > 0 ? (totalPaid / totalInvoiced) * 100 : 0;
-
-  let label = 'Риск';
-  let className = 'bg-rose-100 text-rose-700';
-
-  if (paymentEfficiency >= 95 && balance <= 0) {
-    label = 'Сильный';
-    className = 'bg-emerald-100 text-emerald-700';
-  } else if (paymentEfficiency >= 75) {
-    label = 'Нормальный';
-    className = 'bg-amber-100 text-amber-700';
-  }
-
-  return {
-    paymentEfficiency,
-    label,
-    className,
-  };
-};
-
 export default function CustomerView() {
   const location = useLocation();
   const user = useMemo(() => getCurrentUser(), []);
@@ -148,6 +124,7 @@ export default function CustomerView() {
   const [formData, setFormData] = useState(emptyForm);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isPrintingReconciliation, setIsPrintingReconciliation] = useState(false);
   const PAYMENT_EPSILON = 0.01;
   const customerCategories = useMemo(
     () =>
@@ -462,6 +439,49 @@ export default function CustomerView() {
     }
   };
 
+  const buildReconciliationCustomer = (customer: Customer, invoices: StatementInvoice[]) => ({
+    id: customer.id,
+    name: customer.name || 'Без имени',
+    phone: customer.phone || undefined,
+    purchasedTotal: Number(customer.total_invoiced || 0),
+    paidTotal: Number(customer.total_paid || 0),
+    debtTotal: Math.max(0, Number(customer.balance || 0)),
+    statusLabel:
+      Number(customer.balance || 0) > PAYMENT_EPSILON
+        ? 'Есть долг'
+        : Number(customer.total_invoiced || 0) > PAYMENT_EPSILON
+          ? 'Оплачено'
+          : 'Нет операций',
+    invoices,
+  });
+
+  const handlePrintCustomerReconciliation = async (customer: Customer, invoices?: StatementInvoice[]) => {
+    try {
+      const customerInvoices =
+        invoices ||
+        (await client.get(`/customers/${customer.id}/history`)).data;
+      const normalizedInvoices = Array.isArray(customerInvoices) ? customerInvoices : [];
+
+      if (normalizedInvoices.length === 0 && Number(customer.total_invoiced || 0) <= PAYMENT_EPSILON) {
+        toast.error('У клиента пока нет накладных для акта сверки');
+        return;
+      }
+
+      const { printCustomerReconciliationBatch } = await import('../utils/print/customerInvoicePrint');
+      const result = printCustomerReconciliationBatch({
+        customers: [buildReconciliationCustomer(customer, normalizedInvoices)],
+        filterLabel: `Детальный акт: ${customer.name || 'Клиент'}`,
+        sortLabel: 'Один клиент',
+      });
+
+      if (!result.ok) {
+        toast.error('Не удалось подготовить акт сверки');
+      }
+    } catch {
+      toast.error('Не удалось подготовить акт сверки');
+    }
+  };
+
   const filteredCustomers = customers.filter((customer) =>
     (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone?.includes(searchTerm)) &&
@@ -505,6 +525,52 @@ export default function CustomerView() {
     return Number(b.invoice_count || 0) - Number(a.invoice_count || 0);
   });
 
+  const handlePrintAllReconciliation = async () => {
+    if (sortedCustomers.length === 0) {
+      toast.error('Список клиентов пуст');
+      return;
+    }
+
+    setIsPrintingReconciliation(true);
+
+    try {
+      const customersWithHistory = await Promise.all(
+        sortedCustomers.map(async (customer) => {
+          const res = await client.get(`/customers/${customer.id}/history`);
+          const invoices = Array.isArray(res.data) ? res.data : [];
+          return buildReconciliationCustomer(customer, invoices);
+        }),
+      );
+
+      const printableCustomers = customersWithHistory.filter(
+        (customer) =>
+          customer.invoices.length > 0 ||
+          Number(customer.purchasedTotal || 0) > PAYMENT_EPSILON ||
+          Number(customer.debtTotal || 0) > PAYMENT_EPSILON,
+      );
+
+      if (printableCustomers.length === 0) {
+        toast.error('Нет клиентов с накладными для акта сверки');
+        return;
+      }
+
+      const { printCustomerReconciliationBatch } = await import('../utils/print/customerInvoicePrint');
+      const result = printCustomerReconciliationBatch({
+        customers: printableCustomers,
+        filterLabel: searchTerm.trim() || segmentFilter !== 'all' ? 'Текущий фильтр клиентов' : 'Все клиенты',
+        sortLabel: 'Список клиентов',
+      });
+
+      if (!result.ok) {
+        toast.error('Не удалось подготовить акт сверки');
+      }
+    } catch {
+      toast.error('Не удалось подготовить акт сверки');
+    } finally {
+      setIsPrintingReconciliation(false);
+    }
+  };
+
   const segmentTone: Record<string, string> = {
     VIP: 'bg-violet-100 text-violet-700',
     Постоянный: 'bg-sky-100 text-sky-700',
@@ -537,17 +603,28 @@ export default function CustomerView() {
                 <h1 className="text-4xl font-medium tracking-tight text-slate-900">Клиенты</h1>
                 <p className="mt-1 text-slate-500">Только накладные формируют историю операций и баланс клиента.</p>
               </div>
-              <button
-                onClick={() => {
-                  setSelectedCustomer(null);
-                  setFormData(emptyForm);
-                  setIsModalOpen(true);
-                }}
-                className="flex items-center justify-center space-x-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition-all hover:bg-slate-800"
-              >
-                <Plus size={18} />
-                <span>Новый клиент</span>
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handlePrintAllReconciliation}
+                  disabled={isPrintingReconciliation || sortedCustomers.length === 0}
+                  className="flex items-center justify-center space-x-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Printer size={18} />
+                  <span>{isPrintingReconciliation ? 'Подготовка...' : 'Общий акт сверки'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedCustomer(null);
+                    setFormData(emptyForm);
+                    setIsModalOpen(true);
+                  }}
+                  className="flex items-center justify-center space-x-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition-all hover:bg-slate-800"
+                >
+                  <Plus size={18} />
+                  <span>Новый клиент</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2 rounded-3xl bg-slate-100 p-2">
@@ -652,14 +729,9 @@ export default function CustomerView() {
                     <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${segmentTone[customer.customer_segment || ''] || 'bg-slate-100 text-slate-600'}`}>
                       {customer.customer_segment || 'Новый'}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getCustomerEfficiencyMetrics(customer).className}`}>
-                        {getCustomerEfficiencyMetrics(customer).label}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        Накладных: {formatCount(customer.invoice_count || 0)}
-                      </span>
-                    </div>
+                    <span className="text-xs text-slate-400">
+                      Накладных: {formatCount(customer.invoice_count || 0)}
+                    </span>
                   </div>
                   {customer.last_purchase_at && (
                     <p className="mb-4 text-xs text-slate-400">
@@ -675,7 +747,7 @@ export default function CustomerView() {
                     </div>
                   </div>
 
-                  <div className="mb-6 grid grid-cols-1 gap-3 rounded-2xl bg-[#f4f5fb] p-4 lg:grid-cols-4">
+                  <div className="mb-6 grid grid-cols-1 gap-3 rounded-2xl bg-[#f4f5fb] p-4 sm:grid-cols-3">
                     <div className="min-w-0 rounded-2xl border border-sky-100 bg-sky-50 px-3 py-3">
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Накладные</p>
                       <p className="whitespace-nowrap text-[10px] leading-4 tabular-nums text-slate-900 xl:text-[11px]">{formatMoneyByRole(customer.total_invoiced, true)}</p>
@@ -688,21 +760,24 @@ export default function CustomerView() {
                       <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Долг</p>
                       <p className={`whitespace-nowrap text-[10px] leading-4 tabular-nums xl:text-[11px] ${isAdmin && customer.balance > 0 ? 'text-rose-600' : 'text-slate-900'}`}>{formatMoneyByRole(customer.balance, true)}</p>
                     </div>
-                    <div className="min-w-0 rounded-2xl border border-violet-100 bg-violet-50 px-3 py-3">
-                      <p className="mb-1 text-[9px] uppercase tracking-[0.16em] text-slate-400">Эффективность</p>
-                      <p className="whitespace-nowrap text-[10px] leading-4 tabular-nums text-violet-700 xl:text-[11px]">
-                        {isAdmin ? formatPercent(getCustomerEfficiencyMetrics(customer).paymentEfficiency, 1) : 'Скрыто'}
-                      </p>
-                    </div>
                   </div>
 
-                  <button
-                    onClick={() => openStatement(customer)}
-                    className="mt-auto flex w-full items-center justify-center space-x-2 rounded-2xl border border-violet-200 bg-violet-50 py-3 text-sm font-medium text-violet-700 transition-all hover:border-violet-300 hover:bg-violet-100"
-                  >
-                    <FileText size={16} />
-                    <span>Накладные клиента</span>
-                  </button>
+                  <div className="mt-auto grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <button
+                      onClick={() => openStatement(customer)}
+                      className="flex w-full items-center justify-center space-x-2 rounded-2xl border border-violet-200 bg-violet-50 py-3 text-sm font-medium text-violet-700 transition-all hover:border-violet-300 hover:bg-violet-100"
+                    >
+                      <FileText size={16} />
+                      <span>Накладные</span>
+                    </button>
+                    <button
+                      onClick={() => handlePrintCustomerReconciliation(customer)}
+                      className="flex w-full items-center justify-center space-x-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      <Printer size={16} />
+                      <span>Детальный акт</span>
+                    </button>
+                  </div>
                 </Card>
               </motion.div>
             ))}
@@ -896,9 +971,19 @@ export default function CustomerView() {
                       <h2 className="text-3xl font-medium tracking-tight text-slate-900">{selectedCustomer.name}</h2>
                       <p className="mt-1 text-slate-500">История и баланс строятся только по накладным.</p>
                     </div>
-                    <button onClick={closeStatementModal} className="rounded-2xl p-3 shadow-sm transition-colors hover:bg-white">
-                      <X />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePrintCustomerReconciliation(selectedCustomer, statementData)}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                      >
+                        <Printer size={16} />
+                        <span>Детальный акт</span>
+                      </button>
+                      <button onClick={closeStatementModal} className="rounded-2xl p-3 shadow-sm transition-colors hover:bg-white">
+                        <X />
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-6">
                     <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">

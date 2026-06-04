@@ -20,7 +20,7 @@ import {
   hasCustomerPurchases,
   type DebtCustomer,
 } from '../utils/customerDebt';
-import { printCustomerInvoicesBatch } from '../utils/print/customerInvoicePrint';
+import { printCustomerReconciliationBatch } from '../utils/print/customerInvoicePrint';
 
 const pageSize = 10;
 const PAYMENT_EPSILON = 0.01;
@@ -64,6 +64,7 @@ const filterTabs: Array<{ key: DebtFilter; label: string }> = [
 ];
 
 const sortOptions = [
+  { value: 'priority', label: 'Приоритет печати' },
   { value: 'debt', label: 'Сначала должники' },
   { value: 'paid', label: 'По сумме оплат' },
   { value: 'purchased', label: 'По сумме покупок' },
@@ -146,21 +147,6 @@ export default function CustomerDebtsView() {
     });
   }, [customersWithPurchases, isAdmin, searchTerm, statusFilter]);
 
-  const searchMatchedCustomers = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    return customersWithPurchases.filter((customer) => {
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      return (
-        String(customer.name || '').toLowerCase().includes(normalizedSearch) ||
-        String(customer.phone || '').includes(normalizedSearch)
-      );
-    });
-  }, [customersWithPurchases, searchTerm]);
-
   const filterCounts = useMemo(
     () => ({
       all: customersWithPurchases.length,
@@ -194,6 +180,20 @@ export default function CustomerDebtsView() {
 
       if (sortBy === 'lastPurchase') {
         return new Date(b.last_purchase_at || 0).getTime() - new Date(a.last_purchase_at || 0).getTime();
+      }
+
+      if (sortBy === 'priority') {
+        const debtDiff = getCustomerDebtTotal(b) - getCustomerDebtTotal(a);
+        if (debtDiff !== 0) {
+          return debtDiff;
+        }
+
+        const lastPurchaseDiff = new Date(b.last_purchase_at || 0).getTime() - new Date(a.last_purchase_at || 0).getTime();
+        if (lastPurchaseDiff !== 0) {
+          return lastPurchaseDiff;
+        }
+
+        return String(a.name || '').localeCompare(String(b.name || ''), 'ru');
       }
 
       const debtDiff = getCustomerDebtTotal(b) - getCustomerDebtTotal(a);
@@ -426,7 +426,7 @@ export default function CustomerDebtsView() {
   };
 
   const handlePrint = async () => {
-    if (searchMatchedCustomers.length === 0) {
+    if (sortedCustomers.length === 0) {
       toast.error('Нет клиентов для выгрузки');
       return;
     }
@@ -434,20 +434,43 @@ export default function CustomerDebtsView() {
     setIsExportingInvoices(true);
     try {
       const selectedFilter = filterTabs.find((tab) => tab.key === statusFilter)?.label || 'Все';
-      const printableCustomers = searchMatchedCustomers
-        .filter((customer) => {
-          if (statusFilter === 'all' || !isAdmin) {
-            return true;
-          }
-
-          return customerMatchesPaymentFilter(customer, statusFilter);
-        })
+      const selectedSort = sortOptions.find((option) => option.value === sortBy)?.label || 'Сортировка';
+      const histories = await Promise.allSettled(
+        sortedCustomers.map(async (customer) => ({
+          customerId: customer.id,
+          invoices: (await getCustomerHistory(customer.id)) as StatementInvoice[],
+        })),
+      );
+      const historyByCustomerId = histories.reduce<Record<number, StatementInvoice[]>>((acc, result) => {
+        if (result.status === 'fulfilled') {
+          acc[result.value.customerId] = Array.isArray(result.value.invoices) ? result.value.invoices : [];
+        }
+        return acc;
+      }, {});
+      const printableCustomers = sortedCustomers
         .map((customer) => {
+          const invoices = (historyByCustomerId[customer.id] || []).filter(
+            (invoice) => statusFilter === 'all' || getStatementInvoiceStatus(invoice) === statusFilter,
+          );
           const customerStatus = getCustomerPaymentStatus(customer);
           const purchasedTotal =
-            statusFilter === 'all' ? getCustomerPurchasedTotal(customer) : getCustomerPurchasedTotalByFilter(customer, statusFilter);
-          const paidTotal = statusFilter === 'all' ? getCustomerPaidTotal(customer) : getCustomerPaidTotalByFilter(customer, statusFilter);
-          const debtTotal = statusFilter === 'all' ? getCustomerDebtTotal(customer) : Math.max(0, purchasedTotal - paidTotal);
+            invoices.length > 0
+              ? getInvoicesNetTotal(invoices)
+              : statusFilter === 'all'
+                ? getCustomerPurchasedTotal(customer)
+                : getCustomerPurchasedTotalByFilter(customer, statusFilter);
+          const paidTotal =
+            invoices.length > 0
+              ? getInvoicesPaidTotal(invoices)
+              : statusFilter === 'all'
+                ? getCustomerPaidTotal(customer)
+                : getCustomerPaidTotalByFilter(customer, statusFilter);
+          const debtTotal =
+            invoices.length > 0
+              ? getInvoicesDebtTotal(invoices)
+              : statusFilter === 'all'
+                ? getCustomerDebtTotal(customer)
+                : Math.max(0, purchasedTotal - paidTotal);
 
           return {
             id: customer.id,
@@ -460,26 +483,28 @@ export default function CustomerDebtsView() {
               statusFilter === 'all'
                 ? customerPaymentStatusMeta[customerStatus].label
                 : getDebtFilterLabel(statusFilter),
-            invoices: [],
+            invoices,
           };
-        });
+        })
+        .filter((customer) => customer.invoices.length > 0 || customer.purchasedTotal > PAYMENT_EPSILON || customer.debtTotal > PAYMENT_EPSILON);
 
       if (printableCustomers.length === 0) {
         toast.error(`По фильтру "${selectedFilter}" список пуст`);
         return;
       }
 
-      const result = printCustomerInvoicesBatch({
+      const result = printCustomerReconciliationBatch({
         customers: printableCustomers,
         filterLabel: selectedFilter,
+        sortLabel: selectedSort,
       });
 
       if (!result.ok) {
-        toast.error('Не удалось подготовить печать списка');
+        toast.error('Не удалось подготовить акт сверки');
         return;
       }
     } catch {
-      toast.error('Не удалось подготовить список долгов');
+      toast.error('Не удалось подготовить акт сверки');
     } finally {
       setIsExportingInvoices(false);
     }
@@ -505,7 +530,7 @@ export default function CustomerDebtsView() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Printer size={18} />
-                <span>{isExportingInvoices ? 'Подготовка...' : 'Печать списка долгов'}</span>
+                <span>{isExportingInvoices ? 'Подготовка...' : 'Печать акта сверки'}</span>
               </button>
             </div>
 

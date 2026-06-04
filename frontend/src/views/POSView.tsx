@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Banknote,
   ChevronRight,
+  Maximize2,
+  Minimize2,
   Package,
   Plus,
   Receipt,
@@ -154,6 +156,49 @@ const formatStockAmount = (stock: number, packaging: PackagingOption | null, bas
   return `${extraUnits} ${normalizedBaseUnit}`;
 };
 
+const WEIGHT_TOKEN_REGEX = /(^|[\s()[\]{}.,;:+\-_/\\*xх×])(\d+(?:[.,]\d+)?)\s*(кг\.?|килограмм(?:а|ов)?|kgs?|гр\.?|г\.?|grams?|g|л\.?|литр(?:а|ов)?|l|мл\.?|ml|milliliters?)(?=$|[\s()[\]{}.,;:+\-_/\\*xх×])/giu;
+
+const getProductUnitWeightKg = (product: any) => {
+  const explicitWeight = Number(String(product?.weightKg ?? product?.unitWeightKg ?? product?.weight_kg ?? product?.unit_weight_kg ?? '').replace(',', '.'));
+  if (Number.isFinite(explicitWeight) && explicitWeight > 0) {
+    return explicitWeight;
+  }
+
+  const text = String(product?.rawName || product?.name || '');
+  let match: RegExpExecArray | null;
+  let maxWeightKg = 0;
+  WEIGHT_TOKEN_REGEX.lastIndex = 0;
+
+  while ((match = WEIGHT_TOKEN_REGEX.exec(text)) !== null) {
+    const numericValue = Number(String(match[2] || '').replace(',', '.'));
+    if (!Number.isFinite(numericValue) || numericValue <= 0) {
+      continue;
+    }
+
+    const unit = String(match[3] || '').toLowerCase();
+    const weightKg =
+      unit.startsWith('кг') || unit.startsWith('kg') || unit.startsWith('килограмм') || unit === 'л' || unit.startsWith('литр') || unit === 'l'
+        ? numericValue
+        : numericValue / 1000;
+
+    maxWeightKg = Math.max(maxWeightKg, weightKg);
+  }
+
+  return maxWeightKg;
+};
+
+const formatWeightKg = (value: unknown) => {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return '0 кг';
+  }
+
+  return `${new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  }).format(numeric)} кг`;
+};
+
 const getProductStockLabel = (product: any, fallbackBaseUnitName?: string) => {
   const packagings = normalizePackagings(product);
   const defaultPackaging = getDefaultPackaging(packagings);
@@ -227,6 +272,7 @@ export default function POSView() {
   const [discount, setDiscount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'cart'>('products');
+  const [isCartExpanded, setIsCartExpanded] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [highlightedProductId, setHighlightedProductId] = useState<number | null>(null);
   const [isStorageHydrated, setIsStorageHydrated] = useState(false);
@@ -961,6 +1007,28 @@ export default function POSView() {
   const total = normalizeMoneyValue(Math.max(0, roundMoney(subtotalAfterLineDiscount - invoiceDiscountAmount)));
   const paid = parseFloat(paidAmount) || 0;
   const balance = paid - total;
+  const cartWeightSummary = React.useMemo(
+    () =>
+      cart.reduce(
+        (summary, item) => {
+          const unitWeightKg = getProductUnitWeightKg(item);
+
+          if (unitWeightKg <= 0) {
+            return {
+              ...summary,
+              missingWeightItems: summary.missingWeightItems + 1,
+            };
+          }
+
+          return {
+            ...summary,
+            totalWeightKg: summary.totalWeightKg + unitWeightKg * Math.max(0, Number(item.quantity || 0)),
+          };
+        },
+        { totalWeightKg: 0, missingWeightItems: 0 },
+      ),
+    [cart],
+  );
 
   const handleCheckout = async () => {
     if (paid > total + 0.01) {
@@ -1137,8 +1205,13 @@ export default function POSView() {
             </button>
           </div>
 
-          <div className="grid items-stretch gap-4 lg:grid-cols-[1.55fr_0.95fr]">
-            <section className={clsx(activeTab === 'products' ? 'block lg:h-full' : 'hidden lg:block lg:h-full')}>
+          <div
+            className={clsx(
+              'grid items-stretch gap-4',
+              isCartExpanded ? 'lg:grid-cols-[minmax(0,1fr)]' : 'lg:grid-cols-[1.55fr_0.95fr]',
+            )}
+          >
+            <section className={clsx(activeTab === 'products' ? 'block lg:h-full' : 'hidden lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
               <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white bg-white shadow-sm">
                 <div className="border-b border-slate-200 px-5 py-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1319,15 +1392,35 @@ export default function POSView() {
             </section>
 
             <aside className={clsx(activeTab === 'cart' ? 'block lg:h-full' : 'hidden lg:block lg:h-full')}>
-              <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-white bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <div
+                className={clsx(
+                  'h-full rounded-3xl border border-white bg-white shadow-sm',
+                  isCartExpanded
+                    ? 'flex flex-col overflow-visible lg:grid lg:min-h-[calc(100vh-220px)] lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_auto] lg:border-b-0'
+                    : 'flex flex-col overflow-hidden',
+                )}
+              >
+                <div className={clsx('flex items-center justify-between border-b border-slate-200 px-5 py-3', isCartExpanded && 'lg:col-span-2')}>
                   <div>
                     <h2 className="text-xl font-semibold text-slate-900">Корзина</h2>
                     <p className="mt-1 text-xs text-slate-500">Выбрано позиций: {cart.length}</p>
+                    <p className="mt-1 text-xs font-semibold text-emerald-700">
+                      Масса/объем: {formatWeightKg(cartWeightSummary.totalWeightKg)}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-2 text-emerald-700">
-                    <ShoppingCart size={18} />
-                    <span className="text-xs font-semibold">{cart.length}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCartExpanded((value) => !value)}
+                      title={isCartExpanded ? 'Свернуть корзину' : 'Развернуть корзину'}
+                      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-100 bg-white text-emerald-600 transition-colors hover:bg-emerald-50"
+                    >
+                      {isCartExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                    </button>
+                    <div className="flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-2 text-emerald-700">
+                      <ShoppingCart size={18} />
+                      <span className="text-xs font-semibold">{cart.length}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -1336,6 +1429,10 @@ export default function POSView() {
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium">Сумма корзины</span>
                       <span className="text-sm font-semibold text-slate-900">{formatMoney(total)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-3">
+                      <span className="font-medium">Масса/объем</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
                     </div>
                   </div>
 
@@ -1399,7 +1496,7 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className="max-h-[38vh] overflow-y-auto px-4 md:max-h-80 md:px-5">
+                <div className={clsx('px-4 md:px-5', isCartExpanded ? 'max-h-none overflow-visible' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
                   {cart.map((item) => (
                     <div key={item.id} className="border-b border-slate-100 py-3 last:border-b-0">
                       {(() => {
@@ -1407,6 +1504,7 @@ export default function POSView() {
                         const itemLineSubtotal = getLineSubtotal(item);
                         const itemLineDiscount = getLineDiscountAmount(item);
                         const itemLineTotal = getLineTotal(item);
+                        const itemWeightKg = getProductUnitWeightKg(item) * Math.max(0, Number(item.quantity || 0));
 
                         return (
                       <div className="flex items-start gap-3">
@@ -1443,6 +1541,11 @@ export default function POSView() {
                                 <p className="text-[10px] font-medium text-slate-500">
                                   {formatMoney(item.sellingPrice)} x {item.quantity} {item.baseUnitName}
                                 </p>
+                                {itemWeightKg > 0 ? (
+                                  <p className="mt-1 text-[10px] font-semibold text-emerald-700">
+                                    Масса/объем: {formatWeightKg(itemWeightKg)}
+                                  </p>
+                                ) : null}
                               </div>
                               <div className="flex items-start gap-2">
                                 <div className="text-right">
@@ -1545,7 +1648,14 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className="sticky bottom-0 z-10 space-y-3 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:bg-white md:px-5 md:py-4">
+                <div
+                  className={clsx(
+                    'space-y-3 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:bg-white md:px-5 md:py-4',
+                    isCartExpanded
+                      ? 'lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-2 lg:border-l lg:border-t-0 lg:self-start'
+                      : 'sticky bottom-0 z-10',
+                  )}
+                >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <input
                       type="number"
@@ -1595,6 +1705,15 @@ export default function POSView() {
                       <span>Подытог</span>
                       <span className="text-slate-900">{formatMoney(subtotal)}</span>
                     </div>
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span>Масса/объем товаров</span>
+                      <span className="font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
+                    </div>
+                    {cartWeightSummary.missingWeightItems > 0 ? (
+                      <div className="text-[10px] font-medium text-amber-700">
+                        У {cartWeightSummary.missingWeightItems} поз. вес не найден в названии
+                      </div>
+                    ) : null}
                     <div className="flex items-center justify-between text-slate-500">
                       <span>Скидка по товарам</span>
                       <span className="text-slate-900">-{formatMoney(lineDiscountAmount)}</span>

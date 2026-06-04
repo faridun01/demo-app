@@ -42,6 +42,14 @@ export const addExpensePayment = async (
   return response.data;
 };
 
+export const addExpenseRefund = async (
+  id: number,
+  data: { amount: number; refundDate?: string; note?: string },
+) => {
+  const response = await client.post(`/expenses/${id}/refunds`, data);
+  return response.data;
+};
+
 export const cancelExpensePayment = async (expenseId: number, paymentId: number) => {
   const response = await client.delete(`/expenses/${expenseId}/payments/${paymentId}`);
   return response.data;
