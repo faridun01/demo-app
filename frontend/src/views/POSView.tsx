@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Maximize2,
   Minimize2,
-  Package,
   Plus,
   Receipt,
   Search,
@@ -1191,7 +1190,7 @@ export default function POSView() {
     .map((entry) => entry.customer);
 
   return (
-    <div className="min-h-full w-full bg-[#e9edf2] text-[#1f2933]">
+    <div className="h-screen w-full overflow-hidden bg-[#e9edf2] text-[#1f2933]">
         <ConfirmationModal
           isOpen={Boolean(pendingWarehouseId)}
           onClose={closeWarehouseConfirm}
@@ -1203,7 +1202,7 @@ export default function POSView() {
           type="warning"
         />
 
-      <div className="flex min-h-screen flex-col overflow-hidden border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:border-0">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:border-0">
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 md:px-4 md:py-4">
           <div className="-mx-3 -mt-3 border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 md:-mx-4 md:-mt-4">
             <h1 className="text-xl font-semibold tracking-normal text-[#1f2933] sm:text-2xl">POS Терминал</h1>
@@ -1233,11 +1232,11 @@ export default function POSView() {
 
           <div
             className={clsx(
-              'grid min-h-0 flex-1 items-stretch gap-3',
+              'grid min-h-0 flex-1 items-stretch gap-3 overflow-hidden',
               isCartExpanded ? 'lg:grid-cols-[minmax(0,1fr)]' : 'lg:grid-cols-[1.55fr_0.95fr]',
             )}
           >
-            <section className={clsx(activeTab === 'products' ? 'block lg:h-full' : 'hidden lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
+            <section className={clsx(activeTab === 'products' ? 'block min-h-0 lg:h-full' : 'hidden min-h-0 lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
               <div className="flex h-full flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm">
                 <div className="border-b border-[#b7c2ce] bg-[#eef3f8] px-4 py-3">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1417,12 +1416,12 @@ export default function POSView() {
               </div>
             </section>
 
-            <aside className={clsx(activeTab === 'cart' ? 'block lg:h-full' : 'hidden lg:block lg:h-full')}>
+            <aside className={clsx(activeTab === 'cart' ? 'block min-h-0 lg:h-full' : 'hidden min-h-0 lg:block lg:h-full')}>
               <div
                 className={clsx(
-                  'h-full rounded-md border border-[#b7c2ce] bg-white shadow-sm',
+                  'h-full min-h-0 rounded-md border border-[#b7c2ce] bg-white shadow-sm',
                   isCartExpanded
-                    ? 'flex flex-col overflow-visible lg:grid lg:h-full lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:overflow-hidden lg:border-b-0'
+                    ? 'flex flex-col overflow-hidden lg:grid lg:h-full lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:border-b-0'
                     : 'flex flex-col overflow-hidden',
                 )}
               >
@@ -1524,7 +1523,7 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'max-h-none overflow-visible lg:col-start-1 lg:row-start-3 lg:min-h-0 lg:overflow-y-auto' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
+                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'min-h-0 overflow-y-auto overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full' : 'max-h-[38vh] overflow-y-auto md:max-h-80')}>
                   {cart.map((item, index) => (
                     <div key={item.id} className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
                       {(() => {
@@ -1538,9 +1537,6 @@ export default function POSView() {
                       <div className="flex items-start gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[#c8a64a] bg-[#fff7d6] text-xs font-semibold text-[#7a5a00]">
                           {index + 1}
-                        </div>
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[#c8d2df] bg-[#f7f9fb] text-[#23527c]">
-                          <Package size={16} />
                         </div>
 
                         <div className="min-w-0 flex-1">
