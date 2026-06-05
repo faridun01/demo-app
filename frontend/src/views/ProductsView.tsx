@@ -2771,17 +2771,17 @@ export default function ProductsView() {
                     </section>
                   </div>
 
-                  <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                  <div className="-mx-3 -mb-3 flex flex-col-reverse gap-2 border-t border-[#b7c2ce] bg-[#eef3f8] px-4 py-3 sm:flex-row sm:items-center sm:justify-end">
                     <button
                       type="button"
                       onClick={closeWriteOffModal}
-                      className="rounded-2xl px-3 py-2.5 text-sm font-bold text-slate-500 transition-all hover:bg-slate-50"
+                      className="rounded border border-[#9fb7d5] bg-white px-6 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                     >
                       Отмена
                     </button>
                     <button
                       type="submit"
-                      className="rounded-2xl bg-[linear-gradient(135deg,#f59e0b_0%,#ea580c_100%)] px-6 py-3 text-sm font-black text-white shadow-[0_16px_34px_rgba(234,88,12,0.28)] transition-all hover:-translate-y-px hover:brightness-105 active:scale-[0.98]"
+                      className="rounded border border-[#8f6f18] bg-[#ffd966] px-6 py-2 text-sm font-semibold text-[#1f2933] shadow-sm transition-colors hover:bg-[#f7c948]"
                     >
                       Подтвердить списание
                     </button>
