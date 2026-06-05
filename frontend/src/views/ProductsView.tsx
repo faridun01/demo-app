@@ -1994,29 +1994,29 @@ export default function ProductsView() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeProductFormModal}
-              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/35 p-2 sm:items-center sm:p-3"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[92vh] w-full max-w-[720px] flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-2xl"
+                className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-md border border-[#9fb7d5] bg-white shadow-2xl"
               >
-                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-3.5 sm:p-4">
-                  <h3 className="text-lg font-black text-slate-900 flex items-center space-x-3">
-                    <div className="p-2 bg-violet-500 text-white rounded-xl">
+                <div className="flex items-center justify-between border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3">
+                  <h3 className="flex items-center space-x-3 text-xl font-semibold text-[#1f2933]">
+                    <div className="rounded border border-[#9fb7d5] bg-[#eaf2fb] p-2 text-[#23527c]">
                       <Package size={20} />
                     </div>
                     <span>{showEditModal ? 'Редактировать товар' : 'Новый товар'}</span>
                   </h3>
-                  <button onClick={closeProductFormModal} className="text-slate-400 hover:text-slate-600 transition-colors">
+                  <button onClick={closeProductFormModal} className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]">
                     <X size={20} />
                   </button>
                 </div>
-                <form onSubmit={showEditModal ? handleEditProduct : handleAddProduct} className="flex-1 space-y-3 overflow-y-auto p-3.5 sm:p-4">
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <form onSubmit={showEditModal ? handleEditProduct : handleAddProduct} className="flex-1 space-y-3 overflow-y-auto bg-[#f3f5f7] p-3 sm:p-4">
+                  <div className="grid grid-cols-1 gap-3 rounded border border-[#c8d2df] bg-white p-3 md:grid-cols-2">
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Название товара</label>
+                      <label className="mb-1 block text-sm font-semibold text-[#32465a]">Название товара</label>
                       <input
                         type="text"
                         required
@@ -2025,12 +2025,12 @@ export default function ProductsView() {
                           setIsCategoryManual(false);
                           setFormData({ ...formData, name: e.target.value });
                         }}
-                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                        className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                         placeholder="Напр: iPhone 15 Pro Max"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-700">Базовая единица</label>
+                      <label className="mb-1 block text-sm font-semibold text-[#32465a]">Базовая единица</label>
                       <select
                         required
                         value={formData.baseUnitName}
@@ -2042,7 +2042,7 @@ export default function ProductsView() {
                             unit: nextBaseUnit,
                           });
                         }}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                        className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                       >
                         <option value="шт">Шт</option>
                         <option value="кг">Кг</option>
@@ -2050,15 +2050,15 @@ export default function ProductsView() {
                         <option value="бутылка">Бутылка</option>
                         <option value="флакон">Флакон</option>
                       </select>
-                      <p className="mt-1 text-[11px] font-medium text-slate-400">
+                      <p className="mt-1 text-[11px] font-medium text-[#5f6f7f]">
                         Это основная единица учёта товара на складе.
                       </p>
                     </div>
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
+                    <div className="rounded border border-[#d6c07a] bg-[#fff8dc] p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-700">Упаковка</label>
-                          <p className="text-xs font-medium text-slate-500">Новые товары по умолчанию создаются в коробках или мешках. Штуки считаются автоматически.</p>
+                          <label className="mb-1 block text-sm font-semibold text-[#32465a]">Упаковка</label>
+                          <p className="text-xs font-medium text-[#5f6f7f]">Коробки или мешки помогают считать остаток и продажу понятнее.</p>
                         </div>
                         <button
                           type="button"
@@ -2071,10 +2071,10 @@ export default function ProductsView() {
                             }))
                           }
                           className={clsx(
-                            'rounded-full border px-3 py-1.5 text-xs font-bold transition-all',
+                            'rounded border px-3 py-1.5 text-xs font-semibold transition-colors',
                             formData.packagingEnabled
-                              ? 'border-amber-300 bg-amber-100 text-amber-800'
-                              : 'border-slate-200 bg-white text-slate-600'
+                              ? 'border-[#8f6f18] bg-[#ffd966] text-[#1f2933]'
+                              : 'border-[#9fb7d5] bg-white text-[#1f3f63] hover:bg-[#eaf2fb]'
                           )}
                         >
                           {formData.packagingEnabled ? 'Коробки / мешки' : 'Только шт'}
@@ -2084,18 +2084,18 @@ export default function ProductsView() {
                       {formData.packagingEnabled && (
                         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div>
-                            <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-700">Тип упаковки</label>
+                            <label className="mb-1 block text-sm font-semibold text-[#32465a]">Тип упаковки</label>
                             <select
                               value={formData.packageName}
                               onChange={(e) => setFormData({ ...formData, packageName: normalizeOcrPackageName(e.target.value) || 'коробка' })}
-                              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                              className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                             >
                               <option value="коробка">Коробка</option>
                               <option value="мешок">Мешок</option>
                             </select>
                           </div>
                           <div>
-                            <label className="mb-1 block text-[10px] font-black uppercase tracking-widest text-slate-700">
+                            <label className="mb-1 block text-sm font-semibold text-[#32465a]">
                               Сколько шт в {formData.packageName === 'мешок' ? 'мешке' : 'коробке'}
                             </label>
                             <input
@@ -2105,21 +2105,21 @@ export default function ProductsView() {
                               required={formData.packagingEnabled}
                               value={formData.unitsPerPackage}
                               onChange={(e) => setFormData({ ...formData, unitsPerPackage: e.target.value })}
-                              className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                              className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                               placeholder="Напр: 24"
                             />
                           </div>
-                          <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700">
+                          <div className="rounded border border-[#d6c07a] bg-white px-3 py-2 text-sm font-semibold text-[#1f2933] sm:col-span-2">
                             1 {formData.packageName || 'коробка'} = {Number(formData.unitsPerPackage || 0) || '...'} {normalizeDisplayBaseUnit(formData.baseUnitName || 'шт')}
                           </div>
-                          <div className="sm:col-span-2 text-[11px] font-medium text-slate-500">
+                          <div className="text-[11px] font-medium text-[#5f6f7f] sm:col-span-2">
                             При пополнении этот товар будет удобно добавляться в {formData.packageName === 'мешок' ? 'мешках' : 'коробках'}, а ниже система сама покажет итог в штуках.
                           </div>
                         </div>
                       )}
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Категория</label>
+                      <label className="mb-1 block text-sm font-semibold text-[#32465a]">Категория</label>
                       <input
                         list="product-categories"
                         required
@@ -2137,7 +2137,7 @@ export default function ProductsView() {
                             categoryId: matchedCategory?.id ? String(matchedCategory.id) : '',
                           });
                         }}
-                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                        className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                         placeholder="Выберите или введите категорию"
                       />
                       <datalist id="product-categories">
@@ -2145,17 +2145,17 @@ export default function ProductsView() {
                           <option key={category.id} value={category.name} />
                         ))}
                       </datalist>
-                      <p className="mt-1 text-[11px] font-medium text-slate-400">
+                      <p className="mt-1 text-[11px] font-medium text-[#5f6f7f]">
                         Можно выбрать из списка или сразу ввести новую категорию здесь же.
                       </p>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Склад по умолчанию</label>
+                      <label className="mb-1 block text-sm font-semibold text-[#32465a]">Склад по умолчанию</label>
                       <select
                         required
                         value={formData.warehouseId}
                         onChange={e => setFormData({ ...formData, warehouseId: e.target.value })}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                        className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                       >
                         <option value="">Выберите склад</option>
                         {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -2163,7 +2163,7 @@ export default function ProductsView() {
                     </div>
                     {isAdmin && (
                       <div>
-                        <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Себестоимость</label>
+                        <label className="mb-1 block text-sm font-semibold text-[#32465a]">Себестоимость</label>
                         <input
                           type="number"
                           step="0.01"
@@ -2171,10 +2171,10 @@ export default function ProductsView() {
                           value={formData.costPrice}
                           onChange={e => setFormData({ ...formData, costPrice: e.target.value })}
                           onBlur={e => setFormData({ ...formData, costPrice: formatPriceInput(e.target.value) })}
-                          className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                          className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                         />
                         {!showEditModal && (
-                          <p className="mt-2 text-xs font-medium text-slate-400">
+                          <p className="mt-1 text-[11px] font-medium text-[#5f6f7f]">
                             Введите себестоимость вручную.
                           </p>
                         )}
@@ -2182,19 +2182,19 @@ export default function ProductsView() {
                     )}
                     {isAdmin && (showAddModal || showEditModal) && (
                       <div>
-                        <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Расходы %</label>
+                        <label className="mb-1 block text-sm font-semibold text-[#32465a]">Расходы %</label>
                         <input
                           type="number"
                           step="0.01"
                           min="0"
                           value={formData.expensePercent}
                           onChange={e => setFormData({ ...formData, expensePercent: e.target.value })}
-                          className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                          className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                         />
                       </div>
                     )}
                     <div>
-                      <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Цена продажи</label>
+                      <label className="mb-1 block text-sm font-semibold text-[#32465a]">Цена продажи</label>
                       <input
                         type="number"
                         step="0.01"
@@ -2202,37 +2202,37 @@ export default function ProductsView() {
                         value={formData.sellingPrice}
                         onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })}
                         onBlur={e => setFormData({ ...formData, sellingPrice: formatPriceInput(e.target.value) })}
-                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                        className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                       />
                     </div>
                     {!showEditModal && (
                       <>
                         <div>
-                          <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Начальный остаток</label>
+                          <label className="mb-1 block text-sm font-semibold text-[#32465a]">Начальный остаток</label>
                           <input
                             type="number"
                             required
                             value={formData.initialStock}
                             onChange={e => setFormData({ ...formData, initialStock: e.target.value })}
-                            className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-bold outline-none transition-all focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10"
+                            className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Мин. остаток</label>
+                          <label className="mb-1 block text-sm font-semibold text-[#32465a]">Мин. остаток</label>
                           <input
                             type="number"
                             required
                             value={formData.minStock}
                             onChange={e => setFormData({ ...formData, minStock: e.target.value })}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500 transition-all font-bold text-sm"
+                            className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                           />
                         </div>
                       </>
                     )}
                     <div className="md:col-span-2">
-                      <label className="block text-[10px] font-black text-slate-700 mb-1 uppercase tracking-widest">Фото товара</label>
-                      <div className="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-sky-50 p-3 sm:flex-row sm:items-center sm:justify-between">
-                        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-sky-600">
+                      <label className="mb-1 block text-sm font-semibold text-[#32465a]">Фото товара</label>
+                      <div className="flex flex-col gap-3 rounded border border-[#c8d2df] bg-[#f7f9fb] p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded border border-[#7f9db9] bg-[#eaf2fb] px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#dbe9f6]">
                           {isPhotoUploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
                           <span>{isPhotoUploading ? 'Загрузка...' : 'Выбрать фото'}</span>
                           <input
@@ -2245,7 +2245,7 @@ export default function ProductsView() {
                         </label>
                         {formData.photoUrl && (
                           <div className="flex items-center gap-3">
-                            <div className="h-14 w-14 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                            <div className="h-14 w-14 overflow-hidden rounded border border-[#c8d2df] bg-white">
                               <img
                                 src={resolveMediaUrl(formData.photoUrl, formData.name || 'preview')}
                                 alt="Фото товара"
@@ -2257,7 +2257,7 @@ export default function ProductsView() {
                             <button
                               type="button"
                               onClick={() => setFormData((prev) => ({ ...prev, photoUrl: '' }))}
-                              className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 transition-all hover:bg-white"
+                              className="rounded border border-[#9fb7d5] bg-white px-3 py-2 text-xs font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                             >
                               Убрать фото
                             </button>
@@ -2266,9 +2266,9 @@ export default function ProductsView() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end sm:space-x-2 sm:gap-0">
-                    <button type="button" onClick={closeProductFormModal} className="px-6 py-2 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all text-sm">Отмена</button>
-                    <button type="submit" className="px-8 py-2 bg-violet-500 text-white rounded-xl font-bold shadow-xl shadow-violet-500/20 hover:bg-violet-600 transition-all active:scale-95 text-sm">
+                  <div className="-mx-3 -mb-3 flex flex-col-reverse gap-2 border-t border-[#b7c2ce] bg-[#eef3f8] px-4 py-3 sm:flex-row sm:justify-end">
+                    <button type="button" onClick={closeProductFormModal} className="rounded border border-[#9fb7d5] bg-white px-6 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]">Отмена</button>
+                    <button type="submit" className="rounded border border-[#8f6f18] bg-[#ffd966] px-8 py-2 text-sm font-semibold text-[#1f2933] shadow-sm transition-colors hover:bg-[#f7c948]">
                       {showEditModal ? 'Сохранить' : 'Создать'}
                     </button>
                   </div>
@@ -2598,72 +2598,72 @@ export default function ProductsView() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeWriteOffModal}
-              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 p-2 backdrop-blur-md sm:items-center sm:p-4"
+              className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/35 p-2 sm:items-center sm:p-3"
             >
               <motion.div
                 initial={{ scale: 0.96, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.96, opacity: 0 }}
                 onClick={(event) => event.stopPropagation()}
-                className="w-full max-w-3xl overflow-hidden rounded-t-[2rem] bg-white shadow-[0_30px_80px_rgba(15,23,42,0.24)] sm:max-h-[88vh] sm:rounded-[2rem]"
+                className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-md border border-[#9fb7d5] bg-white shadow-2xl"
               >
-                <div className="border-b border-amber-100 bg-[linear-gradient(135deg,#fff8eb_0%,#ffffff_58%,#fff4db_100%)] px-4 py-4 sm:px-6 sm:py-5">
+                <div className="border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-amber-700">
+                      <div className="inline-flex items-center gap-2 rounded border border-[#d6c07a] bg-[#fff8dc] px-2.5 py-1 text-xs font-semibold text-[#7a5a00]">
                         <Scissors size={12} />
                         <span>Списание</span>
                       </div>
-                      <h3 className="mt-3 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Списание товара</h3>
-                      <p className="mt-1 text-sm font-medium text-slate-500">
+                      <h3 className="mt-2 text-xl font-semibold text-[#1f2933]">Списание товара</h3>
+                      <p className="mt-1 text-xs font-medium text-[#5f6f7f]">
                         Быстрая складская операция по выбранному товару.
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={closeWriteOffModal}
-                      className="rounded-2xl border border-white/70 bg-white/80 p-2 text-slate-400 transition-all hover:border-slate-200 hover:text-slate-600"
+                      className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]"
                     >
                       <X size={20} />
                     </button>
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmitWriteOff} className="space-y-4 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+                <form onSubmit={handleSubmitWriteOff} className="flex-1 space-y-4 overflow-y-auto bg-[#f3f5f7] p-3 sm:p-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Товар</p>
-                      <p className="mt-2 text-[14px] font-bold leading-tight text-slate-900">
+                    <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
+                      <p className="text-[11px] font-semibold text-[#48627f]">Товар</p>
+                      <p className="mt-1 text-sm font-semibold leading-tight text-[#1f2933]">
                         {selectedWriteOffProduct ? formatProductName(selectedWriteOffProduct.name) : 'Не выбран'}
                       </p>
                     </div>
-                    <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Склад</p>
-                      <p className="mt-2 text-[14px] font-bold text-slate-900">
+                    <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
+                      <p className="text-[11px] font-semibold text-[#48627f]">Склад</p>
+                      <p className="mt-1 text-sm font-semibold text-[#1f2933]">
                         {selectedWriteOffProduct?.warehouse?.name || warehouses.find((warehouse) => warehouse.id === selectedWriteOffProduct?.warehouseId)?.name || '---'}
                       </p>
                     </div>
-                    <div className="rounded-[22px] border border-amber-200 bg-[linear-gradient(135deg,#fff8e8_0%,#fffdf8_100%)] px-4 py-3">
-                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-600">Остаток</p>
-                      <p className="mt-2 whitespace-pre-line text-[15px] font-black text-amber-900">
+                    <div className="rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2">
+                      <p className="text-[11px] font-semibold text-[#7a5a00]">Остаток</p>
+                      <p className="mt-1 whitespace-pre-line text-sm font-bold text-[#1f2933]">
                         {selectedWriteOffProduct ? getStockBreakdown(selectedWriteOffProduct).primary : '0'}
                       </p>
                       {selectedWriteOffProduct && getStockBreakdown(selectedWriteOffProduct).secondary && (
-                        <p className="mt-1 text-[11px] font-medium text-amber-700">
+                        <p className="mt-1 text-[11px] font-medium text-[#7a5a00]">
                           {getStockBreakdown(selectedWriteOffProduct).secondary}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)]">
-                    <section className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)]">
+                    <section className="rounded border border-[#c8d2df] bg-white p-3">
                       <div className="mb-3 flex items-center justify-between gap-3">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Количество</label>
-                        <span className="text-[11px] font-semibold text-slate-400">Только целое число</span>
+                        <label className="block text-sm font-semibold text-[#32465a]">Количество</label>
+                        <span className="text-[11px] font-medium text-[#5f6f7f]">Введите число или выберите быстро</span>
                       </div>
                       <div className="grid grid-cols-[minmax(0,1fr)_112px] gap-3">
-                        <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3">
+                        <div className="rounded border border-[#9fb7d5] bg-[#f7f9fb] px-3 py-2">
                           <input
                             type="number"
                             min="0.01"
@@ -2673,13 +2673,13 @@ export default function ProductsView() {
                             onChange={(event) => {
                               setWriteOffData((prev) => ({ ...prev, quantity: event.target.value }));
                             }}
-                            className="w-full bg-transparent text-[34px] font-black tracking-tight text-slate-900 outline-none"
+                            className="w-full bg-transparent text-3xl font-bold tracking-normal text-[#1f2933] outline-none"
                           />
-                          <p className="mt-1 text-[11px] font-medium text-slate-400">Количество к списанию</p>
+                          <p className="mt-1 text-[11px] font-medium text-[#5f6f7f]">Количество к списанию</p>
                         </div>
-                        <div className="rounded-[22px] border border-slate-200 bg-white px-3 py-3 text-center">
-                          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Доступно</p>
-                          <div className="mt-2 text-[34px] leading-none font-black text-slate-900">
+                        <div className="rounded border border-[#c8d2df] bg-white px-3 py-2 text-center">
+                          <p className="text-[11px] font-semibold text-[#48627f]">Доступно</p>
+                          <div className="mt-2 text-3xl font-bold leading-none text-[#1f2933]">
                             {Number(selectedWriteOffProduct.stock || 0)}
                           </div>
                         </div>
@@ -2692,10 +2692,10 @@ export default function ProductsView() {
                             type="button"
                             onClick={() => handleSetWriteOffQuantity(value)}
                             className={clsx(
-                              'rounded-full border px-3.5 py-2 text-[12px] font-bold transition-all duration-150',
+                              'rounded border px-3 py-1.5 text-xs font-semibold transition-colors',
                               Number(writeOffData.quantity || 0) === value
-                                ? 'border-amber-400 bg-[linear-gradient(135deg,#fff3c8_0%,#ffe8b2_100%)] text-amber-800 shadow-[0_8px_20px_rgba(245,158,11,0.18)]'
-                                : 'border-slate-200 bg-white text-slate-600 hover:-translate-y-px hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
+                                ? 'border-[#8f6f18] bg-[#ffd966] text-[#1f2933]'
+                                : 'border-[#9fb7d5] bg-white text-[#1f3f63] hover:bg-[#eaf2fb]'
                             )}
                           >
                             {value}
@@ -2706,10 +2706,10 @@ export default function ProductsView() {
                             type="button"
                             onClick={() => handleSetWriteOffQuantity(Number(selectedWriteOffPackaging.unitsPerPackage || 0))}
                             className={clsx(
-                              'rounded-full border px-3.5 py-2 text-[12px] font-bold transition-all duration-150',
-                              Number(writeOffData.quantity || 0) === Number(selectedWriteOffPackaging.unitsPerPackage || 0)
-                                ? 'border-amber-400 bg-[linear-gradient(135deg,#fff3c8_0%,#ffe8b2_100%)] text-amber-800 shadow-[0_8px_20px_rgba(245,158,11,0.18)]'
-                                : 'border-slate-200 bg-white text-slate-600 hover:-translate-y-px hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
+                                'rounded border px-3 py-1.5 text-xs font-semibold transition-colors',
+                                Number(writeOffData.quantity || 0) === Number(selectedWriteOffPackaging.unitsPerPackage || 0)
+                                  ? 'border-[#8f6f18] bg-[#ffd966] text-[#1f2933]'
+                                  : 'border-[#9fb7d5] bg-white text-[#1f3f63] hover:bg-[#eaf2fb]'
                             )}
                           >
                             1 {selectedWriteOffPackaging.packageName}
@@ -2719,10 +2719,10 @@ export default function ProductsView() {
                           type="button"
                           onClick={() => handleSetWriteOffQuantity(Number(selectedWriteOffProduct?.stock || 0))}
                           className={clsx(
-                            'rounded-full border px-3.5 py-2 text-[12px] font-bold transition-all duration-150',
+                            'rounded border px-3 py-1.5 text-xs font-semibold transition-colors',
                             Number(writeOffData.quantity || 0) === Number(selectedWriteOffProduct?.stock || 0)
-                              ? 'border-amber-400 bg-[linear-gradient(135deg,#fff3c8_0%,#ffe8b2_100%)] text-amber-800 shadow-[0_8px_20px_rgba(245,158,11,0.18)]'
-                              : 'border-slate-200 bg-white text-slate-600 hover:-translate-y-px hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
+                              ? 'border-[#8f6f18] bg-[#ffd966] text-[#1f2933]'
+                              : 'border-[#9fb7d5] bg-white text-[#1f3f63] hover:bg-[#eaf2fb]'
                           )}
                         >
                           Всё
@@ -2730,10 +2730,10 @@ export default function ProductsView() {
                       </div>
                     </section>
 
-                    <section className="rounded-[24px] border border-slate-200 bg-white p-4">
+                    <section className="rounded border border-[#c8d2df] bg-white p-3">
                       <div className="mb-3 flex items-center justify-between gap-3">
-                        <label className="block text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Причина списания</label>
-                        <span className="text-[11px] font-semibold text-slate-400">Выбери готовый вариант или введи свой</span>
+                        <label className="block text-sm font-semibold text-[#32465a]">Причина списания</label>
+                        <span className="text-[11px] font-medium text-[#5f6f7f]">Выберите вариант или введите свой</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         {writeOffReasonPresets.map((reason) => {
@@ -2744,10 +2744,10 @@ export default function ProductsView() {
                               type="button"
                               onClick={() => setWriteOffData((prev) => ({ ...prev, reason: reason.toLowerCase() }))}
                               className={clsx(
-                                'rounded-[18px] border px-3 py-3 text-left text-[13px] font-bold transition-all duration-150',
+                                'rounded border px-3 py-2 text-left text-sm font-medium transition-colors',
                                 isSelected
-                                  ? 'border-amber-400 bg-[linear-gradient(135deg,#fff6d9_0%,#ffe6b3_100%)] text-amber-800 shadow-[0_10px_24px_rgba(245,158,11,0.18)]'
-                                  : 'border-slate-200 bg-slate-50/70 text-slate-700 hover:-translate-y-px hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
+                                  ? 'border-[#8f6f18] bg-[#ffd966] text-[#1f2933]'
+                                  : 'border-[#9fb7d5] bg-[#f7f9fb] text-[#1f3f63] hover:bg-[#eaf2fb]'
                               )}
                             >
                               {reason}
@@ -2755,17 +2755,17 @@ export default function ProductsView() {
                           );
                         })}
                       </div>
-                      <div className="mt-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 transition-all focus-within:border-amber-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-amber-500/10">
+                      <div className="mt-3 rounded border border-[#9fb7d5] bg-white px-3 py-2 transition-colors focus-within:border-[#4f81bd]">
                         <input
                           type="text"
                           required
                           value={writeOffData.reason}
                           onChange={(event) => setWriteOffData((prev) => ({ ...prev, reason: event.target.value }))}
-                          className="w-full bg-transparent text-sm font-bold text-slate-800 outline-none"
+                          className="w-full bg-transparent text-sm font-medium text-[#1f2933] outline-none"
                           placeholder="Своя причина"
                         />
                         {isCustomWriteOffReason && (
-                          <p className="mt-1 text-[11px] font-medium text-amber-700">Используется пользовательская причина</p>
+                          <p className="mt-1 text-[11px] font-medium text-[#7a5a00]">Используется пользовательская причина</p>
                         )}
                       </div>
                     </section>

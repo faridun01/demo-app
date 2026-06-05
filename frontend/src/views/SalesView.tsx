@@ -1331,13 +1331,13 @@ export default function SalesView() {
   );
 
   return (
-    <div className="app-page-shell">
-      <div className="flex flex-col space-y-4">
-        <div className="rounded-[28px] border border-slate-100 bg-white/95 px-4 py-4 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.18)] sm:px-5">
+    <div className="min-h-full bg-[#e9edf2] px-3 py-3 text-[#1f2933] md:px-4">
+      <div className="flex flex-col gap-3">
+        <div className="rounded-md border border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-4xl font-medium tracking-tight text-slate-900">Продажи</h1>
-          <p className="mt-1 text-slate-500">Управление накладными и заказами клиентов.</p>
+          <h1 className="text-2xl font-semibold tracking-normal text-[#1f2933]">Продажи</h1>
+          <p className="mt-0.5 text-xs text-[#5f6f7f]">Управление накладными и заказами клиентов.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-4 mr-4">
@@ -1352,14 +1352,14 @@ export default function SalesView() {
             value={selectedWarehouseId}
             onChange={(e) => setSelectedWarehouseId(e.target.value)}
             disabled={!isAdmin}
-            className="min-w-[200px] rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-2.5 text-sm font-medium text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white"
+            className="min-w-[200px] rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
           >
             <option value="">Все склады</option>
             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
           <button 
             onClick={() => navigate('/pos')}
-            className="flex items-center space-x-2 rounded-2xl bg-slate-800 px-5 py-2.5 text-sm font-medium text-white transition-all hover:bg-slate-700"
+            className="flex items-center space-x-2 rounded border border-[#7f9db9] bg-[#eaf2fb] px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#dbeafd]"
           >
             <Plus size={18} />
             <span>Новая продажа</span>
@@ -1370,11 +1370,11 @@ export default function SalesView() {
       </div>
         </div>
 
-      <div className="mt-1 flex flex-col overflow-hidden rounded-[28px] border border-slate-100 bg-white/95 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.18)] md:min-h-[860px]">
-        <div className="flex flex-col gap-3 border-b border-slate-100 bg-[#fbfcfe] p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mt-1 flex flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm md:min-h-[760px]">
+        <div className="flex flex-col gap-3 border-b border-[#b7c2ce] bg-[#eef3f8] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-semibold text-slate-900">Накладные</h2>
-            <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+            <h2 className="text-lg font-semibold text-[#1f2933]">Накладные</h2>
+            <span className="inline-flex items-center rounded border border-[#9fb7d5] bg-white px-2.5 py-1 text-xs font-semibold text-[#23527c]">
               {formatCount(invoices.length)}
             </span>
           </div>
@@ -1385,16 +1385,16 @@ export default function SalesView() {
               placeholder="Поиск по ID или клиенту..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-11 pr-4 text-sm font-medium text-slate-600 outline-none transition-all focus:border-slate-300 focus:bg-white"
+              className="w-full rounded border border-[#9fb7d5] bg-white py-2.5 pl-11 pr-4 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
             />
           </div>
         </div>
 
-        <div className="grid gap-3 border-b border-slate-100 bg-white px-4 py-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-4 py-3 md:grid-cols-2 xl:grid-cols-5">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white"
+            className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
           >
             <option value="all">Все статусы</option>
             <option value="paid">Оплачено</option>
@@ -1405,7 +1405,7 @@ export default function SalesView() {
           <select
             value={staffFilter}
             onChange={(e) => setStaffFilter(e.target.value)}
-            className="w-full rounded-2xl border border-slate-200 bg-[#f7f8fc] px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-slate-400 focus:bg-white"
+            className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
           >
             <option value="all">Все сотрудники</option>
             {staffOptions.map((staffName) => (
@@ -1415,7 +1415,7 @@ export default function SalesView() {
             ))}
           </select>
 
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#f7f8fc] px-3 py-3">
+          <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2">
             <Calendar size={16} className="text-slate-400" />
             <input
               type="date"
@@ -1425,7 +1425,7 @@ export default function SalesView() {
             />
           </div>
 
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#f7f8fc] px-3 py-3">
+          <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2">
             <Calendar size={16} className="text-slate-400" />
             <input
               type="date"
@@ -1438,7 +1438,7 @@ export default function SalesView() {
           <button
             type="button"
             onClick={clearInvoiceFilters}
-            className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50"
+            className="rounded border border-[#9fb7d5] bg-white px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
           >
             Сбросить фильтры
           </button>
@@ -1587,9 +1587,9 @@ export default function SalesView() {
         </div>
 
         <div className="hidden min-h-[560px] flex-1 overflow-x-auto md:block">
-          <table className="w-full border-collapse text-left [&_th]:px-4 [&_th]:py-3 [&_td]:px-4 [&_td]:py-3 [&_th]:text-[10px] [&_th]:tracking-[0.14em]">
+          <table className="w-full border-collapse text-left text-[12px] [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2">
             <thead>
-              <tr className="bg-[#fafbfe] text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+              <tr className="border-b border-[#b7c2ce] bg-[#dbe5f1] text-[12px] font-semibold text-[#32465a]">
                 {isAdmin && <th className="px-4 py-3">{renderSortLabel('ID', 'id')}</th>}
                 <th className="px-4 py-3">{renderSortLabel("Дата", "createdAt")}</th>
                 <th className="px-4 py-3">{renderSortLabel("Клиент", "customer_name")}</th>
@@ -1599,10 +1599,10 @@ export default function SalesView() {
                 <th className="px-4 py-3">{renderSortLabel("Остаток", "balance")}</th>
                 <th className="px-4 py-3">{renderSortLabel("Статус", "status")}</th>
                 <th className="px-4 py-3">{renderSortLabel("Сотрудник", "staff_name")}</th>
-                <th className="px-4 py-3 text-right">Действия</th>
+                <th className="px-2 py-2 text-center">Действия</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#d5dde6]">
               {paginatedInvoices.map((inv) => {
                 const paymentDisabled = isPaymentActionDisabled(inv);
                 const returnDisabled = isReturnActionDisabled(inv);
@@ -1614,19 +1614,19 @@ export default function SalesView() {
                 <tr
                   key={inv.id}
                   onClick={() => fetchInvoiceDetails(inv.id)}
-                  className="cursor-pointer transition-all duration-300 hover:bg-[#fafbfe]"
+                  className="cursor-pointer transition-colors even:bg-[#fbfcfd] hover:bg-[#fff8dc]"
                 >
-                  {isAdmin && <td className="px-4 py-3 text-sm text-slate-400">#{inv.id}</td>}
-                  <td className="px-4 py-3 text-sm text-slate-500">
+                  {isAdmin && <td className="px-2 py-2 text-sm font-semibold text-[#23527c]">#{inv.id}</td>}
+                  <td className="px-2 py-2 text-sm text-[#48627f]">
                     {new Date(inv.createdAt).toLocaleDateString('ru-RU')}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{inv.customer_name}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{formatMoney(getInvoiceNetAmount(inv))}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-2 py-2 text-sm text-[#1f2933]">{inv.customer_name}</td>
+                  <td className="px-2 py-2 text-sm font-medium tabular-nums text-[#1f2933]">{formatMoney(getInvoiceNetAmount(inv))}</td>
+                  <td className="px-2 py-2 text-sm">
                     {hasReturns ? (
-                      <div className="inline-flex flex-col rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2">
-                        <span className="font-black text-rose-600">-{formatMoney(returnedAmount)}</span>
-                        <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">
+                      <div className="inline-flex flex-col rounded border border-[#d6c07a] bg-[#fff8dc] px-2 py-1">
+                        <span className="font-semibold text-[#8a1f2d]">-{formatMoney(returnedAmount)}</span>
+                        <span className="mt-0.5 text-[10px] font-medium text-[#7a5a00]">
                           {returnedItemsCount > 0 ? `${formatCount(returnedItemsCount)} поз.` : 'возврат'}
                         </span>
                       </div>
@@ -1634,12 +1634,12 @@ export default function SalesView() {
                       <span className="text-slate-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-emerald-500">{formatMoney(getInvoiceAppliedPaidAmount(inv))}</td>
-                  <td className="px-4 py-3 text-sm text-rose-500">{formatMoney(getInvoiceBalance(inv))}</td>
-                  <td className="px-4 py-3">{getStatusBadge(getEffectiveStatus(inv), inv.cancelled)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-500">{inv.staff_name}</td>
-                  <td className="px-4 py-3 text-right align-middle">
-                    <div className={`ml-auto grid gap-2 ${isAdmin ? 'w-[136px] grid-cols-3' : 'w-[90px] grid-cols-2'}`}>
+                  <td className="px-2 py-2 text-sm font-medium tabular-nums text-[#007a4d]">{formatMoney(getInvoiceAppliedPaidAmount(inv))}</td>
+                  <td className="px-2 py-2 text-sm font-medium tabular-nums text-[#8a1f2d]">{formatMoney(getInvoiceBalance(inv))}</td>
+                  <td className="px-2 py-2">{getStatusBadge(getEffectiveStatus(inv), inv.cancelled)}</td>
+                  <td className="px-2 py-2 text-sm text-[#48627f]">{inv.staff_name}</td>
+                  <td className="px-2 py-2 text-center align-middle">
+                    <div className={`ml-auto grid gap-1 ${isAdmin ? 'w-[118px] grid-cols-3' : 'w-[78px] grid-cols-2'}`}>
                       {isAdmin && (
                         <>
                         <button 
@@ -1651,10 +1651,10 @@ export default function SalesView() {
                             setShowPaymentModal(true);
                           }}
                           disabled={paymentDisabled}
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all ${
+                          className={`flex h-8 w-8 items-center justify-center rounded border transition-colors ${
                             paymentDisabled
-                              ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
-                              : 'border-slate-200 bg-white text-emerald-500 hover:border-emerald-100 hover:bg-emerald-50'
+                              ? 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
+                              : 'border-[#9fb7d5] bg-white text-[#007a4d] hover:bg-[#effaf5]'
                           }`}
                           title="Принять оплату"
                         >
@@ -1666,10 +1666,10 @@ export default function SalesView() {
                             void openReturnInvoiceModal(inv);
                           }}
                           disabled={returnDisabled}
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all ${
+                          className={`flex h-8 w-8 items-center justify-center rounded border transition-colors ${
                             returnDisabled
-                              ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
-                              : 'border-slate-200 bg-white text-amber-500 hover:border-amber-100 hover:bg-amber-50'
+                              ? 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
+                              : 'border-[#d6c07a] bg-white text-[#7a5a00] hover:bg-[#fff8dc]'
                           }`}
                           title="Возврат"
                         >
@@ -1682,10 +1682,10 @@ export default function SalesView() {
                             openEditInvoiceModal(inv);
                           }}
                           disabled={!canEditInvoice(inv)}
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all ${
+                          className={`flex h-8 w-8 items-center justify-center rounded border transition-colors ${
                             canEditInvoice(inv)
-                              ? 'border-slate-200 bg-white text-violet-500 hover:border-violet-100 hover:bg-violet-50'
-                              : 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+                              ? 'border-[#9fb7d5] bg-white text-[#23527c] hover:bg-[#eaf2fb]'
+                              : 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
                           }`}
                           title={canEditInvoice(inv) ? 'Изменить продажу' : getEditBlockedReason(inv)}
                         >
@@ -1698,7 +1698,7 @@ export default function SalesView() {
                           e.stopPropagation();
                           fetchInvoiceDetails(inv.id);
                         }}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:border-sky-100 hover:bg-sky-50 hover:text-sky-500" 
+                        className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]" 
                         title="Просмотр"
                       >
                         <Eye size={16} />
@@ -1708,7 +1708,7 @@ export default function SalesView() {
                           e.stopPropagation();
                           handleQuickPrintInvoice(inv.id);
                         }}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-indigo-500 transition-all hover:border-indigo-100 hover:bg-indigo-50" 
+                        className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]" 
                         title="Печать"
                       >
                         <Printer size={16} />
@@ -1719,7 +1719,7 @@ export default function SalesView() {
                             e.stopPropagation();
                             handleDeleteInvoice(inv.id);
                           }}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:border-rose-100 hover:bg-rose-50 hover:text-rose-500" 
+                          className="flex h-8 w-8 items-center justify-center rounded border border-[#d89aa2] bg-white text-[#8a1f2d] transition-colors hover:bg-[#fff0f1]" 
                           title="Удалить"
                         >
                           <Trash2 size={16} />
@@ -1764,17 +1764,17 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={closeDetailsModal}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/35 p-2 sm:items-center sm:p-3"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[92vh] md:rounded-[2.5rem]"
+              className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-md border border-[#9fb7d5] bg-white shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 md:p-8">
+              <div className="flex items-center justify-between border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3">
                 <div className="flex items-center space-x-4">
-                  <div className="rounded-2xl bg-indigo-600 p-2.5 text-white md:p-3">
+                  <div className="rounded border border-[#9fb7d5] bg-[#eaf2fb] p-2 text-[#23527c]">
                     <Receipt size={24} />
                   </div>
                   <div>
@@ -1782,31 +1782,31 @@ export default function SalesView() {
                     <p className="text-slate-500 font-bold">{new Date(selectedInvoice.createdAt).toLocaleString('ru-RU')}</p>
                   </div>
                 </div>
-                <button onClick={closeDetailsModal} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <button onClick={closeDetailsModal} className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]">
                   <X size={24} />
                 </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-4 space-y-5 md:p-8 md:space-y-8">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-6">
-                  <div className="rounded-[22px] bg-slate-50 p-4 md:rounded-3xl md:p-6">
-                    <div className="flex items-center space-x-3 text-slate-400 mb-4">
+              <div className="flex-1 space-y-4 overflow-y-auto bg-[#f3f5f7] p-3 md:p-4">
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                  <div className="rounded border border-[#c8d2df] bg-white p-3">
+                    <div className="mb-2 flex items-center space-x-2 text-[#48627f]">
                       <UserIcon size={18} />
                       <span className="text-[10px] font-black uppercase tracking-widest">Клиент</span>
                     </div>
                     <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name}</p>
                     <p className="text-sm font-bold text-slate-500 mt-1">{selectedInvoice.customer_phone || 'Нет телефона'}</p>
                   </div>
-                  <div className="rounded-[22px] bg-slate-50 p-4 md:rounded-3xl md:p-6">
-                    <div className="flex items-center space-x-3 text-slate-400 mb-4">
+                  <div className="rounded border border-[#c8d2df] bg-white p-3">
+                    <div className="mb-2 flex items-center space-x-2 text-[#48627f]">
                       <WarehouseIcon size={18} />
                       <span className="text-[10px] font-black uppercase tracking-widest">Склад</span>
                     </div>
                     <p className="text-lg font-black text-slate-900">{selectedInvoice.warehouse?.name}</p>
                     <p className="text-sm font-bold text-slate-500 mt-1">{selectedInvoice.warehouse?.address || '---'}</p>
                   </div>
-                  <div className="rounded-[22px] bg-slate-50 p-4 md:rounded-3xl md:p-6">
-                    <div className="flex items-center space-x-3 text-slate-400 mb-4">
+                  <div className="rounded border border-[#c8d2df] bg-white p-3">
+                    <div className="mb-2 flex items-center space-x-2 text-[#48627f]">
                       <Clock size={18} />
                       <span className="text-[10px] font-black uppercase tracking-widest">Статус</span>
                     </div>
@@ -1815,9 +1815,9 @@ export default function SalesView() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">Товары</h4>
-                  <div className="overflow-hidden rounded-[22px] border border-slate-100 bg-white md:rounded-3xl">
+                <div className="space-y-2">
+                  <h4 className="ml-1 text-sm font-semibold text-[#32465a]">Товары</h4>
+                  <div className="overflow-hidden rounded border border-[#b7c2ce] bg-white">
                     <div className="space-y-3 p-3 md:hidden">
                       {selectedInvoice.items.map((item: any) => {
                         const quantityInfo = getInvoiceItemQuantityParts(item);
@@ -1854,16 +1854,16 @@ export default function SalesView() {
                         );
                       })}
                     </div>
-                    <table className="hidden w-full text-left md:table">
+                    <table className="hidden w-full border-collapse text-left text-sm md:table">
                       <thead>
-                        <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
-                          <th className="px-6 py-4">Товар</th>
-                          <th className="px-6 py-4">Кол-во</th>
-                          <th className="px-6 py-4">Цена</th>
-                          <th className="px-6 py-4 text-right">Итого</th>
+                        <tr className="border-b border-[#b7c2ce] bg-[#dbe5f1] text-[12px] font-semibold text-[#32465a]">
+                          <th className="px-3 py-2">Товар</th>
+                          <th className="px-3 py-2">Кол-во</th>
+                          <th className="px-3 py-2">Цена</th>
+                          <th className="px-3 py-2 text-right">Итого</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-50">
+                      <tbody className="divide-y divide-[#d5dde6]">
                         {selectedInvoice.items.map((item: any) => {
                           const quantityInfo = getInvoiceItemQuantityParts(item);
                           const returnedQty = getInvoiceItemReturnedQty(item);
@@ -1871,7 +1871,7 @@ export default function SalesView() {
 
                           return (
                             <tr key={item.id}>
-                              <td className="px-6 py-4">
+                              <td className="px-3 py-2">
                                 <p className="font-black text-slate-900">{formatProductName(item.product_name)}</p>
                                 {item.saleAllocations && item.saleAllocations.length > 0 && (
                                   <div className="mt-1 flex flex-wrap gap-1">
@@ -1883,7 +1883,7 @@ export default function SalesView() {
                                   </div>
                                 )}
                               </td>
-                              <td className="whitespace-nowrap px-6 py-4 text-[11px] text-slate-500">
+                              <td className="whitespace-nowrap px-3 py-2 text-[11px] text-slate-500">
                                 <p className="whitespace-nowrap text-xs font-semibold text-slate-700">{quantityInfo.primary}</p>
                                 {quantityInfo.secondary && (
                                   <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">{quantityInfo.secondary}</p>
@@ -1895,8 +1895,8 @@ export default function SalesView() {
                                   </div>
                                 )}
                               </td>
-                              <td className="px-6 py-4 font-bold text-slate-500">{formatMoney(item.sellingPrice)}</td>
-                              <td className="px-6 py-4 text-right font-black text-slate-900">{formatMoney(item.totalPrice)}</td>
+                              <td className="px-3 py-2 font-medium tabular-nums text-[#48627f]">{formatMoney(item.sellingPrice)}</td>
+                              <td className="px-3 py-2 text-right font-semibold tabular-nums text-[#1f2933]">{formatMoney(item.totalPrice)}</td>
                             </tr>
                           );
                         })}
@@ -1906,8 +1906,8 @@ export default function SalesView() {
                 </div>
 
                 <div className="flex justify-end">
-                  <div className="w-full max-w-xs space-y-3">
-                    <div className="flex items-center justify-between text-sm text-slate-500">
+                  <div className="w-full max-w-sm space-y-2 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-3">
+                    <div className="flex items-center justify-between text-sm text-[#48627f]">
                       <span className="font-bold">Подытог:</span>
                       <span className="font-black">{formatMoney(getInvoiceSubtotal(selectedInvoice))}</span>
                     </div>
@@ -1927,11 +1927,11 @@ export default function SalesView() {
                         <span className="font-black">-{formatMoney(selectedInvoice.returnedAmount || 0)}</span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xl font-black text-slate-900 md:text-2xl">
+                    <div className="flex items-center justify-between border-t border-[#d6c07a] pt-2 text-lg font-semibold text-[#1f2933]">
                       <span>Итого:</span>
                       <span>{formatMoney(getInvoiceNetAmount(selectedInvoice))}</span>
                     </div>
-                    <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-slate-500">
+                    <div className="flex items-center justify-between border-t border-[#d6c07a] pt-2 text-sm text-[#48627f]">
                       <span className="font-bold">Оплачено:</span>
                       <span className="font-black text-emerald-600">{formatMoney(getInvoiceAppliedPaidAmount(selectedInvoice))}</span>
                     </div>
@@ -2038,7 +2038,7 @@ export default function SalesView() {
                 )}
               </div>
               
-              <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 bg-slate-50 p-4 md:p-8">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-[#b7c2ce] bg-[#eef3f8] px-4 py-3">
                 <button
                     onClick={() => {
                       if (isPaymentActionDisabled(selectedInvoice)) return;
@@ -2046,10 +2046,10 @@ export default function SalesView() {
                       setShowPaymentModal(true);
                     }}
                     disabled={isPaymentActionDisabled(selectedInvoice)}
-                    className={`inline-flex items-center gap-2 rounded-2xl border px-6 py-3 text-sm font-bold transition-all md:px-8 md:py-4 ${
+                    className={`inline-flex items-center gap-2 rounded border px-4 py-2 text-sm font-medium transition-colors ${
                       isPaymentActionDisabled(selectedInvoice)
-                        ? 'cursor-not-allowed border-slate-100 bg-slate-100 text-slate-300'
-                        : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        ? 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
+                        : 'border-[#a9d8c7] bg-white text-[#007a4d] hover:bg-[#effaf5]'
                     }`}
                   >
                     <Banknote size={18} />
@@ -2060,10 +2060,10 @@ export default function SalesView() {
                       void openReturnInvoiceModal(selectedInvoice);
                     }}
                     disabled={isReturnActionDisabled(selectedInvoice)}
-                    className={`inline-flex items-center gap-2 rounded-2xl border px-6 py-3 text-sm font-bold transition-all md:px-8 md:py-4 ${
+                    className={`inline-flex items-center gap-2 rounded border px-4 py-2 text-sm font-medium transition-colors ${
                       isReturnActionDisabled(selectedInvoice)
-                        ? 'cursor-not-allowed border-slate-100 bg-slate-100 text-slate-300'
-                        : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                        ? 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
+                        : 'border-[#d6c07a] bg-white text-[#7a5a00] hover:bg-[#fff8dc]'
                     }`}
                   >
                     <RotateCcw size={18} />
@@ -2071,14 +2071,14 @@ export default function SalesView() {
                   </button>
                 <button
                   onClick={() => handlePrintInvoice(selectedInvoice)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-6 py-3 text-sm font-bold text-indigo-700 transition-all hover:bg-indigo-100 md:px-8 md:py-4"
+                  className="inline-flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-4 py-2 text-sm font-medium text-[#23527c] transition-colors hover:bg-[#eaf2fb]"
                 >
                   <Printer size={18} />
                   <span>Печать</span>
                 </button>
                 <button 
                   onClick={closeDetailsModal}
-                  className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition-all hover:bg-slate-50 md:px-10 md:py-4"
+                  className="rounded border border-[#9fb7d5] bg-white px-5 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                 >
                   Закрыть
                 </button>
@@ -2095,36 +2095,36 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={closeEditModal}
-            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/35 p-2 sm:items-center sm:p-3"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[2.5rem]"
+              className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-md border border-[#9fb7d5] bg-white shadow-2xl sm:max-h-[92vh]"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
+              <div className="flex items-center justify-between border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3">
                 <div className="flex items-center space-x-4">
-                  <div className="rounded-2xl bg-violet-600 p-3 text-white">
+                  <div className="rounded border border-[#9fb7d5] bg-[#eaf2fb] p-2 text-[#23527c]">
                     <Pencil size={24} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-slate-900">Изменить продажу</h3>
-                    <p className="text-sm font-bold text-slate-500">Накладная #{selectedInvoice.id}</p>
+                    <h3 className="text-xl font-semibold text-[#1f2933]">Изменить продажу</h3>
+                    <p className="text-xs font-medium text-[#5f6f7f]">Накладная #{selectedInvoice.id}</p>
                   </div>
                 </div>
-                <button onClick={closeEditModal} className="text-slate-400 transition-colors hover:text-slate-600">
+                <button onClick={closeEditModal} className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]">
                   <X size={24} />
                 </button>
               </div>
 
-              <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:space-y-6 sm:p-8">
-                <div>
-                  <label className="ml-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Клиент</label>
+              <div className="flex-1 space-y-4 overflow-y-auto bg-[#f3f5f7] p-3 sm:p-4">
+                <div className="rounded border border-[#c8d2df] bg-white p-3">
+                  <label className="ml-1 text-sm font-semibold text-[#32465a]">Клиент</label>
                   <select
                     value={editCustomerId}
                     onChange={(e) => setEditCustomerId(e.target.value ? Number(e.target.value) : '')}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                    className="mt-2 w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                   >
                     <option value="">Без названия</option>
                     {customers.map((customer) => (
@@ -2133,20 +2133,20 @@ export default function SalesView() {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-3 text-sm text-slate-500">
-                    При смене клиента переносится только текущая накладная (и ее оплаты/возвраты).
+                  <p className="mt-2 text-xs text-[#5f6f7f]">
+                    При смене клиента переносится только текущая накладная, ее оплаты и возвраты.
                   </p>
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Товары в накладной</p>
-                      <p className="mt-1 text-sm text-slate-500">Удалите неверную строку, выберите другой товар и сохраните накладную.</p>
+                      <p className="text-sm font-semibold text-[#32465a]">Товары в накладной</p>
+                      <p className="mt-1 text-xs text-[#5f6f7f]">Проверьте строки, количество, цену и скидку перед сохранением.</p>
                     </div>
                     <button
                       type="button"
                       onClick={addEditInvoiceItem}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition-all hover:bg-violet-50"
+                      className="inline-flex items-center gap-2 rounded border border-[#7f9db9] bg-[#eaf2fb] px-3 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#dbe9f6]"
                     >
                       <Plus size={16} />
                       <span>Добавить товар</span>
@@ -2154,13 +2154,13 @@ export default function SalesView() {
                   </div>
 
                   <div className="relative">
-                    <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#48627f]" />
                     <input
                       type="text"
                       value={editInvoiceSearch}
                       onChange={(e) => setEditInvoiceSearch(e.target.value)}
                       placeholder="Поиск товара внутри накладной..."
-                      className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                      className="w-full rounded border border-[#9fb7d5] bg-white py-2 pl-10 pr-3 text-sm text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                     />
                   </div>
 
@@ -2191,17 +2191,17 @@ export default function SalesView() {
                       return (
                         <div
                           key={item.key}
-                          className={`rounded-3xl border p-3.5 shadow-sm transition-all ${
+                          className={`rounded border p-3 shadow-sm transition-colors ${
                             item.isNew
-                              ? 'border-violet-200 bg-violet-50/60 shadow-violet-100'
-                              : 'border-slate-200 bg-white'
+                              ? 'border-[#9fb7d5] bg-[#f7fbff]'
+                              : 'border-[#b7c2ce] bg-white'
                           }`}
                         >
                           <div className="mb-2.5 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
-                              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Строка #{index + 1}</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#48627f]">Строка #{index + 1}</p>
                               {item.isNew ? (
-                                <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-violet-700">
+                                <span className="rounded border border-[#9fb7d5] bg-[#eaf2fb] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#23527c]">
                                   Новая
                                 </span>
                               ) : null}
@@ -2210,7 +2210,7 @@ export default function SalesView() {
                               type="button"
                               onClick={() => removeEditInvoiceItem(item.key)}
                               disabled={editInvoiceItems.length === 1}
-                              className="inline-flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded border border-[#d6a1a1] bg-[#fff1f1] px-3 py-1.5 text-xs font-medium text-[#9f1239] transition-colors hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Trash2 size={14} />
                               <span>Убрать</span>
@@ -2219,7 +2219,7 @@ export default function SalesView() {
 
                           <div className="space-y-3">
                             <div className="space-y-2">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Товар</p>
+                              <p className="text-xs font-semibold text-[#48627f]">Товар</p>
                               <div className="relative">
                                   <button
                                     type="button"
@@ -2230,29 +2230,29 @@ export default function SalesView() {
                                         return nextKey;
                                       });
                                     }}
-                                    className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 transition-all hover:border-violet-200 focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                                    className="flex w-full items-center justify-between rounded border border-[#9fb7d5] bg-white px-3 py-2 text-left text-sm text-[#1f2933] transition-colors hover:bg-[#f7fbff] focus:border-[#4f81bd]"
                                   >
                                   <span className="truncate">
                                     {selectedProduct ? formatProductName(selectedProduct.name) : 'Выберите товар из списка'}
                                   </span>
-                                  <ChevronDown size={18} className="shrink-0 text-slate-400" />
+                                  <ChevronDown size={18} className="shrink-0 text-[#48627f]" />
                                 </button>
 
                                 {openEditProductMenuKey === item.key ? (
-                                  <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10">
-                                    <div className="border-b border-slate-100 p-3">
+                                  <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded border border-[#9fb7d5] bg-white shadow-2xl shadow-slate-900/10">
+                                    <div className="border-b border-[#c8d2df] bg-[#eef3f8] p-2">
                                       <div className="relative">
-                                        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#48627f]" />
                                         <input
                                           type="text"
                                           value={editProductMenuSearch}
                                           onChange={(e) => setEditProductMenuSearch(e.target.value)}
                                           placeholder="Поиск товара..."
-                                          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none transition-all focus:border-violet-300 focus:bg-white"
+                                          className="w-full rounded border border-[#9fb7d5] bg-white py-2 pl-9 pr-3 text-sm text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                         />
                                       </div>
                                     </div>
-                                    <div className="max-h-64 overflow-y-auto py-2">
+                                    <div className="max-h-64 overflow-y-auto py-1">
                                       {visibleEditProducts
                                         .map((product, productIndex) => {
                                           const stockInfo = getProductStockParts(product as EditProductOption);
@@ -2266,16 +2266,16 @@ export default function SalesView() {
                                                 setOpenEditProductMenuKey(null);
                                                 setEditProductMenuSearch('');
                                               }}
-                                              className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-all hover:bg-slate-50"
+                                              className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fff8dc]"
                                             >
                                               <div className="min-w-0">
-                                                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">#{productIndex + 1}</p>
-                                                <p className="truncate text-sm font-bold text-slate-900">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7d90]">#{productIndex + 1}</p>
+                                                <p className="truncate text-sm font-semibold text-[#1f2933]">
                                                   {formatProductName(product.name)}
                                                 </p>
-                                                <p className="mt-1 text-xs font-medium text-slate-600">{stockInfo.primary}</p>
+                                                <p className="mt-1 text-xs font-medium text-[#48627f]">{stockInfo.primary}</p>
                                                 {stockInfo.secondary && (
-                                                  <p className="mt-0.5 text-[10px] text-slate-400">{stockInfo.secondary}</p>
+                                                  <p className="mt-0.5 text-[10px] text-[#6b7d90]">{stockInfo.secondary}</p>
                                                 )}
                                               </div>
                                             </button>
@@ -2292,15 +2292,15 @@ export default function SalesView() {
                               </div>
                             </div>
 
-                            <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                              <p className={`break-words text-sm font-semibold leading-6 ${selectedProduct ? 'text-slate-900' : 'text-violet-700'}`}>
+                            <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
+                              <p className={`break-words text-sm font-semibold leading-5 ${selectedProduct ? 'text-[#1f2933]' : 'text-[#23527c]'}`}>
                                 {selectedProduct ? formatProductName(selectedProduct.name) : 'Сначала выберите товар, потом укажите тип продажи и количество'}
                               </p>
                             </div>
 
                             <div className="space-y-2">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Тип продажи и количество</p>
-                              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                              <p className="text-xs font-semibold text-[#48627f]">Тип продажи и количество</p>
+                              <div className="rounded border border-[#c8d2df] bg-[#eef3f8] p-2">
                                 <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_1.1fr]">
                                   <select
                                     value={item.selectedPackagingId ? 'bulk' : 'piece'}
@@ -2314,14 +2314,14 @@ export default function SalesView() {
                                       });
                                     }}
                                     disabled={!selectedProduct}
-                                    className="w-full rounded-2xl border border-white bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                                    className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                   >
                                     <option value="piece">Розница</option>
                                     {getEditItemDefaultBulkPackaging(item) ? (
                                       <option value="bulk">Оптом</option>
                                     ) : null}
                                   </select>
-                                  <div className="flex items-center rounded-2xl bg-white px-4 py-3 text-xs font-semibold leading-5 text-slate-500">
+                                  <div className="flex items-center rounded border border-[#c8d2df] bg-white px-3 py-2 text-xs font-medium leading-5 text-[#5f6f7f]">
                                     {!selectedProduct
                                       ? 'Выберите товар, чтобы появился режим продажи'
                                       : item.selectedPackagingId && getEditItemPackaging(item)
@@ -2341,7 +2341,7 @@ export default function SalesView() {
                                       onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { packageQuantityInput: e.target.value })}
                                       placeholder="Кол-во упаковок"
                                       disabled={!selectedProduct}
-                                      className="rounded-2xl border border-white bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                                      className="rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                     />
                                     <input
                                       type="number"
@@ -2352,7 +2352,7 @@ export default function SalesView() {
                                       onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { extraUnitQuantityInput: e.target.value })}
                                       placeholder="+ шт"
                                       disabled={!selectedProduct}
-                                      className="rounded-2xl border border-white bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                                      className="rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                     />
                                   </>
                                 ) : (
@@ -2365,7 +2365,7 @@ export default function SalesView() {
                                     onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { extraUnitQuantityInput: e.target.value })}
                                     placeholder="Кол-во, шт"
                                     disabled={!selectedProduct}
-                                    className="sm:col-span-2 rounded-2xl border border-white bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                                    className="sm:col-span-2 rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                   />
                                 )}
                                 </div>
@@ -2374,9 +2374,9 @@ export default function SalesView() {
                           </div>
 
                           <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                            <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Кол-во</p>
-                              <p className="mt-1 text-sm font-bold text-slate-900">
+                            <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
+                              <p className="text-[11px] font-semibold text-[#48627f]">Кол-во</p>
+                              <p className="mt-1 text-sm font-semibold text-[#1f2933]">
                                 {item.selectedPackagingId
                                   ? (() => {
                                       const selectedPackaging = getEditItemPackaging(item);
@@ -2394,8 +2394,8 @@ export default function SalesView() {
                                   : (Number(item.quantity || 0) > 0 ? `${item.quantity} ${item.baseUnitName || 'шт'}` : '0')}
                               </p>
                             </div>
-                            <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Цена</p>
+                            <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
+                              <p className="text-[11px] font-semibold text-[#48627f]">Цена</p>
                               <input
                                 type="number"
                                 min="0"
@@ -2404,11 +2404,11 @@ export default function SalesView() {
                                 onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { sellingPrice: e.target.value })}
                                 placeholder="Цена"
                                 disabled={!selectedProduct}
-                                className="mt-1 w-full rounded-xl border border-white bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                                className="mt-1 w-full rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-sm font-semibold text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                               />
                             </div>
-                            <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Скидка %</p>
+                            <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
+                              <p className="text-[11px] font-semibold text-[#48627f]">Скидка %</p>
                               <input
                                 type="number"
                                 min="0"
@@ -2418,12 +2418,12 @@ export default function SalesView() {
                                 onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { discount: e.target.value })}
                                 placeholder="%"
                                 disabled={!selectedProduct}
-                                className="mt-1 w-full rounded-xl border border-white bg-white px-3 py-2 text-sm font-bold text-slate-900 outline-none transition-all focus:border-violet-300 focus:ring-8 focus:ring-violet-500/5"
+                                className="mt-1 w-full rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-sm font-semibold text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                               />
                             </div>
-                            <div className="rounded-2xl bg-violet-50 px-4 py-3">
-                              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-500">Итого</p>
-                              <p className="mt-1 text-sm font-black text-violet-700">
+                            <div className="rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2">
+                              <p className="text-[11px] font-semibold text-[#7a5a00]">Итого</p>
+                              <p className="mt-1 text-sm font-bold text-[#1f2933]">
                                 {(() => {
                                   const q = Math.max(0, Number(item.quantity || 0));
                                   const p = Math.max(0, Number(item.sellingPrice || 0));
@@ -2434,7 +2434,7 @@ export default function SalesView() {
                             </div>
                           </div>
 
-                          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[#d5dde6] pt-2 text-xs text-[#5f6f7f]">
                             <span>Ед.: {item.baseUnitName || selectedProduct?.baseUnitName || selectedProduct?.unit || item.unit || 'шт'}</span>
                             {item.selectedPackagingId && getEditItemPackaging(item) ? (
                               <span>
@@ -2451,24 +2451,24 @@ export default function SalesView() {
                       );
                     })}
                     {!filteredEditInvoiceItems.length && (
-                      <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                      <div className="rounded border border-dashed border-[#b7c2ce] bg-white px-4 py-6 text-center text-sm text-[#5f6f7f]">
                         По этому поиску товары в накладной не найдены.
                       </div>
                     )}
                   </div>
 
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="rounded border border-[#d6c07a] bg-[#fff8dc] p-3">
                     <div className="grid gap-3 sm:grid-cols-4">
-                      <div className="rounded-2xl bg-white px-4 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Товаров</p>
-                        <p className="mt-1 text-lg font-black text-slate-900">{editInvoiceItems.length}</p>
+                      <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
+                        <p className="text-[11px] font-semibold text-[#48627f]">Товаров</p>
+                        <p className="mt-1 text-lg font-bold text-[#1f2933]">{editInvoiceItems.length}</p>
                       </div>
-                      <div className="rounded-2xl bg-white px-4 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Сумма</p>
-                        <p className="mt-1 text-lg font-black text-slate-900">{formatMoney(editInvoiceSubtotal)}</p>
+                      <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
+                        <p className="text-[11px] font-semibold text-[#48627f]">Сумма</p>
+                        <p className="mt-1 text-lg font-bold text-[#1f2933]">{formatMoney(editInvoiceSubtotal)}</p>
                       </div>
-                      <div className="rounded-2xl bg-white px-4 py-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Скидка %</p>
+                      <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
+                        <p className="text-[11px] font-semibold text-[#48627f]">Скидка %</p>
                         <input
                           type="number"
                           min="0"
@@ -2478,13 +2478,13 @@ export default function SalesView() {
                             const value = e.target.value;
                             setEditDiscount(value === '' ? '' : String(Math.max(0, Math.min(100, Number(value) || 0))));
                           }}
-                          className="mt-1 w-full text-lg font-black text-violet-600 outline-none transition-all"
+                          className="mt-1 w-full rounded border border-[#9fb7d5] bg-white px-2 py-1 text-lg font-bold text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                           placeholder="0"
                         />
                       </div>
-                      <div className="rounded-2xl bg-violet-600 px-4 py-3 text-white">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-100">Итого</p>
-                        <p className="mt-1 text-lg font-black">{formatMoney(editInvoiceNetAmount)}</p>
+                      <div className="rounded border border-[#8f6f18] bg-[#ffd966] px-3 py-2 text-[#1f2933]">
+                        <p className="text-[11px] font-semibold text-[#7a5a00]">Итого</p>
+                        <p className="mt-1 text-lg font-bold">{formatMoney(editInvoiceNetAmount)}</p>
                       </div>
                     </div>
                   </div>
@@ -2496,17 +2496,17 @@ export default function SalesView() {
                 </div> {/* container of summary and list (space-y-4 line 2004) */}
               </div> {/* scrollable area (line 1985) */}
 
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:p-8">
+              <div className="flex flex-col-reverse gap-2 border-t border-[#b7c2ce] bg-[#eef3f8] px-4 py-3 sm:flex-row">
                 <button
                   onClick={closeEditModal}
-                  className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 transition-all hover:bg-slate-50"
+                  className="flex-1 rounded border border-[#9fb7d5] bg-white px-4 py-2.5 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                 >
                   Отмена
                 </button>
                 <button
                   onClick={handleUpdateInvoice}
                   disabled={isSavingEdit}
-                  className="flex-1 rounded-2xl bg-violet-600 py-4 font-black uppercase tracking-widest text-white shadow-lg shadow-violet-600/20 transition-all hover:bg-violet-700 disabled:opacity-50"
+                  className="flex-1 rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2.5 text-sm font-semibold text-[#1f2933] shadow-sm transition-colors hover:bg-[#f7c948] disabled:opacity-50"
                 >
                   {isSavingEdit ? 'Сохранение...' : 'Сохранить'}
                 </button>
@@ -2610,43 +2610,53 @@ export default function SalesView() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-[2.5rem]"
+              className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-md border border-[#9fb7d5] bg-white shadow-2xl"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
+              <div className="flex items-center justify-between border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-amber-600 text-white rounded-2xl">
+                  <div className="rounded border border-[#d6c07a] bg-[#fff8dc] p-2 text-[#7a5a00]">
                     <RotateCcw size={24} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900">Оформить возврат</h3>
+                  <h3 className="text-xl font-semibold text-[#1f2933]">Оформить возврат</h3>
                 </div>
-                <button onClick={closeReturnModal} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <button onClick={closeReturnModal} className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]">
                   <X size={24} />
                 </button>
               </div>
               
-              <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:space-y-6 sm:p-8">
-                <div>
-                    <p className="text-sm font-bold text-slate-500 mb-1">Накладная #{selectedInvoice.id}</p>
-                  <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name}</p>
+              <div className="flex-1 space-y-4 overflow-y-auto bg-[#f3f5f7] p-3 sm:p-4">
+                <div className="grid gap-2 rounded border border-[#c8d2df] bg-white p-3 md:grid-cols-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#48627f]">Накладная</p>
+                    <p className="mt-1 text-sm font-semibold text-[#1f2933]">#{selectedInvoice.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#48627f]">Клиент</p>
+                    <p className="mt-1 break-words text-sm font-semibold text-[#1f2933]">{selectedInvoice.customer_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#48627f]">Дата</p>
+                    <p className="mt-1 text-sm font-medium text-[#1f2933]">{new Date(selectedInvoice.createdAt).toLocaleDateString('ru-RU')}</p>
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Выберите товары для возврата</h4>
-                  <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white">
-                    <table className="w-full min-w-[680px] table-fixed text-left text-sm">
+                <div className="space-y-2">
+                  <h4 className="ml-1 text-sm font-semibold text-[#32465a]">Выберите товары для возврата</h4>
+                  <div className="overflow-x-auto rounded border border-[#b7c2ce] bg-white">
+                    <table className="w-full min-w-[760px] table-fixed border-collapse text-left text-sm">
                       <colgroup>
                         <col className="w-[36%]" />
                         <col className="w-[30%]" />
                         <col className="w-[34%]" />
                       </colgroup>
                       <thead>
-                        <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                          <th className="px-4 py-4 sm:px-5">Товар</th>
-                          <th className="px-4 py-4 sm:px-5">Продано</th>
-                          <th className="px-4 py-4 sm:px-5">Возврат</th>
+                        <tr className="border-b border-[#b7c2ce] bg-[#dbe5f1] text-[12px] font-semibold text-[#32465a]">
+                          <th className="px-3 py-2">Товар</th>
+                          <th className="px-3 py-2">Продано / доступно</th>
+                          <th className="px-3 py-2">Возврат</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-50">
+                      <tbody className="divide-y divide-[#d5dde6]">
                         {returnItems.map((item: ReturnInvoiceItem, idx: number) => {
                           const quantityInfo = getInvoiceItemQuantityParts(item);
                           const packaging = getReturnItemPackaging(item);
@@ -2660,26 +2670,26 @@ export default function SalesView() {
                           ].filter(Boolean).join(' · ');
 
                           return (
-                            <tr key={item.id}>
-                              <td className="px-4 py-4 align-top sm:px-5">
-                                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                            <tr key={item.id} className="even:bg-[#fbfcfd]">
+                              <td className="px-3 py-3 align-top">
+                                <p className="mb-1 text-[10px] font-medium text-[#6b7b8d]">
                                   {itemMeta}
                                 </p>
-                                <p className="break-words text-sm font-black leading-5 text-slate-900">
+                                <p className="break-words text-sm font-semibold leading-5 text-[#1f2933]">
                                   {getReturnItemDisplayName(item)}
                                 </p>
                               </td>
-                              <td className="px-4 py-4 align-top text-[11px] text-slate-500 sm:px-5">
-                                <p className="whitespace-nowrap text-xs font-semibold text-slate-700">{quantityInfo.primary}</p>
+                              <td className="px-3 py-3 align-top text-[11px] text-[#48627f]">
+                                <p className="whitespace-nowrap text-xs font-semibold text-[#1f2933]">{quantityInfo.primary}</p>
                                 {quantityInfo.secondary && (
-                                  <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">{quantityInfo.secondary}</p>
+                                  <p className="mt-0.5 whitespace-nowrap text-[10px] text-[#6b7b8d]">{quantityInfo.secondary}</p>
                                 )}
-                                <p className="mt-1 whitespace-nowrap text-[10px] text-slate-400">
+                                <p className="mt-2 inline-flex rounded border border-[#c8d2df] bg-[#f7f9fb] px-2 py-1 text-[10px] text-[#48627f]">
                                   Доступно: {packaging ? `${maxPackages} ${packaging.packageName} или ` : ''}{formatCount(remainingUnits)} {packaging?.baseUnitName || 'шт'}
                                 </p>
                               </td>
-                              <td className="px-4 py-4 align-top sm:px-5">
-                                <div className="grid min-w-0 grid-cols-1 gap-2">
+                              <td className="px-3 py-3 align-top">
+                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_120px] gap-2">
                                   {packaging ? (
                                     <select
                                       value={item.returnMode}
@@ -2692,7 +2702,7 @@ export default function SalesView() {
                                         };
                                         setReturnItems(newItems);
                                       }}
-                                      className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500"
+                                      className="h-9 w-full min-w-0 rounded border border-[#9fb7d5] bg-white px-2 text-xs font-medium text-[#1f2933] outline-none focus:border-[#4f81bd]"
                                     >
                                       <option value="package">{packaging.packageName}</option>
                                       <option value="unit">{packaging.baseUnitName}</option>
@@ -2713,7 +2723,10 @@ export default function SalesView() {
                                       setReturnItems(newItems);
                                     }}
                                     placeholder={item.returnMode === 'package' ? 'Кол-во коробок' : 'Кол-во шт'}
-                                    className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center font-black outline-none focus:ring-2 focus:ring-amber-500"
+                                    className={clsx(
+                                      'h-9 w-full min-w-0 rounded border border-[#9fb7d5] bg-white px-2 text-center text-sm font-semibold text-[#1f2933] outline-none focus:border-[#4f81bd]',
+                                      !packaging && 'col-span-2'
+                                    )}
                                   />
                                 </div>
                               </td>
@@ -2725,28 +2738,28 @@ export default function SalesView() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Причина возврата</label>
+                <div className="rounded border border-[#c8d2df] bg-white p-3">
+                  <label className="ml-1 text-sm font-semibold text-[#32465a]">Причина возврата</label>
                   <textarea 
                     value={returnReason}
                     onChange={(e) => setReturnReason(e.target.value)}
-                    className="w-full mt-1 px-5 py-4 rounded-2xl border border-slate-200 focus:ring-8 focus:ring-amber-500/5 focus:border-amber-500 outline-none transition-all font-bold text-slate-900 shadow-sm min-h-[100px]"
+                    className="mt-2 min-h-[86px] w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                     placeholder="Укажите причину возврата..."
                   />
                 </div>
               </div>
               
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:flex-row sm:p-8">
+              <div className="flex flex-col-reverse gap-2 border-t border-[#b7c2ce] bg-[#eef3f8] px-4 py-3 sm:flex-row">
                 <button 
                   onClick={closeReturnModal}
-                  className="flex-1 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"
+                  className="flex-1 rounded border border-[#9fb7d5] bg-white px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                 >
                   Отмена
                 </button>
                 <button 
                   onClick={handleReturn}
                   disabled={isReturning || returnItems.every((item: ReturnInvoiceItem) => !item.returnQty || parseFloat(item.returnQty) === 0)}
-                  className="flex-1 py-4 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-amber-600/20 hover:bg-amber-700 transition-all active:scale-95 disabled:opacity-50"
+                  className="flex-1 rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2 text-sm font-semibold text-[#2f2f2f] transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isReturning ? 'Оформление...' : 'Оформить возврат'}
                 </button>
