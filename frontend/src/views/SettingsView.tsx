@@ -60,6 +60,7 @@ export default function SettingsView() {
   const [showAddWarehouse, setShowAddWarehouse] = useState(false);
   const [showEditWarehouse, setShowEditWarehouse] = useState(false);
   const [showDeleteWarehouseConfirm, setShowDeleteWarehouseConfirm] = useState(false);
+  const [isDeletingWarehouse, setIsDeletingWarehouse] = useState(false);
   const [showDeleteUserConfirm, setShowDeleteUserConfirm] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -279,15 +280,40 @@ export default function SettingsView() {
     }
   };
 
-  const handleDeleteWarehouse = async () => {
-    if (!selectedWarehouse) return;
-    try {
-      await deleteWarehouse(selectedWarehouse.id);
-      toast.success('Склад удален');
-      fetchData();
-    } catch (err) {
-      toast.error('Ошибка при удалении склада');
+  const handleDeleteWarehouse = async (warehouseToDelete = selectedWarehouse) => {
+    if (!warehouseToDelete) return;
+    if (isDeletingWarehouse) {
+      setShowDeleteWarehouseConfirm(false);
+      setSelectedWarehouse(null);
+      return;
     }
+
+    setIsDeletingWarehouse(true);
+    setShowDeleteWarehouseConfirm(false);
+    setSelectedWarehouse(null);
+
+    try {
+      await deleteWarehouse(warehouseToDelete.id);
+      toast.success('Склад удален', { id: 'warehouse-delete' });
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Ошибка при удалении склада', { id: 'warehouse-delete' });
+    } finally {
+      setShowDeleteWarehouseConfirm(false);
+      setSelectedWarehouse(null);
+      setIsDeletingWarehouse(false);
+    }
+  };
+
+  const closeDeleteWarehouseConfirm = () => {
+    setShowDeleteWarehouseConfirm(false);
+    setSelectedWarehouse(null);
+  };
+
+  const openDeleteWarehouseConfirm = (warehouse: any) => {
+    if (isDeletingWarehouse) return;
+    setSelectedWarehouse(warehouse);
+    setShowDeleteWarehouseConfirm(true);
   };
 
   const resetWarehouseForm = () => {
@@ -705,14 +731,17 @@ export default function SettingsView() {
 
       <React.Suspense fallback={null}>
         <ConfirmationModal 
-          isOpen={showDeleteWarehouseConfirm}
-          onClose={() => {
-            setShowDeleteWarehouseConfirm(false);
-            setSelectedWarehouse(null);
+          key={selectedWarehouse?.id || 'delete-warehouse'}
+          isOpen={Boolean(showDeleteWarehouseConfirm && selectedWarehouse)}
+          onClose={closeDeleteWarehouseConfirm}
+          onConfirm={() => {
+            const warehouseToDelete = selectedWarehouse;
+            closeDeleteWarehouseConfirm();
+            return handleDeleteWarehouse(warehouseToDelete);
           }}
-          onConfirm={handleDeleteWarehouse}
           title="Удалить склад?"
           message={`Вы уверены, что хотите удалить склад "${selectedWarehouse?.name}"? Это действие нельзя отменить.`}
+          closeOnConfirmStart
         />
 
         <ConfirmationModal
@@ -777,11 +806,12 @@ export default function SettingsView() {
                     <Edit size={18} />
                   </button>
                   <button 
+                    type="button"
+                    disabled={isDeletingWarehouse}
                     onClick={() => {
-                      setSelectedWarehouse(w);
-                      setShowDeleteWarehouseConfirm(true);
+                      openDeleteWarehouseConfirm(w);
                     }}
-                    className="p-3 bg-white text-slate-400 hover:text-rose-600 rounded-xl shadow-sm border border-slate-100 transition-all"
+                    className="p-3 bg-white text-slate-400 hover:text-rose-600 rounded-xl shadow-sm border border-slate-100 transition-all disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Trash2 size={18} />
                   </button>

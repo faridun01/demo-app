@@ -653,6 +653,12 @@ export default function POSView() {
     resetSaleDraft(true);
   };
 
+  const showCartOnMobile = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setActiveTab('cart');
+    }
+  };
+
   const addToCart = (product: any) => {
     if (productListRef.current) {
       lastProductScrollRef.current = productListRef.current.scrollTop;
@@ -693,10 +699,12 @@ export default function POSView() {
         toast.error(`Недостаточно товара. Доступно: ${getProductStockLabel(product, existing.baseUnitName || product.unit)}`);
         const cappedItem = normalizeCartItem(nextItem);
         setCart(cart.map((item) => (item.id === product.id ? cappedItem : item)));
+        showCartOnMobile();
         return;
       }
 
       setCart(cart.map((item) => (item.id === product.id ? nextItem : item)));
+      showCartOnMobile();
     } else {
       const nextItem = createCartItemFromProduct(product);
       if (nextItem.quantity > Number(product.stock || 0)) {
@@ -705,6 +713,7 @@ export default function POSView() {
       }
 
       setCart([...cart, nextItem]);
+      showCartOnMobile();
     }
   };
 
@@ -1414,13 +1423,13 @@ export default function POSView() {
               </div>
             </section>
 
-            <aside className={clsx(activeTab === 'cart' ? 'block min-h-0 overflow-hidden lg:h-full' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full')}>
+            <aside className={clsx(activeTab === 'cart' ? 'block min-h-0 overflow-y-auto overscroll-contain lg:h-full lg:overflow-hidden' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full')}>
               <div
                 className={clsx(
-                  'h-full min-h-0 rounded-md border border-[#b7c2ce] bg-white shadow-sm',
+                  'min-h-0 rounded-md border border-[#b7c2ce] bg-white shadow-sm lg:h-full',
                   isCartExpanded
                     ? 'flex flex-col overflow-hidden lg:grid lg:h-full lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:border-b-0'
-                    : 'flex flex-col overflow-hidden',
+                    : 'flex flex-col overflow-visible lg:overflow-hidden',
                 )}
               >
                 <div className={clsx('flex items-center justify-between border-b border-[#b7c2ce] bg-[#fff7d6] px-4 py-2.5', isCartExpanded && 'lg:col-start-1 lg:row-start-1')}>
@@ -1447,7 +1456,7 @@ export default function POSView() {
                   </div>
                 </div>
 
-                <div className={clsx('space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4', isCartExpanded && 'lg:col-start-1 lg:row-start-2')}>
+                <div className={clsx('order-2 space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4 lg:order-none', isCartExpanded && 'lg:col-start-1 lg:row-start-2')}>
                   <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00] md:hidden">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium">Сумма корзины</span>
@@ -1523,13 +1532,16 @@ export default function POSView() {
 
                 <div
                   className={clsx(
-                    'px-3 md:px-4',
+                    'order-1 px-3 md:px-4 lg:order-none',
                     isCartExpanded
-                      ? 'min-h-0 overflow-y-auto overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full lg:max-h-full'
-                      : 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
+                      ? 'min-h-0 overflow-y-visible overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full lg:max-h-full lg:overflow-y-auto'
+                      : 'min-h-0 overflow-y-visible overscroll-contain lg:flex-1 lg:overflow-y-auto'
                   )}
-                  style={!isCartExpanded ? { maxHeight: 'clamp(260px, calc(100vh - 430px), 500px)' } : undefined}
+                  style={!isCartExpanded ? { maxHeight: undefined } : undefined}
                 >
+                  <div className="sticky top-0 z-10 -mx-3 border-b border-[#d5dde6] bg-white px-3 py-2 text-xs font-semibold text-[#32465a] md:-mx-4 md:px-4 lg:hidden">
+                    Товары в корзине: {cart.length}
+                  </div>
                   {cart.map((item, index) => (
                     <div key={item.id} className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
                       {(() => {
@@ -1741,7 +1753,7 @@ export default function POSView() {
 
                 <div
                   className={clsx(
-                    'space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3',
+                    'order-3 space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3 lg:order-none',
                     isCartExpanded
                       ? 'lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:h-full lg:self-stretch lg:overflow-hidden lg:border-l lg:border-t-0'
                       : 'z-10 shrink-0',
@@ -1800,7 +1812,10 @@ export default function POSView() {
                       <span>Подытог</span>
                       <span className="text-slate-900">{formatMoney(subtotal)}</span>
                     </div>
-                    
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span>Масса/объем товаров</span>
+                      <span className="font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
+                    </div>
                     {cartWeightSummary.missingWeightItems > 0 ? (
                       <div className="text-[10px] font-medium text-amber-700">
                         У {cartWeightSummary.missingWeightItems} поз. вес не найден в названии
