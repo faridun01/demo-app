@@ -1,12 +1,10 @@
 ﻿import React, { startTransition, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Banknote,
   ChevronRight,
   Maximize2,
   Minimize2,
   Plus,
-  Receipt,
   Search,
   ShoppingCart,
   Trash2,
@@ -1523,7 +1521,15 @@ export default function POSView() {
                   )}
                 </div>
 
-                <div className={clsx('px-3 md:px-4', isCartExpanded ? 'min-h-0 overflow-y-auto overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full lg:max-h-full' : 'max-h-[360px] overflow-y-auto overscroll-contain')}>
+                <div
+                  className={clsx(
+                    'px-3 md:px-4',
+                    isCartExpanded
+                      ? 'min-h-0 overflow-y-auto overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full lg:max-h-full'
+                      : 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
+                  )}
+                  style={!isCartExpanded ? { maxHeight: 'clamp(260px, calc(100vh - 430px), 500px)' } : undefined}
+                >
                   {cart.map((item, index) => (
                     <div key={item.id} className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
                       {(() => {
@@ -1789,36 +1795,12 @@ export default function POSView() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {[
-                      { id: 'cash', label: 'Наличные', icon: Banknote },
-                      { id: 'transfer', label: 'Перевод', icon: Receipt },
-                    ].map((method) => (
-                      <button
-                        key={method.id}
-                        onClick={() => setPaymentMethod(method.id as PaymentMethod)}
-                        className={clsx(
-                          'flex items-center justify-center gap-2 rounded border px-3 py-2 text-xs transition-colors',
-                          paymentMethod === method.id
-                            ? posTheme.payment.active
-                            : posTheme.payment.idle
-                        )}
-                      >
-                        <method.icon size={14} />
-                        <span>{method.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
                   <div className="space-y-1.5 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2 text-xs">
                     <div className="flex items-center justify-between text-slate-500">
                       <span>Подытог</span>
                       <span className="text-slate-900">{formatMoney(subtotal)}</span>
                     </div>
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span>Масса/объем товаров</span>
-                      <span className="font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
-                    </div>
+                    
                     {cartWeightSummary.missingWeightItems > 0 ? (
                       <div className="text-[10px] font-medium text-amber-700">
                         У {cartWeightSummary.missingWeightItems} поз. вес не найден в названии
