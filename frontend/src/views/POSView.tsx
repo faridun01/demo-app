@@ -1456,7 +1456,7 @@ export default function POSView() {
                   </div>
                 </div>
 
-                <div className={clsx('order-2 space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4 lg:order-none', isCartExpanded && 'lg:col-start-1 lg:row-start-2')}>
+                <div className={clsx('order-2 space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4 lg:order-0', isCartExpanded && 'lg:col-start-1 lg:row-start-2')}>
                   <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00] md:hidden">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium">Сумма корзины</span>
@@ -1532,7 +1532,7 @@ export default function POSView() {
 
                 <div
                   className={clsx(
-                    'order-1 px-3 md:px-4 lg:order-none',
+                    'order-1 px-3 md:px-4 lg:order-0',
                     isCartExpanded
                       ? 'min-h-0 overflow-y-visible overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full lg:max-h-full lg:overflow-y-auto'
                       : 'min-h-0 overflow-y-visible overscroll-contain lg:flex-1 lg:overflow-y-auto'
@@ -1753,7 +1753,7 @@ export default function POSView() {
 
                 <div
                   className={clsx(
-                    'order-3 space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3 lg:order-none',
+                    'order-3 space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3 lg:order-0',
                     isCartExpanded
                       ? 'lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:h-full lg:self-stretch lg:overflow-hidden lg:border-l lg:border-t-0'
                       : 'z-10 shrink-0',
