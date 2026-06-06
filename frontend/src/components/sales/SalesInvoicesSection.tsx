@@ -1,0 +1,515 @@
+import type React from 'react';
+import {
+  Banknote,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Filter,
+  Printer,
+  Receipt,
+  RotateCcw,
+  Search,
+  Trash2,
+  Pencil,
+} from 'lucide-react';
+import PaginationControls from '../common/PaginationControls';
+import { formatCount, formatMoney, toFixedNumber } from '../../utils/format';
+import {
+  getEffectiveStatus,
+  getInvoiceAppliedPaidAmount,
+  getInvoiceBalance,
+  getInvoiceNetAmount,
+  getInvoiceReturnedAmount,
+  getInvoiceReturnedItems,
+  hasInvoiceReturns,
+  isPaymentActionDisabled,
+  isReturnActionDisabled,
+} from '../../utils/salesViewUtils';
+
+type SortConfig = {
+  key: string;
+  direction: 'asc' | 'desc';
+};
+
+type SalesInvoicesSectionProps = {
+  isAdmin: boolean;
+  invoicesCount: number;
+  search: string;
+  setSearch: React.Dispatch<React.SetStateAction<string>>;
+  statusFilter: 'all' | 'paid' | 'partial' | 'unpaid';
+  setStatusFilter: React.Dispatch<React.SetStateAction<'all' | 'paid' | 'partial' | 'unpaid'>>;
+  staffFilter: string;
+  setStaffFilter: React.Dispatch<React.SetStateAction<string>>;
+  dateFrom: string;
+  setDateFrom: React.Dispatch<React.SetStateAction<string>>;
+  dateTo: string;
+  setDateTo: React.Dispatch<React.SetStateAction<string>>;
+  staffOptions: string[];
+  clearInvoiceFilters: () => void;
+  paginatedInvoices: any[];
+  sortedInvoicesLength: number;
+  isLoading: boolean;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  sortConfig: SortConfig;
+  onSort: (key: string) => void;
+  getStatusBadge: (status: string, cancelled: boolean) => React.ReactNode;
+  setSelectedInvoice: React.Dispatch<React.SetStateAction<any>>;
+  setPaymentAmount: React.Dispatch<React.SetStateAction<string>>;
+  setShowPaymentModal: React.Dispatch<React.SetStateAction<boolean>>;
+  openReturnInvoiceModal: (invoice: any) => Promise<void>;
+  canEditInvoice: (invoice: any) => boolean;
+  getEditBlockedReason: (invoice: any) => string;
+  openEditInvoiceModal: (invoice: any) => void;
+  fetchInvoiceDetails: (id: number) => Promise<void>;
+  handleQuickPrintInvoice: (id: number) => Promise<void>;
+  handleDeleteInvoice: (id: number) => Promise<void>;
+};
+
+const SalesInvoicesSection = ({
+  isAdmin,
+  invoicesCount,
+  search,
+  setSearch,
+  statusFilter,
+  setStatusFilter,
+  staffFilter,
+  setStaffFilter,
+  dateFrom,
+  setDateFrom,
+  dateTo,
+  setDateTo,
+  staffOptions,
+  clearInvoiceFilters,
+  paginatedInvoices,
+  sortedInvoicesLength,
+  isLoading,
+  currentPage,
+  totalPages,
+  pageSize,
+  setCurrentPage,
+  sortConfig,
+  onSort,
+  getStatusBadge,
+  setSelectedInvoice,
+  setPaymentAmount,
+  setShowPaymentModal,
+  openReturnInvoiceModal,
+  canEditInvoice,
+  getEditBlockedReason,
+  openEditInvoiceModal,
+  fetchInvoiceDetails,
+  handleQuickPrintInvoice,
+  handleDeleteInvoice,
+}: SalesInvoicesSectionProps) => {
+  const renderSortLabel = (label: string, key: string) => (
+    <button
+      type="button"
+      onClick={() => onSort(key)}
+      className="inline-flex items-center gap-1 transition-colors hover:text-slate-600"
+    >
+      <span>{label}</span>
+      {sortConfig.key === key ? (
+        sortConfig.direction === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+      ) : (
+        <Filter size={13} className="opacity-40" />
+      )}
+    </button>
+  );
+
+  return (
+    <div className="mt-1 flex flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm md:min-h-[760px]">
+      <div className="flex flex-col gap-3 border-b border-[#b7c2ce] bg-[#eef3f8] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-[#1f2933]">Накладные</h2>
+          <span className="inline-flex items-center rounded border border-[#9fb7d5] bg-white px-2.5 py-1 text-xs font-semibold text-[#23527c]">
+            {formatCount(invoicesCount)}
+          </span>
+        </div>
+        <div className="relative flex-1 max-w-xl">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Поиск по ID или клиенту..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded border border-[#9fb7d5] bg-white py-2.5 pl-11 pr-4 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-4 py-3 md:grid-cols-2 xl:grid-cols-5">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
+        >
+          <option value="all">Все статусы</option>
+          <option value="paid">Оплачено</option>
+          <option value="partial">Частично</option>
+          <option value="unpaid">Не оплачено</option>
+        </select>
+
+        <select
+          value={staffFilter}
+          onChange={(e) => setStaffFilter(e.target.value)}
+          className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
+        >
+          <option value="all">Все сотрудники</option>
+          {staffOptions.map((staffName) => (
+            <option key={staffName} value={staffName}>
+              {staffName}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2">
+          <Calendar size={16} className="text-slate-400" />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2">
+          <Calendar size={16} className="text-slate-400" />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={clearInvoiceFilters}
+          className="rounded border border-[#9fb7d5] bg-white px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
+        >
+          Сбросить фильтры
+        </button>
+      </div>
+
+      <div className="flex-1 space-y-3 p-3 md:hidden">
+        {paginatedInvoices.map((inv) => {
+          const paymentDisabled = isPaymentActionDisabled(inv);
+          const returnDisabled = isReturnActionDisabled(inv);
+          const returnedAmount = getInvoiceReturnedAmount(inv);
+          const returnedItemsCount = getInvoiceReturnedItems(inv).length;
+          const hasReturns = hasInvoiceReturns(inv);
+
+          return (
+            <div key={`mobile-invoice-${inv.id}`} className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-base text-slate-900">{isAdmin ? `Накладная #${inv.id}` : 'Накладная'}</p>
+                  <p className="mt-1 text-sm text-slate-500">{new Date(inv.createdAt).toLocaleDateString('ru-RU')}</p>
+                  <p className="mt-2 break-words text-sm text-slate-700">{inv.customer_name}</p>
+                  <p className="mt-1 text-xs text-slate-400">{inv.staff_name}</p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  {getStatusBadge(getEffectiveStatus(inv), inv.cancelled)}
+                  {hasReturns && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">
+                      <RotateCcw size={12} />
+                      Возврат
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Сумма</p>
+                  <p className="mt-1 break-words text-sm text-slate-900">{formatMoney(getInvoiceNetAmount(inv))}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Оплачено</p>
+                  <p className="mt-1 break-words text-sm text-emerald-600">{formatMoney(getInvoiceAppliedPaidAmount(inv))}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Остаток</p>
+                  <p className="mt-1 break-words text-sm text-rose-600">{formatMoney(getInvoiceBalance(inv))}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 px-3 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">Склад</p>
+                  <p className="mt-1 break-words text-sm text-slate-900">{inv.warehouse?.name || '---'}</p>
+                </div>
+              </div>
+
+              {hasReturns && (
+                <div className="mt-3 rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">Возврат оформлен</p>
+                      <p className="mt-1 text-xs text-amber-700">
+                        {returnedItemsCount > 0 ? `Позиций: ${formatCount(returnedItemsCount)}` : 'Подробности в деталях'}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-black text-rose-600">-{formatMoney(returnedAmount)}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    if (paymentDisabled) return;
+                    setSelectedInvoice(inv);
+                    setPaymentAmount(String(toFixedNumber(getInvoiceBalance(inv))));
+                    setShowPaymentModal(true);
+                  }}
+                  disabled={paymentDisabled}
+                  className={`rounded-2xl border px-3 py-2 text-xs font-medium transition-all ${
+                    paymentDisabled
+                      ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  Оплата
+                </button>
+                <button
+                  onClick={() => {
+                    void openReturnInvoiceModal(inv);
+                  }}
+                  disabled={returnDisabled}
+                  className={`rounded-2xl border px-3 py-2 text-xs font-medium transition-all ${
+                    returnDisabled
+                      ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+                      : 'border-amber-200 bg-amber-50 text-amber-700'
+                  }`}
+                >
+                  Возврат
+                </button>
+                <button
+                  onClick={() => {
+                    if (!canEditInvoice(inv)) return;
+                    openEditInvoiceModal(inv);
+                  }}
+                  disabled={!canEditInvoice(inv)}
+                  title={getEditBlockedReason(inv)}
+                  className={`rounded-2xl border px-3 py-2 text-xs font-medium transition-all ${
+                    canEditInvoice(inv)
+                      ? 'border-violet-200 bg-violet-50 text-violet-700'
+                      : 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+                  }`}
+                >
+                  Изменить
+                </button>
+                <button
+                  onClick={() => fetchInvoiceDetails(inv.id)}
+                  className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700"
+                >
+                  Детали
+                </button>
+                <button
+                  onClick={() => handleQuickPrintInvoice(inv.id)}
+                  className="rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700"
+                >
+                  Печать
+                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => handleDeleteInvoice(inv.id)}
+                    className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700"
+                  >
+                    Удалить
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-auto border-t border-slate-100 bg-white/95 md:hidden">
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={sortedInvoicesLength}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          className="border-t-0"
+        />
+      </div>
+
+      <div className="hidden min-h-[560px] flex-1 overflow-x-auto md:block">
+        <table className="w-full border-collapse text-left text-[12px] [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2">
+          <thead>
+            <tr className="border-b border-[#b7c2ce] bg-[#dbe5f1] text-[12px] font-semibold text-[#32465a]">
+              {isAdmin && <th className="px-4 py-3">{renderSortLabel('ID', 'id')}</th>}
+              <th className="px-4 py-3">{renderSortLabel('Дата', 'createdAt')}</th>
+              <th className="px-4 py-3">{renderSortLabel('Клиент', 'customer_name')}</th>
+              <th className="px-4 py-3">{renderSortLabel('Сумма', 'netAmount')}</th>
+              <th className="px-4 py-3">Возврат</th>
+              <th className="px-4 py-3">{renderSortLabel('Оплачено', 'paidAmount')}</th>
+              <th className="px-4 py-3">{renderSortLabel('Остаток', 'balance')}</th>
+              <th className="px-4 py-3">{renderSortLabel('Статус', 'status')}</th>
+              <th className="px-4 py-3">{renderSortLabel('Сотрудник', 'staff_name')}</th>
+              <th className="px-2 py-2 text-center">Действия</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#d5dde6]">
+            {paginatedInvoices.map((inv) => {
+              const paymentDisabled = isPaymentActionDisabled(inv);
+              const returnDisabled = isReturnActionDisabled(inv);
+              const returnedAmount = getInvoiceReturnedAmount(inv);
+              const returnedItemsCount = getInvoiceReturnedItems(inv).length;
+              const hasReturns = hasInvoiceReturns(inv);
+
+              return (
+                <tr
+                  key={inv.id}
+                  onClick={() => fetchInvoiceDetails(inv.id)}
+                  className="cursor-pointer transition-colors even:bg-[#fbfcfd] hover:bg-[#fff8dc]"
+                >
+                  {isAdmin && <td className="px-2 py-2 text-sm font-semibold text-[#23527c]">#{inv.id}</td>}
+                  <td className="px-2 py-2 text-sm text-[#48627f]">
+                    {new Date(inv.createdAt).toLocaleDateString('ru-RU')}
+                  </td>
+                  <td className="px-2 py-2 text-sm text-[#1f2933]">{inv.customer_name}</td>
+                  <td className="px-2 py-2 text-sm font-medium tabular-nums text-[#1f2933]">{formatMoney(getInvoiceNetAmount(inv))}</td>
+                  <td className="px-2 py-2 text-sm">
+                    {hasReturns ? (
+                      <div className="inline-flex flex-col rounded border border-[#d6c07a] bg-[#fff8dc] px-2 py-1">
+                        <span className="font-semibold text-[#8a1f2d]">-{formatMoney(returnedAmount)}</span>
+                        <span className="mt-0.5 text-[10px] font-medium text-[#7a5a00]">
+                          {returnedItemsCount > 0 ? `${formatCount(returnedItemsCount)} поз.` : 'возврат'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-300">-</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-sm font-medium tabular-nums text-[#007a4d]">{formatMoney(getInvoiceAppliedPaidAmount(inv))}</td>
+                  <td className="px-2 py-2 text-sm font-medium tabular-nums text-[#8a1f2d]">{formatMoney(getInvoiceBalance(inv))}</td>
+                  <td className="px-2 py-2">{getStatusBadge(getEffectiveStatus(inv), inv.cancelled)}</td>
+                  <td className="px-2 py-2 text-sm text-[#48627f]">{inv.staff_name}</td>
+                  <td className="px-2 py-2 text-center align-middle">
+                    <div className={`ml-auto grid gap-1 ${isAdmin ? 'w-[118px] grid-cols-3' : 'w-[78px] grid-cols-2'}`}>
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (paymentDisabled) return;
+                              setSelectedInvoice(inv);
+                              setPaymentAmount(String(toFixedNumber(getInvoiceBalance(inv))));
+                              setShowPaymentModal(true);
+                            }}
+                            disabled={paymentDisabled}
+                            className={`flex h-8 w-8 items-center justify-center rounded border transition-colors ${
+                              paymentDisabled
+                                ? 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
+                                : 'border-[#9fb7d5] bg-white text-[#007a4d] hover:bg-[#effaf5]'
+                            }`}
+                            title="Принять оплату"
+                          >
+                            <Banknote size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void openReturnInvoiceModal(inv);
+                            }}
+                            disabled={returnDisabled}
+                            className={`flex h-8 w-8 items-center justify-center rounded border transition-colors ${
+                              returnDisabled
+                                ? 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
+                                : 'border-[#d6c07a] bg-white text-[#7a5a00] hover:bg-[#fff8dc]'
+                            }`}
+                            title="Возврат"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!canEditInvoice(inv)) return;
+                              openEditInvoiceModal(inv);
+                            }}
+                            disabled={!canEditInvoice(inv)}
+                            className={`flex h-8 w-8 items-center justify-center rounded border transition-colors ${
+                              canEditInvoice(inv)
+                                ? 'border-[#9fb7d5] bg-white text-[#23527c] hover:bg-[#eaf2fb]'
+                                : 'cursor-not-allowed border-[#d5dde6] bg-[#f7f9fb] text-slate-300'
+                            }`}
+                            title={canEditInvoice(inv) ? 'Изменить продажу' : getEditBlockedReason(inv)}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fetchInvoiceDetails(inv.id);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]"
+                        title="Просмотр"
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuickPrintInvoice(inv.id);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]"
+                        title="Печать"
+                      >
+                        <Printer size={16} />
+                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteInvoice(inv.id);
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded border border-[#d89aa2] bg-white text-[#8a1f2d] transition-colors hover:bg-[#fff0f1]"
+                          title="Удалить"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {sortedInvoicesLength === 0 && !isLoading && (
+              <tr>
+                <td colSpan={isAdmin ? 10 : 9} className="px-8 py-20 text-center">
+                  <div className="flex flex-col items-center justify-center space-y-6">
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#f4f5fb] text-slate-300">
+                      <Receipt size={48} />
+                    </div>
+                    <p className="text-slate-400 font-bold">Накладные не найдены</p>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-auto hidden border-t border-slate-100 bg-white/95 md:block">
+        <PaginationControls
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={sortedInvoicesLength}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          className="border-t-0"
+        />
+      </div>
+    </div>
+  );
+};
+
+export default SalesInvoicesSection;

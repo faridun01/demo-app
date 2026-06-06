@@ -1,17 +1,5 @@
 ﻿import React, { startTransition, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  ChevronRight,
-  Maximize2,
-  Minimize2,
-  Plus,
-  Search,
-  ShoppingCart,
-  Trash2,
-  User,
-  Warehouse,
-  X,
-} from 'lucide-react';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 import { getProducts } from '../api/products.api';
@@ -22,18 +10,15 @@ import { createCustomerOrder } from '../api/customer-orders.api';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import { filterWarehousesForUser, getCurrentUser, getUserCustomerId, getUserWarehouseId, isAdminUser, isCustomerUser } from '../utils/userAccess';
 import { formatMoney, roundMoney, ceilMoney, toFixedNumber } from '../utils/format';
-import { formatProductName } from '../utils/productName';
 import { getDefaultWarehouseId } from '../utils/warehouse';
+import { type CartItem, type PackagingOption } from '../components/pos/POSCartItem';
+import POSCartSummary from '../components/pos/POSCartSummary';
+import POSCartCustomerBlock from '../components/pos/POSCartCustomerBlock';
+import POSCartHeader from '../components/pos/POSCartHeader';
+import POSCartItemsList from '../components/pos/POSCartItemsList';
+import POSProductList from '../components/pos/POSProductList';
 
 type PaymentMethod = 'cash' | 'card' | 'transfer';
-type PackagingOption = {
-  id: number;
-  packageName: string;
-  baseUnitName: string;
-  unitsPerPackage: number;
-  isDefault?: boolean;
-};
-
 function tone(...classNames: Array<string | false | null | undefined>) {
   return classNames.filter(Boolean).join(' ');
 }
@@ -66,26 +51,6 @@ const posTheme = {
     idle: 'border-[#c8d2df] bg-[#f5f7fa] text-[#32465a]',
     summary: 'bg-[#fff8dc]',
   },
-};
-
-type CartItem = {
-  id: number;
-  name: string;
-  quantity: number;
-  stock: number;
-  unit: string;
-  baseUnitName: string;
-  sellingPrice: number;
-  photoUrl?: string | null;
-  packagings: PackagingOption[];
-  selectedPackagingId: number | null;
-  packageQuantity: number;
-  packageQuantityInput?: string;
-  extraUnitQuantity: number;
-  extraUnitQuantityInput?: string;
-  lineDiscountPercent: number;
-  lineDiscountInput?: string;
-  [key: string]: any;
 };
 
 const normalizePackagings = (product: any): PackagingOption[] =>
@@ -1197,7 +1162,7 @@ export default function POSView() {
     .map((entry) => entry.customer);
 
   return (
-    <div className="h-screen w-full overflow-hidden bg-[#e9edf2] text-[#1f2933]">
+    <div className="min-h-screen w-full overflow-visible bg-[#e9edf2] text-[#1f2933] lg:h-screen lg:overflow-hidden">
         <ConfirmationModal
           isOpen={Boolean(pendingWarehouseId)}
           onClose={closeWarehouseConfirm}
@@ -1209,7 +1174,7 @@ export default function POSView() {
           type="warning"
         />
 
-      <div className="flex h-full min-h-0 flex-col overflow-hidden border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:border-0">
+      <div className="flex min-h-screen flex-col overflow-visible border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:h-full lg:min-h-0 lg:overflow-hidden lg:border-0">
         <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 md:px-4 md:py-4">
           <div className="-mx-3 -mt-3 border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 md:-mx-4 md:-mt-4">
             <h1 className="text-xl font-semibold tracking-normal text-[#1f2933] sm:text-2xl">POS Терминал</h1>
@@ -1244,186 +1209,24 @@ export default function POSView() {
             )}
           >
             <section className={clsx(activeTab === 'products' ? 'block min-h-0 overflow-hidden lg:h-full' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
-              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm">
-                <div className="border-b border-[#b7c2ce] bg-[#eef3f8] px-4 py-3">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-[#1f2933]">Товары</h2>
-                      <p className="mt-1 text-xs text-slate-500">{filteredProducts.length} доступных позиций</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2 shadow-sm">
-                        <Warehouse size={16} className="text-sky-500" />
-                        <select
-                          value={warehouseId}
-                          onChange={(e) => handleWarehouseChange(e.target.value)}
-                          disabled={!isAdmin}
-                          className="min-w-42.5 appearance-none bg-transparent text-sm text-[#1f2933] outline-none"
-                        >
-                          <option value="">Выберите склад</option>
-                          {warehouses.map((warehouse) => (
-                            <option key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <button
-                        onClick={() => navigate('/sales')}
-                        className="flex h-9 w-9 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]"
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                      <input
-                        type="text"
-                        value={productSearch}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          startTransition(() => {
-                            setProductSearch(value);
-                          });
-                        }}
-                        placeholder="Поиск товара или ID..."
-                        className="w-full rounded border border-[#9fb7d5] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
-                      />
-                    </div>
-                  </div>
-
-                  {isAdmin && !warehouseId && (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                      Перед добавлением товара выберите склад.
-                    </div>
-                  )}
-                </div>
-
-                <div className="hidden grid-cols-[52px_minmax(0,1fr)_150px_110px_130px] border-y border-[#b7c2ce] bg-[#dbe5f1] px-4 py-2 text-xs font-semibold text-[#32465a] md:grid">
-                  <div className="text-center">№</div>
-                  <div>Товар</div>
-                  <div className="text-center">Остаток</div>
-                  <div className="text-center">Цена</div>
-                  <div className="text-center">Действие</div>
-                </div>
-
-                <div ref={productListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
-                  <div className="space-y-3 p-3 md:hidden">
-                    {filteredProducts.map((product, index) => {
-                      const stockParts = getProductStockParts(product, product.unit);
-
-                      return (
-                      <div
-                        key={`mobile-pos-${product.id}`}
-                        onClick={() => handleAddFromList(product)}
-                        className={clsx(
-                          'rounded border border-[#c8d2df] bg-white p-2 shadow-sm transition-colors',
-                          highlightedProductId === Number(product.id) && 'ring-1 ring-[#4f81bd] bg-[#fff7d6]',
-                          canAddProductFromList(product) ? 'cursor-pointer hover:bg-[#fff8dc]' : '',
-                        )}
-                      >
-                        <div className="min-w-0">
-                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-normal text-[#23527c]">#{index + 1}</p>
-                          <p className="wrap-break-word text-[12px] leading-4 text-slate-900">{formatProductName(product.name)}</p>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">Остаток</p>
-                            <div className="mt-1 inline-flex flex-col rounded border border-[#c8d2df] bg-white px-2 py-1.5 text-[#23527c]">
-                              <span className="whitespace-nowrap text-[13px] font-semibold leading-4">{stockParts.primary}</span>
-                              {stockParts.secondary ? (
-                                <span className="mt-1 whitespace-nowrap text-[11px] font-medium leading-4 text-sky-600/90">{stockParts.secondary}</span>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
-                            <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">Цена</p>
-                            <p className="mt-1 wrap-break-word text-sm text-slate-900">{formatMoney(product.sellingPrice)}</p>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddFromList(product);
-                          }}
-                          disabled={!canAddProductFromList(product)}
-                          className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded border border-[#7f9db9] bg-[#eaf2fb] px-3 py-2 text-sm text-[#1f3f63] transition-colors hover:bg-[#dbeafd] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Plus size={15} />
-                          <span>Добавить</span>
-                        </button>
-                      </div>
-                    )})}
-                  </div>
-
-                  <div className="hidden flex-col md:flex">
-                    {filteredProducts.map((product, index) => {
-                      const stockParts = getProductStockParts(product, product.unit);
-
-                      return (
-                        <div
-                          key={product.id}
-                          onClick={() => handleAddFromList(product)}
-                          className={clsx(
-                            'grid grid-cols-[52px_minmax(0,1fr)_150px_110px_130px] items-center border-b border-[#d5dde6] px-4 py-2 last:border-b-0 transition-colors even:bg-[#fbfcfd]',
-                            highlightedProductId === Number(product.id) && 'bg-[#fff7d6]',
-                            canAddProductFromList(product) ? 'cursor-pointer hover:bg-[#fff8dc]' : '',
-                          )}
-                        >
-                          <div className="text-center text-sm font-semibold text-[#23527c]">{index + 1}</div>
-
-                          <div className="min-w-0">
-                            <p className="wrap-break-word text-[12px] leading-4 text-slate-900">{formatProductName(product.name)}</p>
-                          </div>
-
-                          <div className="flex justify-center">
-                            <div className="inline-flex min-w-27 flex-col items-center rounded border border-[#c8d2df] bg-[#f7f9fb] px-2 py-1 text-center text-[#23527c]">
-                              <span className="whitespace-nowrap text-[13px] font-semibold leading-4">{stockParts.primary}</span>
-                              {stockParts.secondary ? (
-                                <span className="mt-1 whitespace-nowrap text-[11px] font-medium leading-4 text-sky-600/90">{stockParts.secondary}</span>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          <div className="text-center text-xs text-slate-900">{formatMoney(product.sellingPrice)}</div>
-
-                          <div className="text-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddFromList(product);
-                              }}
-                              disabled={!canAddProductFromList(product)}
-                              className="inline-flex items-center gap-1 rounded border border-[#7f9db9] bg-[#eaf2fb] px-2.5 py-1.5 text-xs text-[#1f3f63] transition-colors hover:bg-[#dbeafd] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <Plus size={15} />
-                              <span>Добавить</span>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {!filteredProducts.length && (
-                    <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-300">
-                        <Search size={28} />
-                      </div>
-                      <p className="mt-0.5 text-xs text-[#5f6f7f]">Товары не найдены</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <POSProductList
+                filteredProducts={filteredProducts}
+                warehouses={warehouses}
+                warehouseId={warehouseId}
+                productSearch={productSearch}
+                highlightedProductId={highlightedProductId}
+                isAdmin={isAdmin}
+                productListRef={productListRef}
+                setProductSearch={setProductSearch}
+                handleWarehouseChange={handleWarehouseChange}
+                handleAddFromList={handleAddFromList}
+                canAddProductFromList={canAddProductFromList}
+                getProductStockParts={getProductStockParts}
+                onClose={() => navigate('/sales')}
+              />
             </section>
 
-            <aside className={clsx(activeTab === 'cart' ? 'block min-h-0 overflow-y-auto overscroll-contain lg:h-full lg:overflow-hidden' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full')}>
+            <aside className={clsx(activeTab === 'cart' ? 'block min-h-0 overflow-visible lg:h-full lg:overflow-hidden' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full')}>
               <div
                 className={clsx(
                   'min-h-0 rounded-md border border-[#b7c2ce] bg-white shadow-sm lg:h-full',
@@ -1432,426 +1235,68 @@ export default function POSView() {
                     : 'flex flex-col overflow-visible lg:overflow-hidden',
                 )}
               >
-                <div className={clsx('flex items-center justify-between border-b border-[#b7c2ce] bg-[#fff7d6] px-4 py-2.5', isCartExpanded && 'lg:col-start-1 lg:row-start-1')}>
-                  <div className={clsx(isCartExpanded && 'lg:hidden')}>
-                    <h2 className="text-lg font-semibold text-[#1f2933]">Корзина</h2>
-                    <p className="mt-1 text-xs text-slate-500">Выбрано позиций: {cart.length}</p>
-                    <p className="mt-1 text-xs font-semibold text-emerald-700">
-                      Масса/объем: {formatWeightKg(cartWeightSummary.totalWeightKg)}
-                    </p>
-                  </div>
-                  <div className={clsx('flex items-center gap-2', isCartExpanded && 'lg:ml-auto')}>
-                    <button
-                      type="button"
-                      onClick={() => setIsCartExpanded((value) => !value)}
-                      title={isCartExpanded ? 'Свернуть корзину' : 'Развернуть корзину'}
-                      className="flex h-8 w-8 items-center justify-center rounded border border-[#c8a64a] bg-white text-[#7a5a00] transition-colors hover:bg-[#fff0b3]"
-                    >
-                      {isCartExpanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                    </button>
-                    <div className={clsx('flex items-center gap-2 rounded border border-[#c8a64a] bg-[#fff0b3] px-2.5 py-1.5 text-[#7a5a00]', isCartExpanded && 'lg:hidden')}>
-                      <ShoppingCart size={18} />
-                      <span className="text-xs font-semibold">{cart.length}</span>
-                    </div>
-                  </div>
-                </div>
+                <POSCartHeader
+                  isCartExpanded={isCartExpanded}
+                  cartLength={cart.length}
+                  totalWeightKg={cartWeightSummary.totalWeightKg}
+                  formatWeightKg={formatWeightKg}
+                  setIsCartExpanded={setIsCartExpanded}
+                />
 
-                <div className={clsx('order-2 space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4 lg:order-0', isCartExpanded && 'lg:col-start-1 lg:row-start-2')}>
-                  <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00] md:hidden">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium">Сумма корзины</span>
-                      <span className="text-sm font-semibold text-slate-900">{formatMoney(total)}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-3">
-                      <span className="font-medium">Масса/объем</span>
-                      <span className="text-sm font-semibold text-slate-900">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
-                    </div>
-                  </div>
+                <POSCartCustomerBlock
+                  isCartExpanded={isCartExpanded}
+                  total={total}
+                  cartWeightSummary={cartWeightSummary}
+                  cartOverflowMessage={cartOverflowMessage || ''}
+                  customerId={customerId}
+                  customerSearch={customerSearch}
+                  isCustomerPortal={isCustomerPortal}
+                  isCustomerDropdownOpen={isCustomerDropdownOpen}
+                  filteredCustomers={filteredCustomers}
+                  formatWeightKg={formatWeightKg}
+                  setCustomerId={setCustomerId}
+                  setCustomerSearch={setCustomerSearch}
+                  setIsCustomerDropdownOpen={setIsCustomerDropdownOpen}
+                />
 
-                  {cartOverflowMessage && (
-                    <div className="rounded border border-[#d89aa2] bg-[#fff0f1] px-3 py-2 text-xs font-medium text-[#8a1f2d]">
-                      {cartOverflowMessage}
-                    </div>
-                  )}
+                <POSCartItemsList
+                  cart={cart}
+                  isCartExpanded={isCartExpanded}
+                  getCartStockSummary={getCartStockSummary}
+                  getCartPackaging={getCartPackaging}
+                  getLineSubtotal={getLineSubtotal}
+                  getLineDiscountAmount={getLineDiscountAmount}
+                  getLineTotal={getLineTotal}
+                  getProductUnitWeightKg={getProductUnitWeightKg}
+                  formatWeightKg={formatWeightKg}
+                  removeFromCart={removeFromCart}
+                  updateSelectedPackaging={updateSelectedPackaging}
+                  updatePackageQuantityInput={updatePackageQuantityInput}
+                  commitPackageQuantityInput={commitPackageQuantityInput}
+                  updateExtraUnitQuantityInput={updateExtraUnitQuantityInput}
+                  commitExtraUnitQuantityInput={commitExtraUnitQuantityInput}
+                  updateLineDiscountInput={updateLineDiscountInput}
+                  commitLineDiscountInput={commitLineDiscountInput}
+                />
 
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a5a00]" size={16} />
-                    <input
-                      value={customerSearch}
-                      onChange={(e) => {
-                        if (isCustomerPortal) return;
-                        const value = e.target.value;
-                        startTransition(() => {
-                          setCustomerSearch(value);
-                          setCustomerId(null);
-                          setIsCustomerDropdownOpen(true);
-                        });
-                      }}
-                      onFocus={() => !isCustomerPortal && setIsCustomerDropdownOpen(true)}
-                      onBlur={() => {
-                        window.setTimeout(() => {
-                          setIsCustomerDropdownOpen(false);
-                        }, 150);
-                      }}
-                      placeholder="Поиск клиента по имени"
-                      readOnly={isCustomerPortal}
-                      className="w-full rounded border border-[#9fb7d5] bg-white py-2 pl-9 pr-3 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
-                    />
-                    {isCustomerDropdownOpen && (
-                      <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 max-h-60 overflow-y-auto rounded border border-[#9fb7d5] bg-white p-1 shadow-xl">
-                        {filteredCustomers.map((customer) => (
-                          <button
-                            key={customer.id}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setCustomerId(customer.id);
-                              setCustomerSearch(customer.name || '');
-                              setIsCustomerDropdownOpen(false);
-                            }}
-                            className={clsx(
-                              'flex w-full rounded px-3 py-2 text-left text-xs transition-colors hover:bg-[#fff8dc]',
-                              customerId === customer.id ? 'border border-[#c8d2df] bg-white text-[#32465a]' : 'text-slate-700',
-                            )}
-                          >
-                            {customer.name}
-                          </button>
-                        ))}
-                        {!filteredCustomers.length && (
-                          <div className="px-3 py-2 text-xs text-slate-400">Клиенты не найдены</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  {!customerId && (
-                    <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00]">
-                      Выберите клиента, иначе оформить продажу нельзя.
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className={clsx(
-                    'order-1 px-3 md:px-4 lg:order-0',
-                    isCartExpanded
-                      ? 'min-h-0 overflow-y-visible overscroll-contain lg:col-start-1 lg:row-start-3 lg:h-full lg:max-h-full lg:overflow-y-auto'
-                      : 'min-h-0 overflow-y-visible overscroll-contain lg:flex-1 lg:overflow-y-auto'
-                  )}
-                  style={!isCartExpanded ? { maxHeight: undefined } : undefined}
-                >
-                  <div className="sticky top-0 z-10 -mx-3 border-b border-[#d5dde6] bg-white px-3 py-2 text-xs font-semibold text-[#32465a] md:-mx-4 md:px-4 lg:hidden">
-                    Товары в корзине: {cart.length}
-                  </div>
-                  {cart.map((item, index) => (
-                    <div key={item.id} className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
-                      {(() => {
-                        const stockSummary = getCartStockSummary(item);
-                        const itemLineSubtotal = getLineSubtotal(item);
-                        const itemLineDiscount = getLineDiscountAmount(item);
-                        const itemLineTotal = getLineTotal(item);
-                        const itemWeightKg = getProductUnitWeightKg(item) * Math.max(0, Number(item.quantity || 0));
-
-                        return (
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-[#c8a64a] bg-[#fff7d6] text-xs font-semibold text-[#7a5a00]">
-                          {index + 1}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p
-                              className="wrap-break-word whitespace-normal text-[12px] font-semibold leading-4 text-[#1f2933]"
-                              style={{ overflowWrap: 'anywhere' }}
-                            >
-                              {formatProductName(item.name)}
-                            </p>
-                            <span className="shrink-0 whitespace-nowrap text-[10px] leading-4 text-slate-400">
-                              Доступно: {stockSummary.availableLabel}
-                            </span>
-                          </div>
-
-                          <div className="mt-3 space-y-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 border-t border-[#d5dde6] pt-2">
-                                <p className="text-[10px] font-medium text-slate-500">
-                                  {formatMoney(item.sellingPrice)} x {item.quantity} {item.baseUnitName}
-                                </p>
-                                {itemWeightKg > 0 ? (
-                                  <p className="mt-1 text-[10px] font-semibold text-[#7a5a00]">
-                                    Масса/объем: {formatWeightKg(itemWeightKg)}
-                                  </p>
-                                ) : null}
-                              </div>
-                              <div className="flex items-start gap-2">
-                                <div className="text-right">
-                                  <p className="text-[13px] font-semibold text-slate-900">
-                                    {formatMoney(itemLineTotal)}
-                                  </p>
-                                  {itemLineDiscount > 0 ? (
-                                    <p className="mt-0.5 text-[10px] text-slate-400 line-through">
-                                      {formatMoney(itemLineSubtotal)}
-                                    </p>
-                                  ) : null}
-                                </div>
-                                <button
-                                  onClick={() => removeFromCart(item.id)}
-                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-transparent text-[#7b8794] transition-colors hover:border-[#d89aa2] hover:bg-[#fff0f1] hover:text-[#8a1f2d]"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </div>
-
-                            {isCartExpanded ? (
-                              <div className="grid gap-2 md:grid-cols-[240px_96px_96px_96px]">
-                                <label className="min-w-0">
-                                  <span className="mb-1 block text-[10px] font-semibold text-[#48627f]">Упаковка</span>
-                                  <select
-                                    value={item.selectedPackagingId || ''}
-                                    onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
-                                    title="Выберите коробку или продажу поштучно"
-                                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8]"
-                                  >
-                                    <option value="">{'\u0422\u043e\u043b\u044c\u043a\u043e'} {item.baseUnitName}</option>
-                                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
-                                      <option key={packaging.id} value={packaging.id}>
-                                        {packaging.packageName} = {packaging.unitsPerPackage} {item.baseUnitName}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-
-                                <label>
-                                  <span className="mb-1 block text-[10px] font-semibold text-[#48627f]">Коробок</span>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={item.packageQuantityInput ?? String(item.packageQuantity)}
-                                    onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
-                                    onBlur={() => commitPackageQuantityInput(item.id)}
-                                    disabled={!item.selectedPackagingId}
-                                    placeholder={'\u0423\u043f\u0430\u043a.'}
-                                    title="Количество выбранных упаковок"
-                                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8] disabled:cursor-not-allowed disabled:opacity-50"
-                                  />
-                                </label>
-
-                                <label>
-                                  <span className="mb-1 block text-[10px] font-semibold text-[#48627f]">{item.baseUnitName}</span>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
-                                    value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
-                                    onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
-                                    onBlur={() => commitExtraUnitQuantityInput(item.id)}
-                                    placeholder={`+ ${item.baseUnitName}`}
-                                    title="Дополнительное количество поштучно"
-                                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8]"
-                                  />
-                                </label>
-
-                                <label>
-                                  <span className="mb-1 block text-[10px] font-semibold text-[#7a5a00]">Скидка %</span>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    value={item.lineDiscountInput !== undefined ? item.lineDiscountInput : (item.lineDiscountPercent > 0 ? String(item.lineDiscountPercent) : '')}
-                                    onChange={(e) => updateLineDiscountInput(item.id, e.target.value)}
-                                    onBlur={() => commitLineDiscountInput(item.id)}
-                                    placeholder="%"
-                                    title="Процент скидки на этот товар"
-                                    className="h-9 w-full rounded border border-[#d6c07a] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#b08a28]"
-                                  />
-                                </label>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_88px_96px]">
-                                  <select
-                                    value={item.selectedPackagingId || ''}
-                                    onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
-                                    className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-xs text-[#1f2933] outline-none"
-                                  >
-                                    <option value="">{'\u0422\u043e\u043b\u044c\u043a\u043e'} {item.baseUnitName}</option>
-                                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
-                                      <option key={packaging.id} value={packaging.id}>
-                                        {packaging.packageName} x {packaging.unitsPerPackage}
-                                      </option>
-                                    ))}
-                                  </select>
-
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={item.packageQuantityInput ?? String(item.packageQuantity)}
-                                    onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
-                                    onBlur={() => commitPackageQuantityInput(item.id)}
-                                    disabled={!item.selectedPackagingId}
-                                    placeholder={'\u0423\u043f\u0430\u043a.'}
-                                    className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                                  />
-
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
-                                    value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
-                                    onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
-                                    onBlur={() => commitExtraUnitQuantityInput(item.id)}
-                                    placeholder={`+ ${item.baseUnitName}`}
-                                    className="rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
-                                  />
-                                </div>
-
-                                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_140px]">
-                                  <div className="rounded border border-[#d6c07a] bg-[#fff8dc] px-2 py-1.5 text-[10px] text-[#7a5a00]">
-                                    Скидка на этот товар
-                                  </div>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    value={item.lineDiscountInput !== undefined ? item.lineDiscountInput : (item.lineDiscountPercent > 0 ? String(item.lineDiscountPercent) : '')}
-                                    onChange={(e) => updateLineDiscountInput(item.id, e.target.value)}
-                                    onBlur={() => commitLineDiscountInput(item.id)}
-                                    placeholder="%"
-                                    className="rounded border border-[#d6c07a] bg-white px-2 py-1.5 text-center text-xs text-[#1f2933] outline-none"
-                                  />
-                                </div>
-                              </>
-                            )}
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
-                              <span>
-                                {item.selectedPackagingId
-                                  ? `${getCartPackaging(item)?.packageName || '\u0423\u043f\u0430\u043a\u043e\u0432\u043a\u0430'}: ${item.packageQuantity}`
-                                  : `\u041f\u043e\u0448\u0442\u0443\u0447\u043d\u043e: ${item.extraUnitQuantity}`}
-                              </span>
-                              <span>
-                                {'\u0418\u0442\u043e\u0433\u043e'}: {item.quantity} {'\u0448\u0442'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                        );
-                      })()}
-                    </div>
-                  ))}
-
-                  {!cart.length && (
-                    <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-300">
-                        <ShoppingCart size={28} />
-                      </div>
-                      <p className="text-xs text-slate-500">Корзина пуста</p>
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className={clsx(
-                    'order-3 space-y-2 border-t border-[#b7c2ce] bg-[#f7f9fb] px-3 py-3 md:bg-[#f7f9fb] md:px-4 md:py-3 lg:order-0',
-                    isCartExpanded
-                      ? 'lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:h-full lg:self-stretch lg:overflow-hidden lg:border-l lg:border-t-0'
-                      : 'z-10 shrink-0',
-                  )}
-                >
-                  {isCartExpanded && (
-                    <div className="hidden rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-3 lg:block">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h2 className="text-lg font-semibold text-[#1f2933]">Корзина</h2>
-                          <p className="mt-1 text-xs text-slate-500">Выбрано позиций: {cart.length}</p>
-                        </div>
-                        <div className="flex items-center gap-2 rounded border border-[#c8a64a] bg-[#fff0b3] px-2.5 py-1.5 text-[#7a5a00]">
-                          <ShoppingCart size={18} />
-                          <span className="text-xs font-semibold">{cart.length}</span>
-                        </div>
-                      </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <div className="rounded border border-[#d6c07a] bg-white px-2.5 py-2">
-                          <p className="text-[10px] font-medium text-[#7a5a00]">Сумма</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{formatMoney(total)}</p>
-                        </div>
-                        <div className="rounded border border-[#a9d8c7] bg-white px-2.5 py-2">
-                          <p className="text-[10px] font-medium text-emerald-700">Масса/объем</p>
-                          <p className="mt-1 text-sm font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <input
-                      type="number"
-                      min={0}
-                      value={discount === 0 ? '' : discount}
-                      onChange={(e) => setDiscount(Math.max(0, Number(e.target.value) || 0))}
-                      placeholder="Скидка %"
-                      className="rounded border border-[#d6c07a] bg-white px-3 py-2 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#b08a28]"
-                    />
-                        <input
-                          type="number"
-                          value={paidAmount}
-                          min={0}
-                          step="0.01"
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setPaidAmount(value === '' ? '' : String(Math.max(0, Number(value) || 0)));
-                      }}
-                      placeholder="Оплачено"
-                      className="rounded border border-[#9fb7d5] bg-white px-3 py-2 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2 text-xs">
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span>Подытог</span>
-                      <span className="text-slate-900">{formatMoney(subtotal)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span>Масса/объем товаров</span>
-                      <span className="font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
-                    </div>
-                    {cartWeightSummary.missingWeightItems > 0 ? (
-                      <div className="text-[10px] font-medium text-amber-700">
-                        У {cartWeightSummary.missingWeightItems} поз. вес не найден в названии
-                      </div>
-                    ) : null}
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span>Скидка по товарам</span>
-                      <span className="text-slate-900">-{formatMoney(lineDiscountAmount)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-slate-500">
-                      <span>Скидка на чек</span>
-                      <span className="text-slate-900">-{formatMoney(invoiceDiscountAmount)}</span>
-                    </div>
-                    {paidAmount && (
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span>{balance >= 0 ? 'Сдача' : 'Долг'}</span>
-                        <span className={balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
-                          {formatMoney(Math.abs(balance))}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm font-semibold text-slate-900">
-                      <span>Итого</span>
-                      <span>{formatMoney(total)}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleCheckout}
-                    disabled={isSubmitting || cart.length === 0 || !customerId}
-                    className="flex w-full items-center justify-center rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2.5 text-sm font-semibold text-[#2f2f2f] shadow-sm transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isSubmitting ? 'Обработка...' : 'Оформить'}
-                    {!isSubmitting && <ChevronRight className="ml-2" size={18} />}
-                  </button>
-                </div>
+                <POSCartSummary
+                  isCartExpanded={isCartExpanded}
+                  cartLength={cart.length}
+                  customerId={customerId}
+                  discount={discount}
+                  paidAmount={paidAmount}
+                  subtotal={subtotal}
+                  total={total}
+                  lineDiscountAmount={lineDiscountAmount}
+                  invoiceDiscountAmount={invoiceDiscountAmount}
+                  balance={balance}
+                  cartWeightSummary={cartWeightSummary}
+                  isSubmitting={isSubmitting}
+                  formatWeightKg={formatWeightKg}
+                  setDiscount={setDiscount}
+                  setPaidAmount={setPaidAmount}
+                  handleCheckout={handleCheckout}
+                />
               </div>
             </aside>
           </div>
@@ -1860,10 +1305,3 @@ export default function POSView() {
     </div>
   );
 }
-
-
-
-
-
-
-
