@@ -139,7 +139,7 @@ export default function SalesView() {
       const res = await client.get(`/invoices${query}`);
       setInvoices(Array.isArray(res.data) ? res.data.filter((invoice) => !invoice?.cancelled) : []);
     } catch (err) {
-      toast.error('ÐžÑˆÐ¸Ð±ÐºÐ° Ð¿Ñ€Ð¸ Ð·Ð°Ð³Ñ€ÑƒÐ·ÐºÐµ Ð½Ð°ÐºÐ»Ð°Ð´Ð½Ñ‹Ñ…');
+      toast.error('Ошибка при загрузке накладных');
     } finally {
       setIsLoading(false);
     }
@@ -215,11 +215,11 @@ export default function SalesView() {
   };
 
   const getStatusBadge = (status: string, cancelled: boolean) => {
-    if (cancelled) return <span className="rounded-full bg-rose-50 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-rose-500">ÐžÑ‚Ð¼ÐµÐ½ÐµÐ½Ð°</span>;
+    if (cancelled) return <span className="rounded-full bg-rose-50 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-rose-500">Отменена</span>;
     switch (status) {
-      case 'paid': return <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-500">ÐžÐ¿Ð»Ð°Ñ‡ÐµÐ½Ð¾</span>;
-      case 'partial': return <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-500">Ð§Ð°ÑÑ‚Ð¸Ñ‡Ð½Ð¾</span>;
-      default: return <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">ÐÐµ Ð¾Ð¿Ð»Ð°Ñ‡ÐµÐ½Ð¾</span>;
+      case 'paid': return <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-500">Оплачено</span>;
+      case 'partial': return <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-500">Частично</span>;
+      default: return <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">Не оплачено</span>;
     }
   };
 
@@ -384,8 +384,8 @@ export default function SalesView() {
         <div className="rounded-md border border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-normal text-[#1f2933]">ÐŸÑ€Ð¾Ð´Ð°Ð¶Ð¸</h1>
-          <p className="mt-0.5 text-xs text-[#5f6f7f]">Ð£Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ðµ Ð½Ð°ÐºÐ»Ð°Ð´Ð½Ñ‹Ð¼Ð¸ Ð¸ Ð·Ð°ÐºÐ°Ð·Ð°Ð¼Ð¸ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ð¾Ð².</p>
+          <h1 className="text-2xl font-semibold tracking-normal text-[#1f2933]">Продажи</h1>
+          <p className="mt-0.5 text-xs text-[#5f6f7f]">Управление накладными и заказами клиентов.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-4 mr-4">
@@ -400,9 +400,9 @@ export default function SalesView() {
             value={selectedWarehouseId}
             onChange={(e) => setSelectedWarehouseId(e.target.value)}
             disabled={!isAdmin}
-            className="min-w-[200px] rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
+            className="min-w-50 rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
           >
-            <option value="">Ð’ÑÐµ ÑÐºÐ»Ð°Ð´Ñ‹</option>
+            <option value="">Все склады</option>
             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
           <button 
@@ -410,7 +410,7 @@ export default function SalesView() {
             className="flex items-center space-x-2 rounded border border-[#7f9db9] bg-[#eaf2fb] px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#dbeafd]"
           >
             <Plus size={18} />
-            <span>ÐÐ¾Ð²Ð°Ñ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð°</span>
+            <span>Новая продажа</span>
           </button>
           </>
           )}
@@ -475,7 +475,7 @@ export default function SalesView() {
                     <Receipt size={24} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-slate-900">ÐÐ°ÐºÐ»Ð°Ð´Ð½Ð°Ñ #{selectedInvoice.id}</h3>
+                    <h3 className="text-2xl font-black text-slate-900">Накладная #{selectedInvoice.id}</h3>
                     <p className="text-slate-500 font-bold">{new Date(selectedInvoice.createdAt).toLocaleString('ru-RU')}</p>
                   </div>
                 </div>
@@ -489,15 +489,15 @@ export default function SalesView() {
                   <div className="rounded border border-[#c8d2df] bg-white p-3">
                     <div className="mb-2 flex items-center space-x-2 text-[#48627f]">
                       <UserIcon size={18} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">ÐšÐ»Ð¸ÐµÐ½Ñ‚</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Клиент</span>
                     </div>
                     <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name}</p>
-                    <p className="text-sm font-bold text-slate-500 mt-1">{selectedInvoice.customer_phone || 'ÐÐµÑ‚ Ñ‚ÐµÐ»ÐµÑ„Ð¾Ð½Ð°'}</p>
+                    <p className="text-sm font-bold text-slate-500 mt-1">{selectedInvoice.customer_phone || 'Нет телефона'}</p>
                   </div>
                   <div className="rounded border border-[#c8d2df] bg-white p-3">
                     <div className="mb-2 flex items-center space-x-2 text-[#48627f]">
                       <WarehouseIcon size={18} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Ð¡ÐºÐ»Ð°Ð´</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Склад</span>
                     </div>
                     <p className="text-lg font-black text-slate-900">{selectedInvoice.warehouse?.name}</p>
                     <p className="text-sm font-bold text-slate-500 mt-1">{selectedInvoice.warehouse?.address || '---'}</p>
@@ -505,15 +505,15 @@ export default function SalesView() {
                   <div className="rounded border border-[#c8d2df] bg-white p-3">
                     <div className="mb-2 flex items-center space-x-2 text-[#48627f]">
                       <Clock size={18} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Ð¡Ñ‚Ð°Ñ‚ÑƒÑ</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">Статус</span>
                     </div>
                     <div>{getStatusBadge(getEffectiveStatus(selectedInvoice), selectedInvoice.cancelled)}</div>
-                    <p className="text-sm font-bold text-slate-500 mt-2">Ð¡Ð¾Ñ‚Ñ€ÑƒÐ´Ð½Ð¸Ðº: {selectedInvoice.staff_name}</p>
+                    <p className="text-sm font-bold text-slate-500 mt-2">Сотрудник: {selectedInvoice.staff_name}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="ml-1 text-sm font-semibold text-[#32465a]">Ð¢Ð¾Ð²Ð°Ñ€Ñ‹</h4>
+                  <h4 className="ml-1 text-sm font-semibold text-[#32465a]">Товары</h4>
                   <div className="overflow-hidden rounded border border-[#b7c2ce] bg-white">
                     <div className="space-y-3 p-3 md:hidden">
                       {selectedInvoice.items.map((item: any) => {
@@ -523,28 +523,28 @@ export default function SalesView() {
 
                         return (
                           <div key={`mobile-item-${item.id}`} className="rounded-2xl bg-slate-50 p-3">
-                            <p className="break-words text-sm font-black text-slate-900">{formatProductName(item.product_name)}</p>
+                            <p className="wrap-break-word text-sm font-black text-slate-900">{formatProductName(item.product_name)}</p>
                             <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                               <div className="rounded-xl bg-white px-2.5 py-2">
-                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">ÐšÐ¾Ð»-Ð²Ð¾</p>
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Кол-во</p>
                                 <p className="mt-1 whitespace-nowrap text-xs font-semibold text-slate-700">{quantityInfo.primary}</p>
                                 {quantityInfo.secondary && (
                                   <p className="mt-0.5 whitespace-nowrap text-[10px] text-slate-400">{quantityInfo.secondary}</p>
                                 )}
                               </div>
                               <div className="rounded-xl bg-white px-2.5 py-2">
-                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Ð¦ÐµÐ½Ð°</p>
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Цена</p>
                                 <p className="mt-1 font-bold text-slate-700">{formatMoney(item.sellingPrice)}</p>
                               </div>
                               <div className="rounded-xl bg-white px-2.5 py-2">
-                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Ð˜Ñ‚Ð¾Ð³Ð¾</p>
+                                <p className="text-[9px] uppercase tracking-[0.14em] text-slate-400">Итого</p>
                                 <p className="mt-1 font-black text-slate-900">{formatMoney(item.totalPrice)}</p>
                               </div>
                             </div>
                             {returnedQty > PAYMENT_EPSILON && (
                               <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
-                                <span>Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‰ÐµÐ½Ð¾: {formatCount(returnedQty)} {normalizeDisplayBaseUnit(item?.unit || item?.baseUnitNameSnapshot || item?.baseUnitName || 'ÑˆÑ‚')}</span>
-                                <span className="text-slate-400">ÐžÑÑ‚Ð°Ð»Ð¾ÑÑŒ: {formatCount(remainingQty)}</span>
+                                <span>Возвращено: {formatCount(returnedQty)} {normalizeDisplayBaseUnit(item?.unit || item?.baseUnitNameSnapshot || item?.baseUnitName || 'шт')}</span>
+                                <span className="text-slate-400">Осталось: {formatCount(remainingQty)}</span>
                               </div>
                             )}
                           </div>
@@ -554,10 +554,10 @@ export default function SalesView() {
                     <table className="hidden w-full border-collapse text-left text-sm md:table">
                       <thead>
                         <tr className="border-b border-[#b7c2ce] bg-[#dbe5f1] text-[12px] font-semibold text-[#32465a]">
-                          <th className="px-3 py-2">Ð¢Ð¾Ð²Ð°Ñ€</th>
-                          <th className="px-3 py-2">ÐšÐ¾Ð»-Ð²Ð¾</th>
-                          <th className="px-3 py-2">Ð¦ÐµÐ½Ð°</th>
-                          <th className="px-3 py-2 text-right">Ð˜Ñ‚Ð¾Ð³Ð¾</th>
+                          <th className="px-3 py-2">Товар</th>
+                          <th className="px-3 py-2">Кол-во</th>
+                          <th className="px-3 py-2">Цена</th>
+                          <th className="px-3 py-2 text-right">Итого</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#d5dde6]">
@@ -574,7 +574,7 @@ export default function SalesView() {
                                   <div className="mt-1 flex flex-wrap gap-1">
                                     {item.saleAllocations.map((sa: any) => (
                                       <span key={sa.id} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] rounded font-black uppercase tracking-tighter">
-                                        ÐŸÐ°Ñ€Ñ‚Ð¸Ñ #{sa.batchId} ({sa.quantity} {item.unit})
+                                        Партия #{sa.batchId} ({sa.quantity} {item.unit})
                                       </span>
                                     ))}
                                   </div>
@@ -587,8 +587,8 @@ export default function SalesView() {
                                 )}
                                 {returnedQty > PAYMENT_EPSILON && (
                                   <div className="mt-2 inline-flex flex-col rounded-xl border border-amber-100 bg-amber-50 px-2.5 py-1.5">
-                                    <span className="text-[10px] font-black text-amber-700">Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‰ÐµÐ½Ð¾: {formatCount(returnedQty)}</span>
-                                    <span className="text-[10px] text-slate-500">ÐžÑÑ‚Ð°Ð»Ð¾ÑÑŒ: {formatCount(remainingQty)}</span>
+                                    <span className="text-[10px] font-black text-amber-700">Возвращено: {formatCount(returnedQty)}</span>
+                                    <span className="text-[10px] text-slate-500">Осталось: {formatCount(remainingQty)}</span>
                                   </div>
                                 )}
                               </td>
@@ -605,35 +605,35 @@ export default function SalesView() {
                 <div className="flex justify-end">
                   <div className="w-full max-w-sm space-y-2 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-3">
                     <div className="flex items-center justify-between text-sm text-[#48627f]">
-                      <span className="font-bold">ÐŸÐ¾Ð´Ñ‹Ñ‚Ð¾Ð³:</span>
+                      <span className="font-bold">Подытог:</span>
                       <span className="font-black">{formatMoney(getInvoiceSubtotal(selectedInvoice))}</span>
                     </div>
                     {getInvoiceChangeAmount(selectedInvoice) > PAYMENT_EPSILON && (
                       <div className="flex items-center justify-between text-sm text-slate-500">
-                        <span className="font-bold">Ð¡Ð´Ð°Ñ‡Ð° ÐºÐ»Ð¸ÐµÐ½Ñ‚Ñƒ:</span>
+                        <span className="font-bold">Сдача клиенту:</span>
                         <span className="font-black text-amber-600">{formatMoney(getInvoiceChangeAmount(selectedInvoice))}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between text-sm text-slate-500">
-                      <span className="font-bold">Ð¡ÐºÐ¸Ð´ÐºÐ° ({selectedInvoice.discount}%):</span>
+                      <span className="font-bold">Скидка ({selectedInvoice.discount}%):</span>
                       <span className="font-black">-{formatMoney(getInvoiceDiscountAmount(selectedInvoice))}</span>
                     </div>
                     {selectedInvoice.returnedAmount > 0 && (
                       <div className="flex items-center justify-between text-sm text-rose-500">
-                        <span className="font-bold">Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‰ÐµÐ½Ð¾:</span>
+                        <span className="font-bold">Возвращено:</span>
                         <span className="font-black">-{formatMoney(selectedInvoice.returnedAmount || 0)}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between border-t border-[#d6c07a] pt-2 text-lg font-semibold text-[#1f2933]">
-                      <span>Ð˜Ñ‚Ð¾Ð³Ð¾:</span>
+                      <span>Итого:</span>
                       <span>{formatMoney(getInvoiceNetAmount(selectedInvoice))}</span>
                     </div>
                     <div className="flex items-center justify-between border-t border-[#d6c07a] pt-2 text-sm text-[#48627f]">
-                      <span className="font-bold">ÐžÐ¿Ð»Ð°Ñ‡ÐµÐ½Ð¾:</span>
+                      <span className="font-bold">Оплачено:</span>
                       <span className="font-black text-emerald-600">{formatMoney(getInvoiceAppliedPaidAmount(selectedInvoice))}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm text-slate-500">
-                      <span className="font-bold">ÐžÑÑ‚Ð°Ñ‚Ð¾Ðº (Ð”Ð¾Ð»Ð³):</span>
+                      <span className="font-bold">Остаток (Долг):</span>
                       <span className="font-black text-rose-600">{formatMoney(getInvoiceBalance(selectedInvoice))}</span>
                     </div>
                   </div>
@@ -641,15 +641,15 @@ export default function SalesView() {
 
                 {selectedInvoice.payments && selectedInvoice.payments.length > 0 && (
                   <div className="space-y-4">
-                    <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">Ð˜ÑÑ‚Ð¾Ñ€Ð¸Ñ Ð¿Ð»Ð°Ñ‚ÐµÐ¶ÐµÐ¹</h4>
+                    <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">История платежей</h4>
                     <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white">
-                      <table className="min-w-[760px] w-full text-left text-sm">
+                      <table className="min-w-190 w-full text-left text-sm">
                         <thead>
                           <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                            <th className="px-6 py-4">Ð”Ð°Ñ‚Ð°</th>
-                            <th className="px-6 py-4">Ð¡ÑƒÐ¼Ð¼Ð°</th>
-                            <th className="px-6 py-4">Ð¡Ð¾Ñ‚Ñ€ÑƒÐ´Ð½Ð¸Ðº</th>
-                            <th className="px-6 py-4 text-right">Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ðµ</th>
+                            <th className="px-6 py-4">Дата</th>
+                            <th className="px-6 py-4">Сумма</th>
+                            <th className="px-6 py-4">Сотрудник</th>
+                            <th className="px-6 py-4 text-right">Действие</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -666,7 +666,7 @@ export default function SalesView() {
                                   className="inline-flex items-center gap-1.5 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   <X size={14} />
-                                  {cancellingPaymentId === Number(p.id) ? 'ÐžÑ‚Ð¼ÐµÐ½Ð°...' : 'ÐžÑ‚Ð¼ÐµÐ½Ð¸Ñ‚ÑŒ'}
+                                  {cancellingPaymentId === Number(p.id) ? 'Отмена...' : 'Отменить'}
                                 </button>
                               </td>
                             </tr>
@@ -679,23 +679,23 @@ export default function SalesView() {
 
                 {getInvoiceReturnedItems(selectedInvoice).length > 0 && (
                   <div className="space-y-4">
-                    <h4 className="ml-2 text-sm font-black uppercase tracking-widest text-slate-400">Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‰ÐµÐ½Ð½Ñ‹Ðµ Ñ‚Ð¾Ð²Ð°Ñ€Ñ‹</h4>
+                    <h4 className="ml-2 text-sm font-black uppercase tracking-widest text-slate-400">Возвращенные товары</h4>
                     <div className="grid gap-3 md:grid-cols-2">
                       {getInvoiceReturnedItems(selectedInvoice).map((item: any) => {
                         const returnedQty = getInvoiceItemReturnedQty(item);
                         const remainingQty = getReturnItemRemainingUnits(item);
-                        const unitName = normalizeDisplayBaseUnit(item?.unit || item?.baseUnitNameSnapshot || item?.baseUnitName || 'ÑˆÑ‚');
+                        const unitName = normalizeDisplayBaseUnit(item?.unit || item?.baseUnitNameSnapshot || item?.baseUnitName || 'шт');
 
                         return (
                           <div key={`returned-item-${item.id}`} className="rounded-3xl border border-amber-100 bg-amber-50 p-4">
-                            <p className="break-words text-sm font-black text-slate-900">{getReturnItemDisplayName(item)}</p>
+                            <p className="wrap-break-word text-sm font-black text-slate-900">{getReturnItemDisplayName(item)}</p>
                             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                               <div className="rounded-2xl bg-white px-3 py-2">
-                                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-600">Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‰ÐµÐ½Ð¾</p>
+                                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-600">Возвращено</p>
                                 <p className="mt-1 font-black text-rose-600">{formatCount(returnedQty)} {unitName}</p>
                               </div>
                               <div className="rounded-2xl bg-white px-3 py-2">
-                                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">ÐžÑÑ‚Ð°Ð»Ð¾ÑÑŒ</p>
+                                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Осталось</p>
                                 <p className="mt-1 font-black text-slate-700">{formatCount(remainingQty)} {unitName}</p>
                               </div>
                             </div>
@@ -708,15 +708,15 @@ export default function SalesView() {
 
                 {selectedInvoice.returns && selectedInvoice.returns.length > 0 && (
                   <div className="space-y-4">
-                    <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">Ð˜ÑÑ‚Ð¾Ñ€Ð¸Ñ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‚Ð¾Ð²</h4>
+                    <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">История возвратов</h4>
                     <div className="overflow-x-auto rounded-3xl border border-slate-100 bg-white">
-                      <table className="min-w-[760px] w-full text-left text-sm">
+                      <table className="min-w-190 w-full text-left text-sm">
                         <thead>
                           <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                            <th className="px-6 py-4">Ð”Ð°Ñ‚Ð°</th>
-                            <th className="px-6 py-4">Ð¡ÑƒÐ¼Ð¼Ð°</th>
-                            <th className="px-6 py-4">ÐŸÑ€Ð¸Ñ‡Ð¸Ð½Ð°</th>
-                            <th className="px-6 py-4">Ð¡Ð¾Ñ‚Ñ€ÑƒÐ´Ð½Ð¸Ðº</th>
+                            <th className="px-6 py-4">Дата</th>
+                            <th className="px-6 py-4">Сумма</th>
+                            <th className="px-6 py-4">Причина</th>
+                            <th className="px-6 py-4">Сотрудник</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -724,7 +724,7 @@ export default function SalesView() {
                             <tr key={r.id}>
                               <td className="px-6 py-4 font-bold text-slate-500">{new Date(r.createdAt).toLocaleString('ru-RU')}</td>
                               <td className="px-6 py-4 font-black text-rose-600">-{formatMoney(r.totalValue)}</td>
-                              <td className="max-w-[320px] break-words px-6 py-4 italic text-slate-500">{r.reason || 'Ð‘ÐµÐ· Ð¿Ñ€Ð¸Ñ‡Ð¸Ð½Ñ‹'}</td>
+                              <td className="max-w-[320px] wrap-break-word px-6 py-4 italic text-slate-500">{r.reason || 'Без причины'}</td>
                               <td className="px-6 py-4 text-slate-500">{r.staff_name}</td>
                             </tr>
                           ))}
@@ -750,7 +750,7 @@ export default function SalesView() {
                     }`}
                   >
                     <Banknote size={18} />
-                    <span>ÐžÐ¿Ð»Ð°Ñ‚Ð°</span>
+                    <span>Оплата</span>
                   </button>
                 <button
                     onClick={() => {
@@ -764,20 +764,20 @@ export default function SalesView() {
                     }`}
                   >
                     <RotateCcw size={18} />
-                    <span>Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‚</span>
+                    <span>Возврат</span>
                   </button>
                 <button
                   onClick={() => handlePrintInvoice(selectedInvoice)}
                   className="inline-flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-4 py-2 text-sm font-medium text-[#23527c] transition-colors hover:bg-[#eaf2fb]"
                 >
                   <Printer size={18} />
-                  <span>ÐŸÐµÑ‡Ð°Ñ‚ÑŒ</span>
+                  <span>Печать</span>
                 </button>
                 <button 
                   onClick={closeDetailsModal}
                   className="rounded border border-[#9fb7d5] bg-white px-5 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                 >
-                  Ð—Ð°ÐºÑ€Ñ‹Ñ‚ÑŒ
+                  Закрыть
                 </button>
               </div>
             </motion.div>
@@ -792,7 +792,7 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={closeEditModal}
-            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/35 p-2 sm:items-center sm:p-3"
+            className="fixed inset-0 z-60 flex items-end justify-center bg-slate-900/35 p-2 sm:items-center sm:p-3"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -806,8 +806,8 @@ export default function SalesView() {
                     <Pencil size={24} />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-[#1f2933]">Ð˜Ð·Ð¼ÐµÐ½Ð¸Ñ‚ÑŒ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ñƒ</h3>
-                    <p className="text-xs font-medium text-[#5f6f7f]">ÐÐ°ÐºÐ»Ð°Ð´Ð½Ð°Ñ #{selectedInvoice.id}</p>
+                    <h3 className="text-xl font-semibold text-[#1f2933]">Изменить продажу</h3>
+                    <p className="text-xs font-medium text-[#5f6f7f]">Накладная #{selectedInvoice.id}</p>
                   </div>
                 </div>
                 <button onClick={closeEditModal} className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]">
@@ -817,13 +817,13 @@ export default function SalesView() {
 
               <div className="flex-1 space-y-4 overflow-y-auto bg-[#f3f5f7] p-3 sm:p-4">
                 <div className="rounded border border-[#c8d2df] bg-white p-3">
-                  <label className="ml-1 text-sm font-semibold text-[#32465a]">ÐšÐ»Ð¸ÐµÐ½Ñ‚</label>
+                  <label className="ml-1 text-sm font-semibold text-[#32465a]">Клиент</label>
                   <select
                     value={editCustomerId}
                     onChange={(e) => setEditCustomerId(e.target.value ? Number(e.target.value) : '')}
                     className="mt-2 w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                   >
-                    <option value="">Ð‘ÐµÐ· Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ñ</option>
+                    <option value="">Без названия</option>
                     {customers.map((customer) => (
                       <option key={customer.id} value={customer.id}>
                         {customer.name}
@@ -831,14 +831,14 @@ export default function SalesView() {
                     ))}
                   </select>
                   <p className="mt-2 text-xs text-[#5f6f7f]">
-                    ÐŸÑ€Ð¸ ÑÐ¼ÐµÐ½Ðµ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ð° Ð¿ÐµÑ€ÐµÐ½Ð¾ÑÐ¸Ñ‚ÑÑ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ñ‚ÐµÐºÑƒÑ‰Ð°Ñ Ð½Ð°ÐºÐ»Ð°Ð´Ð½Ð°Ñ, ÐµÐµ Ð¾Ð¿Ð»Ð°Ñ‚Ñ‹ Ð¸ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‚Ñ‹.
+                    При смене клиента переносится только текущая накладная, ее оплаты и возвраты.
                   </p>
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-[#32465a]">Ð¢Ð¾Ð²Ð°Ñ€Ñ‹ Ð² Ð½Ð°ÐºÐ»Ð°Ð´Ð½Ð¾Ð¹</p>
-                      <p className="mt-1 text-xs text-[#5f6f7f]">ÐŸÑ€Ð¾Ð²ÐµÑ€ÑŒÑ‚Ðµ ÑÑ‚Ñ€Ð¾ÐºÐ¸, ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾, Ñ†ÐµÐ½Ñƒ Ð¸ ÑÐºÐ¸Ð´ÐºÑƒ Ð¿ÐµÑ€ÐµÐ´ ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸ÐµÐ¼.</p>
+                      <p className="text-sm font-semibold text-[#32465a]">Товары в накладной</p>
+                      <p className="mt-1 text-xs text-[#5f6f7f]">Проверьте строки, количество, цену и скидку перед сохранением.</p>
                     </div>
                     <button
                       type="button"
@@ -846,7 +846,7 @@ export default function SalesView() {
                       className="inline-flex items-center gap-2 rounded border border-[#7f9db9] bg-[#eaf2fb] px-3 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#dbe9f6]"
                     >
                       <Plus size={16} />
-                      <span>Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ Ñ‚Ð¾Ð²Ð°Ñ€</span>
+                      <span>Добавить товар</span>
                     </button>
                   </div>
 
@@ -856,7 +856,7 @@ export default function SalesView() {
                       type="text"
                       value={editInvoiceSearch}
                       onChange={(e) => setEditInvoiceSearch(e.target.value)}
-                      placeholder="ÐŸÐ¾Ð¸ÑÐº Ñ‚Ð¾Ð²Ð°Ñ€Ð° Ð²Ð½ÑƒÑ‚Ñ€Ð¸ Ð½Ð°ÐºÐ»Ð°Ð´Ð½Ð¾Ð¹..."
+                      placeholder="Поиск товара внутри накладной..."
                       className="w-full rounded border border-[#9fb7d5] bg-white py-2 pl-10 pr-3 text-sm text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                     />
                   </div>
@@ -896,10 +896,10 @@ export default function SalesView() {
                         >
                           <div className="mb-2.5 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
-                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#48627f]">Ð¡Ñ‚Ñ€Ð¾ÐºÐ° #{index + 1}</p>
+                              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#48627f]">Строка #{index + 1}</p>
                               {item.isNew ? (
                                 <span className="rounded border border-[#9fb7d5] bg-[#eaf2fb] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#23527c]">
-                                  ÐÐ¾Ð²Ð°Ñ
+                                  Новая
                                 </span>
                               ) : null}
                             </div>
@@ -910,13 +910,13 @@ export default function SalesView() {
                               className="inline-flex items-center gap-1 rounded border border-[#d6a1a1] bg-[#fff1f1] px-3 py-1.5 text-xs font-medium text-[#9f1239] transition-colors hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Trash2 size={14} />
-                              <span>Ð£Ð±Ñ€Ð°Ñ‚ÑŒ</span>
+                              <span>Убрать</span>
                             </button>
                           </div>
 
                           <div className="space-y-3">
                             <div className="space-y-2">
-                              <p className="text-xs font-semibold text-[#48627f]">Ð¢Ð¾Ð²Ð°Ñ€</p>
+                              <p className="text-xs font-semibold text-[#48627f]">Товар</p>
                               <div className="relative">
                                   <button
                                     type="button"
@@ -930,7 +930,7 @@ export default function SalesView() {
                                     className="flex w-full items-center justify-between rounded border border-[#9fb7d5] bg-white px-3 py-2 text-left text-sm text-[#1f2933] transition-colors hover:bg-[#f7fbff] focus:border-[#4f81bd]"
                                   >
                                   <span className="truncate">
-                                    {selectedProduct ? formatProductName(selectedProduct.name) : 'Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ Ñ‚Ð¾Ð²Ð°Ñ€ Ð¸Ð· ÑÐ¿Ð¸ÑÐºÐ°'}
+                                    {selectedProduct ? formatProductName(selectedProduct.name) : 'Выберите товар из списка'}
                                   </span>
                                   <ChevronDown size={18} className="shrink-0 text-[#48627f]" />
                                 </button>
@@ -944,7 +944,7 @@ export default function SalesView() {
                                           type="text"
                                           value={editProductMenuSearch}
                                           onChange={(e) => setEditProductMenuSearch(e.target.value)}
-                                          placeholder="ÐŸÐ¾Ð¸ÑÐº Ñ‚Ð¾Ð²Ð°Ñ€Ð°..."
+                                          placeholder="Поиск товара..."
                                           className="w-full rounded border border-[#9fb7d5] bg-white py-2 pl-9 pr-3 text-sm text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                         />
                                       </div>
@@ -980,7 +980,7 @@ export default function SalesView() {
                                         })}
                                       {!visibleEditProducts.length ? (
                                         <div className="px-4 py-6 text-center text-sm font-medium text-slate-400">
-                                          ÐÐ¸Ñ‡ÐµÐ³Ð¾ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½Ð¾
+                                          Ничего не найдено
                                         </div>
                                       ) : null}
                                     </div>
@@ -990,13 +990,13 @@ export default function SalesView() {
                             </div>
 
                             <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
-                              <p className={`break-words text-sm font-semibold leading-5 ${selectedProduct ? 'text-[#1f2933]' : 'text-[#23527c]'}`}>
-                                {selectedProduct ? formatProductName(selectedProduct.name) : 'Ð¡Ð½Ð°Ñ‡Ð°Ð»Ð° Ð²Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ Ñ‚Ð¾Ð²Ð°Ñ€, Ð¿Ð¾Ñ‚Ð¾Ð¼ ÑƒÐºÐ°Ð¶Ð¸Ñ‚Ðµ Ñ‚Ð¸Ð¿ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð¸ Ð¸ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾'}
+                              <p className={`wrap-break-word text-sm font-semibold leading-5 ${selectedProduct ? 'text-[#1f2933]' : 'text-[#23527c]'}`}>
+                                {selectedProduct ? formatProductName(selectedProduct.name) : 'Сначала выберите товар, потом укажите тип продажи и количество'}
                               </p>
                             </div>
 
                             <div className="space-y-2">
-                              <p className="text-xs font-semibold text-[#48627f]">Ð¢Ð¸Ð¿ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð¸ Ð¸ ÐºÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾</p>
+                              <p className="text-xs font-semibold text-[#48627f]">Тип продажи и количество</p>
                               <div className="rounded border border-[#c8d2df] bg-[#eef3f8] p-2">
                                 <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_1.1fr]">
                                   <select
@@ -1013,17 +1013,17 @@ export default function SalesView() {
                                     disabled={!selectedProduct}
                                     className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                   >
-                                    <option value="piece">Ð Ð¾Ð·Ð½Ð¸Ñ†Ð°</option>
+                                    <option value="piece">Розница</option>
                                     {getEditItemDefaultBulkPackaging(item) ? (
-                                      <option value="bulk">ÐžÐ¿Ñ‚Ð¾Ð¼</option>
+                                      <option value="bulk">Оптом</option>
                                     ) : null}
                                   </select>
                                   <div className="flex items-center rounded border border-[#c8d2df] bg-white px-3 py-2 text-xs font-medium leading-5 text-[#5f6f7f]">
                                     {!selectedProduct
-                                      ? 'Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ Ñ‚Ð¾Ð²Ð°Ñ€, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð¿Ð¾ÑÐ²Ð¸Ð»ÑÑ Ñ€ÐµÐ¶Ð¸Ð¼ Ð¿Ñ€Ð¾Ð´Ð°Ð¶Ð¸'
+                                      ? 'Выберите товар, чтобы появился режим продажи'
                                       : item.selectedPackagingId && getEditItemPackaging(item)
-                                      ? `ÐŸÐ¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ: ${getEditItemPackaging(item)?.packageName} x ${getEditItemPackaging(item)?.unitsPerPackage}`
-                                      : 'ÐŸÑ€Ð¾Ð´Ð°Ð¶Ð° Ð² Ñ€Ð¾Ð·Ð½Ð¸Ñ†Ñƒ'}
+                                      ? `По умолчанию: ${getEditItemPackaging(item)?.packageName} x ${getEditItemPackaging(item)?.unitsPerPackage}`
+                                      : 'Продажа в розницу'}
                                   </div>
                                 </div>
                                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -1036,7 +1036,7 @@ export default function SalesView() {
                                       step="1"
                                       value={item.packageQuantityInput}
                                       onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { packageQuantityInput: e.target.value })}
-                                      placeholder="ÐšÐ¾Ð»-Ð²Ð¾ ÑƒÐ¿Ð°ÐºÐ¾Ð²Ð¾Ðº"
+                                      placeholder="Кол-во упаковок"
                                       disabled={!selectedProduct}
                                       className="rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                     />
@@ -1047,7 +1047,7 @@ export default function SalesView() {
                                       step="0.01"
                                       value={item.extraUnitQuantityInput}
                                       onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { extraUnitQuantityInput: e.target.value })}
-                                      placeholder="+ ÑˆÑ‚"
+                                      placeholder="+ шт"
                                       disabled={!selectedProduct}
                                       className="rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                     />
@@ -1060,7 +1060,7 @@ export default function SalesView() {
                                     step="1"
                                     value={item.extraUnitQuantityInput}
                                     onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { extraUnitQuantityInput: e.target.value })}
-                                    placeholder="ÐšÐ¾Ð»-Ð²Ð¾, ÑˆÑ‚"
+                                    placeholder="Кол-во, шт"
                                     disabled={!selectedProduct}
                                     className="sm:col-span-2 rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                                   />
@@ -1072,7 +1072,7 @@ export default function SalesView() {
 
                           <div className="mt-3 grid gap-2 sm:grid-cols-4">
                             <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
-                              <p className="text-[11px] font-semibold text-[#48627f]">ÐšÐ¾Ð»-Ð²Ð¾</p>
+                              <p className="text-[11px] font-semibold text-[#48627f]">Кол-во</p>
                               <p className="mt-1 text-sm font-semibold text-[#1f2933]">
                                 {item.selectedPackagingId
                                   ? (() => {
@@ -1084,28 +1084,28 @@ export default function SalesView() {
                                         lines.push(`${packageCount} ${selectedPackaging.packageName}`);
                                       }
                                       if (extraCount > 0 || lines.length === 0) {
-                                        lines.push(`${extraCount} ${item.baseUnitName || 'ÑˆÑ‚'}`);
+                                        lines.push(`${extraCount} ${item.baseUnitName || 'шт'}`);
                                       }
                                       return lines.join(' + ');
                                     })()
-                                  : (Number(item.quantity || 0) > 0 ? `${item.quantity} ${item.baseUnitName || 'ÑˆÑ‚'}` : '0')}
+                                  : (Number(item.quantity || 0) > 0 ? `${item.quantity} ${item.baseUnitName || 'шт'}` : '0')}
                               </p>
                             </div>
                             <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
-                              <p className="text-[11px] font-semibold text-[#48627f]">Ð¦ÐµÐ½Ð°</p>
+                              <p className="text-[11px] font-semibold text-[#48627f]">Цена</p>
                               <input
                                 type="number"
                                 min="0"
                                 step="0.01"
                                 value={item.sellingPrice}
                                 onChange={(e) => updateNormalizedEditInvoiceItem(item.key, { sellingPrice: e.target.value })}
-                                placeholder="Ð¦ÐµÐ½Ð°"
+                                placeholder="Цена"
                                 disabled={!selectedProduct}
                                 className="mt-1 w-full rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-sm font-semibold text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
                               />
                             </div>
                             <div className="rounded border border-[#c8d2df] bg-[#f7f9fb] px-3 py-2">
-                              <p className="text-[11px] font-semibold text-[#48627f]">Ð¡ÐºÐ¸Ð´ÐºÐ° %</p>
+                              <p className="text-[11px] font-semibold text-[#48627f]">Скидка %</p>
                               <input
                                 type="number"
                                 min="0"
@@ -1119,7 +1119,7 @@ export default function SalesView() {
                               />
                             </div>
                             <div className="rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2">
-                              <p className="text-[11px] font-semibold text-[#7a5a00]">Ð˜Ñ‚Ð¾Ð³Ð¾</p>
+                              <p className="text-[11px] font-semibold text-[#7a5a00]">Итого</p>
                               <p className="mt-1 text-sm font-bold text-[#1f2933]">
                                 {(() => {
                                   const q = Math.max(0, Number(item.quantity || 0));
@@ -1132,15 +1132,15 @@ export default function SalesView() {
                           </div>
 
                           <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[#d5dde6] pt-2 text-xs text-[#5f6f7f]">
-                            <span>Ð•Ð´.: {item.baseUnitName || selectedProduct?.baseUnitName || selectedProduct?.unit || item.unit || 'ÑˆÑ‚'}</span>
+                            <span>Ед.: {item.baseUnitName || selectedProduct?.baseUnitName || selectedProduct?.unit || item.unit || 'шт'}</span>
                             {item.selectedPackagingId && getEditItemPackaging(item) ? (
                               <span>
-                                ÐŸÐ¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ: {getEditItemPackaging(item)?.packageName} x {getEditItemPackaging(item)?.unitsPerPackage}
+                                По умолчанию: {getEditItemPackaging(item)?.packageName} x {getEditItemPackaging(item)?.unitsPerPackage}
                               </span>
                             ) : null}
                             {selectedProduct ? (
                               <span>
-                                ÐžÑÑ‚Ð°Ñ‚Ð¾Ðº ÑÐµÐ¹Ñ‡Ð°Ñ: {getProductStockParts(selectedProduct as EditProductOption).primary}
+                                Остаток сейчас: {getProductStockParts(selectedProduct as EditProductOption).primary}
                               </span>
                             ) : null}
                           </div>
@@ -1149,7 +1149,7 @@ export default function SalesView() {
                     })}
                     {!filteredEditInvoiceItems.length && (
                       <div className="rounded border border-dashed border-[#b7c2ce] bg-white px-4 py-6 text-center text-sm text-[#5f6f7f]">
-                        ÐŸÐ¾ ÑÑ‚Ð¾Ð¼Ñƒ Ð¿Ð¾Ð¸ÑÐºÑƒ Ñ‚Ð¾Ð²Ð°Ñ€Ñ‹ Ð² Ð½Ð°ÐºÐ»Ð°Ð´Ð½Ð¾Ð¹ Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½Ñ‹.
+                        По этому поиску товары в накладной не найдены.
                       </div>
                     )}
                   </div>
@@ -1157,15 +1157,15 @@ export default function SalesView() {
                   <div className="rounded border border-[#d6c07a] bg-[#fff8dc] p-3">
                     <div className="grid gap-3 sm:grid-cols-4">
                       <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
-                        <p className="text-[11px] font-semibold text-[#48627f]">Ð¢Ð¾Ð²Ð°Ñ€Ð¾Ð²</p>
+                        <p className="text-[11px] font-semibold text-[#48627f]">Товаров</p>
                         <p className="mt-1 text-lg font-bold text-[#1f2933]">{editInvoiceItems.length}</p>
                       </div>
                       <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
-                        <p className="text-[11px] font-semibold text-[#48627f]">Ð¡ÑƒÐ¼Ð¼Ð°</p>
+                        <p className="text-[11px] font-semibold text-[#48627f]">Сумма</p>
                         <p className="mt-1 text-lg font-bold text-[#1f2933]">{formatMoney(editInvoiceSubtotal)}</p>
                       </div>
                       <div className="rounded border border-[#c8d2df] bg-white px-3 py-2">
-                        <p className="text-[11px] font-semibold text-[#48627f]">Ð¡ÐºÐ¸Ð´ÐºÐ° %</p>
+                        <p className="text-[11px] font-semibold text-[#48627f]">Скидка %</p>
                         <input
                           type="number"
                           min="0"
@@ -1180,14 +1180,14 @@ export default function SalesView() {
                         />
                       </div>
                       <div className="rounded border border-[#8f6f18] bg-[#ffd966] px-3 py-2 text-[#1f2933]">
-                        <p className="text-[11px] font-semibold text-[#7a5a00]">Ð˜Ñ‚Ð¾Ð³Ð¾</p>
+                        <p className="text-[11px] font-semibold text-[#7a5a00]">Итого</p>
                         <p className="mt-1 text-lg font-bold">{formatMoney(editInvoiceNetAmount)}</p>
                       </div>
                     </div>
                   </div>
                   {Number(selectedInvoice?.tax || 0) > 0 ? (
                     <p className="mt-3 text-sm text-slate-500">
-                      ÐÐ°Ð»Ð¾Ð³: +{formatMoney(editInvoiceTaxAmount)}
+                      Налог: +{formatMoney(editInvoiceTaxAmount)}
                     </p>
                   ) : null}
                 </div> {/* container of summary and list (space-y-4 line 2004) */}
@@ -1198,14 +1198,14 @@ export default function SalesView() {
                   onClick={closeEditModal}
                   className="flex-1 rounded border border-[#9fb7d5] bg-white px-4 py-2.5 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                 >
-                  ÐžÑ‚Ð¼ÐµÐ½Ð°
+                  Отмена
                 </button>
                 <button
                   onClick={handleUpdateInvoice}
                   disabled={isSavingEdit}
                   className="flex-1 rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2.5 text-sm font-semibold text-[#1f2933] shadow-sm transition-colors hover:bg-[#f7c948] disabled:opacity-50"
                 >
-                  {isSavingEdit ? 'Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ...' : 'Ð¡Ð¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ'}
+                  {isSavingEdit ? 'Сохранение...' : 'Сохранить'}
                 </button>
               </div>
             </motion.div>
@@ -1220,20 +1220,20 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={closePaymentModal}
-            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+            className="fixed inset-0 z-60 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:rounded-[2.5rem]"
+              className="w-full max-w-md overflow-hidden rounded-t-4xl bg-white shadow-2xl sm:rounded-[2.5rem]"
             >
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4 sm:p-8">
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-emerald-600 text-white rounded-2xl">
                     <Banknote size={24} />
                   </div>
-                  <h3 className="text-2xl font-black text-slate-900">ÐŸÑ€Ð¸Ð½ÑÑ‚ÑŒ Ð¾Ð¿Ð»Ð°Ñ‚Ñƒ</h3>
+                  <h3 className="text-2xl font-black text-slate-900">Принять оплату</h3>
                 </div>
                 <button onClick={closePaymentModal} className="text-slate-400 hover:text-slate-600 transition-colors">
                   <X size={24} />
@@ -1242,23 +1242,23 @@ export default function SalesView() {
               
               <div className="space-y-5 p-4 sm:space-y-6 sm:p-8">
                 <div>
-                    <p className="text-sm font-bold text-slate-500 mb-1">ÐÐ°ÐºÐ»Ð°Ð´Ð½Ð°Ñ #{selectedInvoice.id}</p>
+                    <p className="text-sm font-bold text-slate-500 mb-1">Накладная #{selectedInvoice.id}</p>
                   <p className="text-lg font-black text-slate-900">{selectedInvoice.customer_name}</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="p-4 bg-slate-50 rounded-2xl">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ð˜Ñ‚Ð¾Ð³Ð¾</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Итого</p>
                     <p className="text-lg font-black text-slate-900">{formatMoney(getInvoiceNetAmount(selectedInvoice))}</p>
                   </div>
                   <div className="p-4 bg-rose-50 rounded-2xl">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ð”Ð¾Ð»Ð³</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Долг</p>
                     <p className="text-lg font-black text-rose-600">{formatMoney(getInvoiceBalance(selectedInvoice))}</p>
                   </div>
                 </div>
 
                 <div>
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Ð¡ÑƒÐ¼Ð¼Ð° Ð¾Ð¿Ð»Ð°Ñ‚Ñ‹</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Сумма оплаты</label>
                   <input 
                     type="number" 
                     min={0}
@@ -1279,14 +1279,14 @@ export default function SalesView() {
                   onClick={closePaymentModal}
                   className="flex-1 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"
                 >
-                  ÐžÑ‚Ð¼ÐµÐ½Ð°
+                  Отмена
                 </button>
                 <button 
                   onClick={handlePayment}
                   disabled={isPaying || !paymentAmount}
                   className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {isPaying ? 'Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¸Ðµ...' : 'Ð’Ð½ÐµÑÑ‚Ð¸'}
+                  {isPaying ? 'Сохранение...' : 'Внести'}
                 </button>
               </div>
             </motion.div>
@@ -1301,7 +1301,7 @@ export default function SalesView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={closeReturnModal}
-            className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+            className="fixed inset-0 z-60 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
@@ -1314,7 +1314,7 @@ export default function SalesView() {
                   <div className="rounded border border-[#d6c07a] bg-[#fff8dc] p-2 text-[#7a5a00]">
                     <RotateCcw size={24} />
                   </div>
-                  <h3 className="text-xl font-semibold text-[#1f2933]">ÐžÑ„Ð¾Ñ€Ð¼Ð¸Ñ‚ÑŒ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‚</h3>
+                  <h3 className="text-xl font-semibold text-[#1f2933]">Оформить возврат</h3>
                 </div>
                 <button onClick={closeReturnModal} className="flex h-8 w-8 items-center justify-center rounded border border-[#9fb7d5] bg-white text-[#23527c] transition-colors hover:bg-[#eaf2fb]">
                   <X size={24} />
@@ -1324,23 +1324,23 @@ export default function SalesView() {
               <div className="flex-1 space-y-4 overflow-y-auto bg-[#f3f5f7] p-3 sm:p-4">
                 <div className="grid gap-2 rounded border border-[#c8d2df] bg-white p-3 md:grid-cols-3">
                   <div>
-                    <p className="text-[11px] font-semibold text-[#48627f]">ÐÐ°ÐºÐ»Ð°Ð´Ð½Ð°Ñ</p>
+                    <p className="text-[11px] font-semibold text-[#48627f]">Накладная</p>
                     <p className="mt-1 text-sm font-semibold text-[#1f2933]">#{selectedInvoice.id}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-[#48627f]">ÐšÐ»Ð¸ÐµÐ½Ñ‚</p>
-                    <p className="mt-1 break-words text-sm font-semibold text-[#1f2933]">{selectedInvoice.customer_name}</p>
+                    <p className="text-[11px] font-semibold text-[#48627f]">Клиент</p>
+                    <p className="mt-1 wrap-break-word text-sm font-semibold text-[#1f2933]">{selectedInvoice.customer_name}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-[#48627f]">Ð”Ð°Ñ‚Ð°</p>
+                    <p className="text-[11px] font-semibold text-[#48627f]">Дата</p>
                     <p className="mt-1 text-sm font-medium text-[#1f2933]">{new Date(selectedInvoice.createdAt).toLocaleDateString('ru-RU')}</p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="ml-1 text-sm font-semibold text-[#32465a]">Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ Ñ‚Ð¾Ð²Ð°Ñ€Ñ‹ Ð´Ð»Ñ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‚Ð°</h4>
+                  <h4 className="ml-1 text-sm font-semibold text-[#32465a]">Выберите товары для возврата</h4>
                   <div className="overflow-x-auto rounded border border-[#b7c2ce] bg-white">
-                    <table className="w-full min-w-[760px] table-fixed border-collapse text-left text-sm">
+                    <table className="w-full min-w-190 table-fixed border-collapse text-left text-sm">
                       <colgroup>
                         <col className="w-[36%]" />
                         <col className="w-[30%]" />
@@ -1348,9 +1348,9 @@ export default function SalesView() {
                       </colgroup>
                       <thead>
                         <tr className="border-b border-[#b7c2ce] bg-[#dbe5f1] text-[12px] font-semibold text-[#32465a]">
-                          <th className="px-3 py-2">Ð¢Ð¾Ð²Ð°Ñ€</th>
-                          <th className="px-3 py-2">ÐŸÑ€Ð¾Ð´Ð°Ð½Ð¾ / Ð´Ð¾ÑÑ‚ÑƒÐ¿Ð½Ð¾</th>
-                          <th className="px-3 py-2">Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‚</th>
+                          <th className="px-3 py-2">Товар</th>
+                          <th className="px-3 py-2">Продано / доступно</th>
+                          <th className="px-3 py-2">Возврат</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#d5dde6]">
@@ -1361,9 +1361,9 @@ export default function SalesView() {
                           const maxPackages = packaging ? Math.floor(remainingUnits / packaging.unitsPerPackage) : 0;
                           const inputMax = item.returnMode === 'package' ? maxPackages : remainingUnits;
                           const itemMeta = [
-                            `Ð¡Ñ‚Ñ€Ð¾ÐºÐ° #${idx + 1}`,
-                            item?.product?.sku ? `ÐÑ€Ñ‚Ð¸ÐºÑƒÐ»: ${item.product.sku}` : null,
-                            item?.brandSnapshot || item?.product?.brand ? `Ð‘Ñ€ÐµÐ½Ð´: ${item.brandSnapshot || item.product.brand}` : null,
+                            `Строка #${idx + 1}`,
+                            item?.product?.sku ? `Артикул: ${item.product.sku}` : null,
+                            item?.brandSnapshot || item?.product?.brand ? `Бренд: ${item.brandSnapshot || item.product.brand}` : null,
                           ].filter(Boolean).join(' Â· ');
 
                           return (
@@ -1372,7 +1372,7 @@ export default function SalesView() {
                                 <p className="mb-1 text-[10px] font-medium text-[#6b7b8d]">
                                   {itemMeta}
                                 </p>
-                                <p className="break-words text-sm font-semibold leading-5 text-[#1f2933]">
+                                <p className="wrap-break-word text-sm font-semibold leading-5 text-[#1f2933]">
                                   {getReturnItemDisplayName(item)}
                                 </p>
                               </td>
@@ -1382,7 +1382,7 @@ export default function SalesView() {
                                   <p className="mt-0.5 whitespace-nowrap text-[10px] text-[#6b7b8d]">{quantityInfo.secondary}</p>
                                 )}
                                 <p className="mt-2 inline-flex rounded border border-[#c8d2df] bg-[#f7f9fb] px-2 py-1 text-[10px] text-[#48627f]">
-                                  Ð”Ð¾ÑÑ‚ÑƒÐ¿Ð½Ð¾: {packaging ? `${maxPackages} ${packaging.packageName} Ð¸Ð»Ð¸ ` : ''}{formatCount(remainingUnits)} {packaging?.baseUnitName || 'ÑˆÑ‚'}
+                                  Доступно: {packaging ? `${maxPackages} ${packaging.packageName} или ` : ''}{formatCount(remainingUnits)} {packaging?.baseUnitName || 'шт'}
                                 </p>
                               </td>
                               <td className="px-3 py-3 align-top">
@@ -1419,7 +1419,7 @@ export default function SalesView() {
                                       };
                                       setReturnItems(newItems);
                                     }}
-                                    placeholder={item.returnMode === 'package' ? 'ÐšÐ¾Ð»-Ð²Ð¾ ÐºÐ¾Ñ€Ð¾Ð±Ð¾Ðº' : 'ÐšÐ¾Ð»-Ð²Ð¾ ÑˆÑ‚'}
+                                    placeholder={item.returnMode === 'package' ? 'Кол-во коробок' : 'Кол-во шт'}
                                     className={clsx(
                                       'h-9 w-full min-w-0 rounded border border-[#9fb7d5] bg-white px-2 text-center text-sm font-semibold text-[#1f2933] outline-none focus:border-[#4f81bd]',
                                       !packaging && 'col-span-2'
@@ -1436,12 +1436,12 @@ export default function SalesView() {
                 </div>
 
                 <div className="rounded border border-[#c8d2df] bg-white p-3">
-                  <label className="ml-1 text-sm font-semibold text-[#32465a]">ÐŸÑ€Ð¸Ñ‡Ð¸Ð½Ð° Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‚Ð°</label>
+                  <label className="ml-1 text-sm font-semibold text-[#32465a]">Причина возврата</label>
                   <textarea 
                     value={returnReason}
                     onChange={(e) => setReturnReason(e.target.value)}
-                    className="mt-2 min-h-[86px] w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
-                    placeholder="Ð£ÐºÐ°Ð¶Ð¸Ñ‚Ðµ Ð¿Ñ€Ð¸Ñ‡Ð¸Ð½Ñƒ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‚Ð°..."
+                    className="mt-2 min-h-21.5 w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
+                    placeholder="Укажите причину возврата..."
                   />
                 </div>
               </div>
@@ -1451,14 +1451,14 @@ export default function SalesView() {
                   onClick={closeReturnModal}
                   className="flex-1 rounded border border-[#9fb7d5] bg-white px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#eaf2fb]"
                 >
-                  ÐžÑ‚Ð¼ÐµÐ½Ð°
+                  Отмена
                 </button>
                 <button 
                   onClick={handleReturn}
                   disabled={isReturning || returnItems.every((item: ReturnInvoiceItem) => !item.returnQty || parseFloat(item.returnQty) === 0)}
                   className="flex-1 rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2 text-sm font-semibold text-[#2f2f2f] transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isReturning ? 'ÐžÑ„Ð¾Ñ€Ð¼Ð»ÐµÐ½Ð¸Ðµ...' : 'ÐžÑ„Ð¾Ñ€Ð¼Ð¸Ñ‚ÑŒ Ð²Ð¾Ð·Ð²Ñ€Ð°Ñ‚'}
+                  {isReturning ? 'Оформление...' : 'Оформить возврат'}
                 </button>
               </div>
             </motion.div>

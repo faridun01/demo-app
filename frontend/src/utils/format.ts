@@ -1,14 +1,15 @@
 export const roundMoney = (value: unknown, digits = 2) => {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric)) return 0;
-  return Number(numeric.toFixed(digits));
+  const factor = Math.pow(10, digits);
+  return Math.round((numeric + Math.sign(numeric || 1) * Number.EPSILON) * factor) / factor;
 };
 
 export const ceilMoney = (value: unknown, digits = 2) => {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric)) return 0;
   const factor = Math.pow(10, digits);
-  return Math.ceil(numeric * factor) / factor;
+  return Math.ceil((numeric - Number.EPSILON) * factor) / factor;
 };
 
 export const formatMoney = (value: unknown, currency = '') => {
@@ -30,7 +31,8 @@ export const formatCount = (value: unknown) => {
 export const toFixedNumber = (value: unknown, digits = 2) => {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric)) return 0;
-  return Number(numeric.toFixed(digits));
+  const factor = Math.pow(10, digits);
+  return Math.round((numeric + Math.sign(numeric || 1) * Number.EPSILON) * factor) / factor;
 };
 
 export const normalizeDisplayBaseUnit = (value: unknown) => {

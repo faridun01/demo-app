@@ -4,7 +4,8 @@ export const roundMoney = (value: unknown, digits = 2) => {
     return 0;
   }
 
-  return Number(numeric.toFixed(digits));
+  const factor = Math.pow(10, digits);
+  return Math.round((numeric + Math.sign(numeric || 1) * Number.EPSILON) * factor) / factor;
 };
 
 export const ceilMoney = (value: unknown, digits = 2) => {
@@ -14,7 +15,7 @@ export const ceilMoney = (value: unknown, digits = 2) => {
   }
 
   const factor = Math.pow(10, digits);
-  return Math.ceil(numeric * factor) / factor;
+  return Math.ceil((numeric - Number.EPSILON) * factor) / factor;
 };
 
 export const normalizeMoney = (value: unknown, fieldName: string, options?: { allowZero?: boolean }) => {

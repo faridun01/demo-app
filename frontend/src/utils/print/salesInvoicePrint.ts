@@ -110,17 +110,25 @@ export function printSalesInvoice({
     return Number(item?.sellingPrice || 0);
   };
 
-  const invoiceDiscountPercent = Math.max(0, Number(invoice?.discount || 0));
-  const getLineTotal = (item: any) => {
-    const lineTotal = roundMoneyValue(getItemBaseUnits(item) * getDiscountedUnitPrice(item));
-    return invoiceDiscountPercent > 0 ? roundMoneyValue(lineTotal * (1 - invoiceDiscountPercent / 100)) : lineTotal;
+  const getLineTotalBeforeInvoiceDiscount = (item: any) => {
+    const storedLineTotal = Number(item?.totalPrice);
+    if (Number.isFinite(storedLineTotal) && storedLineTotal >= 0) {
+      return roundMoneyValue(storedLineTotal);
+    }
+
+    return roundMoneyValue(getItemBaseUnits(item) * getDiscountedUnitPrice(item));
   };
 
   const subtotalBeforeDiscount = invoiceItems.length
-    ? roundMoneyValue(invoiceItems.reduce((sum: number, item: any) => sum + getItemBaseUnits(item) * getUnitPrice(item), 0))
+    ? roundMoneyValue(
+        invoiceItems.reduce(
+          (sum: number, item: any) => roundMoneyValue(sum + roundMoneyValue(getItemBaseUnits(item) * getUnitPrice(item))),
+          0,
+        ),
+      )
     : Math.max(0, Number(subtotal || 0));
   const itemsNetAmount = invoiceItems.length
-    ? roundMoneyValue(invoiceItems.reduce((sum: number, item: any) => sum + getLineTotal(item), 0))
+    ? roundMoneyValue(invoiceItems.reduce((sum: number, item: any) => sum + getLineTotalBeforeInvoiceDiscount(item), 0))
     : roundMoneyValue(Math.max(0, Number(subtotal || 0) - Number(discountAmount || 0)));
   const returnedAmount = Math.max(0, Number(invoice.returnedAmount || 0));
   const storedInvoiceNetAmount = Math.max(0, Number(providedNetAmount || invoice?.netAmount || 0));
@@ -137,7 +145,8 @@ export function printSalesInvoice({
       const productName = formatProductName(item.product_name || item.productNameSnapshot || item.product?.name || 'Товар');
       const unitName = String(item?.baseUnitNameSnapshot || item?.baseUnitName || item?.unit || 'шт').trim() || 'шт';
       const quantity = getItemBaseUnits(item);
-      const price = quantity > 0 ? getLineTotal(item) / quantity : getDiscountedUnitPrice(item);
+      const lineTotal = getLineTotalBeforeInvoiceDiscount(item);
+      const price = quantity > 0 ? roundMoneyValue(lineTotal / quantity) : getDiscountedUnitPrice(item);
 
       return `
         <tr>
@@ -146,7 +155,7 @@ export function printSalesInvoice({
           <td class="center">${escapeHtml(unitName)}</td>
           <td class="right">${escapeHtml(String(Math.round(quantity)))}</td>
           <td class="right">${escapeHtml(formatMoneyWithoutCurrency(price))}</td>
-          <td class="right">${escapeHtml(formatMoneyWithoutCurrency(getLineTotal(item)))}</td>
+          <td class="right">${escapeHtml(formatMoneyWithoutCurrency(lineTotal))}</td>
           <td class="small">${getQuantityText(item).map((line) => escapeHtml(line)).join('<br>')}</td>
         </tr>
       `;

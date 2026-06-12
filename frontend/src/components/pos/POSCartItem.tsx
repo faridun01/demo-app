@@ -76,6 +76,7 @@ export default function POSCartItem({
   const itemLineDiscount = getLineDiscountAmount(item);
   const itemLineTotal = getLineTotal(item);
   const itemWeightKg = getProductUnitWeightKg(item) * Math.max(0, Number(item.quantity || 0));
+  const isPackageSale = Boolean(item.selectedPackagingId);
 
   return (
     <div className="border-b border-[#d5dde6] py-2 last:border-b-0 even:bg-[#fbfcfd]">
@@ -173,9 +174,10 @@ export default function POSCartItem({
                     value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
                     onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
                     onBlur={() => commitExtraUnitQuantityInput(item.id)}
+                    disabled={isPackageSale}
                     placeholder={`+ ${item.baseUnitName}`}
                     title="Дополнительное количество поштучно"
-                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8]"
+                    className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-center text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-70"
                   />
                 </label>
 
@@ -228,8 +230,9 @@ export default function POSCartItem({
                     value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
                     onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
                     onBlur={() => commitExtraUnitQuantityInput(item.id)}
+                    disabled={isPackageSale}
                     placeholder={`+ ${item.baseUnitName}`}
-                    className="min-w-0 rounded border border-[#9fb7d5] bg-white px-1.5 py-1.5 text-center text-xs text-[#1f2933] outline-none"
+                    className="min-w-0 rounded border border-[#9fb7d5] bg-white px-1.5 py-1.5 text-center text-xs text-[#1f2933] outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-70"
                   />
                 </div>
 

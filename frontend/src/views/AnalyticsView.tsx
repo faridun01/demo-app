@@ -343,7 +343,7 @@ function AnalyticsDataTable({
 
 function AnalyticsChart({ rows }: { rows: AnalyticsPayload['chartData'] }) {
   return (
-    <div className="h-[320px] rounded-[26px] border border-slate-200 bg-white p-4">
+    <div className="h-80 rounded-[26px] border border-slate-200 bg-white p-4">
       {rows.length ? (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
@@ -540,9 +540,9 @@ export default function AnalyticsView() {
   ];
 
   return (
-    <div className="app-page-shell bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.08),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(15,118,110,0.08),_transparent_24%)]">
+    <div className="app-page-shell bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.08),transparent_28%),radial-gradient(circle_at_top_right,rgba(15,118,110,0.08),transparent_24%)]">
       <div className="w-full space-y-6">
-        <section className="overflow-hidden rounded-[32px] border border-slate-200/90 bg-white shadow-[0_24px_70px_-36px_rgba(15,23,42,0.4)]">
+        <section className="overflow-hidden rounded-4xl border border-slate-200/90 bg-white shadow-[0_24px_70px_-36px_rgba(15,23,42,0.4)]">
           <div className="grid gap-0 xl:grid-cols-[minmax(0,1.35fr)_420px]">
             <div className="border-b border-slate-200/80 px-6 py-6 xl:border-b-0 xl:border-r">
               <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">

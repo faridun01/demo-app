@@ -32,6 +32,15 @@ interface ProductsMobileListProps {
   onDeleteProduct: (product: any) => void;
 }
 
+const mobileMetricBaseClass =
+  'min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]';
+
+const MobileMetricLabel = ({ children }: { children: string }) => (
+  <p className="break-words text-[9px] font-black uppercase leading-3 tracking-[0.12em] text-slate-400">
+    {children}
+  </p>
+);
+
 export default function ProductsMobileList({
   products,
   totalItems,
@@ -158,16 +167,16 @@ export default function ProductsMobileList({
               </div>
             </div>
 
-            <div className={clsx('grid gap-2', isAdmin ? 'grid-cols-4' : 'grid-cols-2')}>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Продажа</p>
-                <p className="mt-1 break-words text-sm font-semibold text-slate-900">
+            <div className="grid grid-cols-2 gap-2">
+              <div className={mobileMetricBaseClass}>
+                <MobileMetricLabel>Продажа</MobileMetricLabel>
+                <p className="mt-1.5 break-words text-[17px] font-bold leading-5 text-slate-900">
                   {isAggregateMode ? '-' : formatMoney(product.sellingPrice)}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Приход</p>
-                <p className="mt-1 break-words text-sm font-semibold text-slate-900">
+              <div className={mobileMetricBaseClass}>
+                <MobileMetricLabel>Приход</MobileMetricLabel>
+                <p className="mt-1.5 break-words text-[17px] font-bold leading-5 text-slate-900">
                   {product.totalIncoming}{' '}
                   <span className="text-[10px] uppercase text-slate-400">{normalizeDisplayBaseUnit(product.unit || 'шт')}</span>
                 </p>
@@ -196,13 +205,13 @@ export default function ProductsMobileList({
                 </div>
               )}
               {isAdmin && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Рентабельность</p>
-                  <p className="mt-1 break-words text-sm font-semibold text-slate-900">
+                <div className={clsx(mobileMetricBaseClass, 'col-span-2 min-h-[76px]')}>
+                  <MobileMetricLabel>Рентабельность</MobileMetricLabel>
+                  <p className="mt-1.5 break-words text-[18px] font-black leading-5 text-slate-900">
                     {isAggregateMode ? '-' : formatPercent(getProductEfficiencyMetrics(product).marginPercent, 1)}
                   </p>
                   {!isAggregateMode && (
-                    <span className={clsx('mt-2 inline-flex rounded-full border px-2 py-1 text-[10px] font-bold', getProductEfficiencyMetrics(product).className)}>
+                    <span className={clsx('mt-2 inline-flex rounded-full border px-3 py-1.5 text-[11px] font-black', getProductEfficiencyMetrics(product).className)}>
                       {getProductEfficiencyMetrics(product).label}
                     </span>
                   )}

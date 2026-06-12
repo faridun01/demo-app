@@ -1302,7 +1302,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
 
       {returnWriteoffRow && (
         <div
-          className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-90 flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={closeReturnWriteoffModal}
         >
           <div
@@ -1370,7 +1370,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
 
       {deleteWriteoffRow && (
         <div
-          className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-90 flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={closeDeleteWriteoffModal}
         >
           <div
@@ -1674,7 +1674,7 @@ function ProfitAnalyticsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-90 flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4">
       {content}
     </div>
   );
@@ -1889,7 +1889,7 @@ function WriteoffAnalyticsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-90 flex items-end justify-center bg-slate-950/55 p-2 backdrop-blur-sm sm:items-center sm:p-4">
       {content}
     </div>
   );
@@ -1951,7 +1951,7 @@ function WriteoffAnalyticsTableCard({
         <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
       </div>
 
-      <div className="max-h-[360px] overflow-auto px-3 py-3 sm:px-4">
+      <div className="max-h-90 overflow-auto px-3 py-3 sm:px-4">
         <div className="space-y-2">
           {rows.length ? (
             rows.map((row, index) => (
@@ -2098,7 +2098,7 @@ function AnalyticsTableCard({
         <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
       </div>
 
-      <div className="max-h-[320px] overflow-auto px-3 py-3 sm:px-4">
+      <div className="max-h-80 overflow-auto px-3 py-3 sm:px-4">
         <div className="space-y-2">
           {rows.length ? (
             rows.map((row, index) => (

@@ -454,7 +454,7 @@ export default function DashboardView() {
         )}
       </div>
       <div className="hidden sm:block">
-        <div className={filteredSales.length > 5 ? 'max-h-[360px] overflow-y-auto' : ''}>
+        <div className={filteredSales.length > 5 ? 'max-h-90 overflow-y-auto' : ''}>
           <table className="w-full text-left">
           <thead className="bg-[#f4f5fb] text-sm text-slate-500">
             <tr>
@@ -752,7 +752,7 @@ export default function DashboardView() {
           </section>
 
           <section className="grid gap-4">
-            <div className="overflow-hidden rounded-[24px] border border-white bg-white shadow-sm">
+            <div className="overflow-hidden rounded-3xl border border-white bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                 <div className="flex items-center gap-2">
                   <h2 className="text-2xl font-semibold text-slate-900">Товары с низким остатком</h2>
@@ -782,7 +782,7 @@ export default function DashboardView() {
                           <Package size={18} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="break-words text-sm font-medium leading-5 text-slate-900">{item.name}</p>
+                          <p className="wrap-break-word text-sm font-medium leading-5 text-slate-900">{item.name}</p>
                           <p className="mt-1 text-xs font-medium text-sky-600">{warehouseLabel}</p>
                         </div>
                       </div>
@@ -842,7 +842,7 @@ export default function DashboardView() {
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
                                 <Package size={18} />
                               </div>
-                              <span className="break-words text-[12px] leading-4 text-slate-900">{item.name}</span>
+                              <span className="wrap-break-word text-[12px] leading-4 text-slate-900">{item.name}</span>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-sm text-sky-600">{warehouseLabel}</td>

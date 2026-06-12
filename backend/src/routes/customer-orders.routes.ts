@@ -3,6 +3,7 @@ import prisma from '../db/prisma.js';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { InvoiceService } from '../services/invoice.service.js';
 import { getAccessContext, ensureWarehouseAccess } from '../utils/access.js';
+import { ceilMoney, roundMoney } from '../utils/money.js';
 
 const router = Router();
 
@@ -34,14 +35,16 @@ const mapOrder = (order: any) => ({
 });
 
 const calculateOrderTotal = (items: any[], discount = 0) => {
-  const subtotal = items.reduce((sum, item) => {
+  const subtotal = roundMoney(items.reduce((sum, item) => {
     const quantity = normalizeNonNegative(item.totalBaseUnits ?? item.quantity);
     const sellingPrice = normalizeNonNegative(item.sellingPrice);
     const lineDiscount = Math.min(100, normalizeNonNegative(item.discount));
-    return sum + quantity * sellingPrice * (1 - lineDiscount / 100);
-  }, 0);
+    const discountedUnitPrice = ceilMoney(sellingPrice * (1 - lineDiscount / 100));
+    return roundMoney(sum + roundMoney(quantity * discountedUnitPrice));
+  }, 0));
 
-  return Math.max(0, Math.round((subtotal * (1 - Math.min(100, normalizeNonNegative(discount)) / 100)) * 100) / 100);
+  const invoiceDiscountAmount = roundMoney(subtotal * (Math.min(100, normalizeNonNegative(discount)) / 100));
+  return roundMoney(Math.max(0, subtotal - invoiceDiscountAmount));
 };
 
 const ensureCustomerOrderAccess = async (req: AuthRequest, orderId: number) => {

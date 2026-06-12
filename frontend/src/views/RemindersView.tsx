@@ -328,7 +328,7 @@ export default function RemindersView() {
             <h1 className="text-4xl font-medium tracking-tight text-slate-900">Напоминания</h1>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative min-w-[250px]">
+              <div className="relative min-w-62.5">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94a3b8]" size={16} />
                 <input
                   value={searchTerm}
@@ -351,7 +351,7 @@ export default function RemindersView() {
 
           <div className="grid gap-5 bg-[#f8f9ff] p-5 md:p-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-5">
-              <div className="rounded-[24px] border border-[#e7ebff] bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+              <div className="rounded-3xl border border-[#e7ebff] bg-white p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between xl:gap-4">
                   <div className="min-w-0">
                     <div className="sm:hidden">
@@ -375,7 +375,7 @@ export default function RemindersView() {
                           type="button"
                           onClick={() => setFilterTab(tab.key as typeof filterTab)}
                           className={clsx(
-                            'inline-flex min-h-[40px] min-w-0 items-center justify-center gap-1 rounded-[15px] px-2 py-1.5 text-center text-[10px] font-bold leading-none transition-all',
+                            'inline-flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-[15px] px-2 py-1.5 text-center text-[10px] font-bold leading-none transition-all',
                             filterTab === tab.key
                               ? 'bg-white text-slate-900 shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-[#dfe5ff]'
                               : 'text-[#5d7190] hover:bg-white/80 hover:text-slate-900',
@@ -384,7 +384,7 @@ export default function RemindersView() {
                           <span className="min-w-0 whitespace-nowrap">{tab.label}</span>
                           <span
                             className={clsx(
-                              'inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-black leading-none',
+                              'inline-flex min-w-5 items-center justify-center rounded-full px-1 py-0.5 text-[9px] font-black leading-none',
                               filterTab === tab.key ? 'bg-[#eef2ff] text-slate-900' : 'bg-white text-[#5d7190]',
                             )}
                           >
@@ -396,7 +396,7 @@ export default function RemindersView() {
                   </div>
 
                   {filteredReminders.length > reminderPageSize && (
-                    <div className="overflow-hidden rounded-[20px] border border-[#e7ebff] bg-[#fbfcff] xl:flex-shrink-0">
+                    <div className="overflow-hidden rounded-[20px] border border-[#e7ebff] bg-[#fbfcff] xl:shrink-0">
                       <PaginationControls
                         currentPage={currentPage}
                         totalPages={totalPages}
@@ -411,7 +411,7 @@ export default function RemindersView() {
               </div>
 
               {loading ? (
-                <div className="rounded-[24px] border border-[#e7ebff] bg-white py-20 text-center text-sm font-medium text-slate-400">
+                <div className="rounded-3xl border border-[#e7ebff] bg-white py-20 text-center text-sm font-medium text-slate-400">
                   Загрузка...
                 </div>
               ) : (
@@ -530,7 +530,7 @@ export default function RemindersView() {
                   ))}
 
                   {filteredReminders.length === 0 && (
-                    <div className="rounded-[24px] border border-[#e7ebff] bg-white py-20 text-center">
+                    <div className="rounded-3xl border border-[#e7ebff] bg-white py-20 text-center">
                       <Bell size={42} className="mx-auto mb-4 text-slate-200" />
                       <h3 className="text-xl font-semibold text-slate-900">Нет задач</h3>
                       <p className="mt-1 text-sm text-slate-500">Попробуйте сменить фильтр или создайте новое напоминание.</p>
@@ -542,9 +542,9 @@ export default function RemindersView() {
             </div>
 
             <div className="flex h-full flex-col gap-5">
-              <div className="rounded-[24px] border border-[#e7ebff] bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.04)]">
+              <div className="rounded-3xl border border-[#e7ebff] bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.04)]">
                 <div className="mb-4 flex items-center justify-between">
-                <h3 className="break-words text-[clamp(1.2rem,1.8vw,1.45rem)] font-medium leading-tight tracking-[-0.02em] text-slate-900">
+                <h3 className="wrap-break-word text-[clamp(1.2rem,1.8vw,1.45rem)] font-medium leading-tight tracking-[-0.02em] text-slate-900">
                   {activeMonthLabel.charAt(0).toUpperCase() + activeMonthLabel.slice(1)}
                 </h3>
                   <div className="flex items-center gap-2">
@@ -593,14 +593,14 @@ export default function RemindersView() {
                   })}
                 </div>
               </div>
-              <div className="overflow-hidden rounded-[24px] border border-[#e7ebff] bg-white p-4 shadow-[0_10px_35px_rgba(15,23,42,0.04)] sm:p-5">
-                <h3 className="max-w-full break-words text-[clamp(0.95rem,4.8vw,1.2rem)] font-medium leading-[1.15] tracking-[-0.02em] text-slate-900 sm:text-[clamp(1.05rem,1.5vw,1.25rem)]">
+              <div className="overflow-hidden rounded-3xl border border-[#e7ebff] bg-white p-4 shadow-[0_10px_35px_rgba(15,23,42,0.04)] sm:p-5">
+                <h3 className="max-w-full wrap-break-word text-[clamp(0.95rem,4.8vw,1.2rem)] font-medium leading-[1.15] tracking-[-0.02em] text-slate-900 sm:text-[clamp(1.05rem,1.5vw,1.25rem)]">
                   Статистика задач
                 </h3>
                 <div className="mt-5 space-y-4">
                   <div>
                     <div className="mb-2 flex min-w-0 items-start justify-between gap-3 text-sm text-slate-500">
-                      <span className="min-w-0 break-words leading-5">Выполнено за неделю</span>
+                      <span className="min-w-0 wrap-break-word leading-5">Выполнено за неделю</span>
                       <span className="shrink-0 font-semibold text-slate-700">
                         {stats.completed} / {reminders.length || 0}
                       </span>
@@ -612,7 +612,7 @@ export default function RemindersView() {
 
                   <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     <div className="min-w-0 rounded-2xl bg-slate-50 px-2 py-3 sm:p-4">
-                      <p className="break-words text-[7px] uppercase tracking-[0.01em] leading-tight text-slate-400 sm:text-[9px]">
+                      <p className="wrap-break-word text-[7px] uppercase tracking-[0.01em] leading-tight text-slate-400 sm:text-[9px]">
                         Продуктивность
                       </p>
                       <p className="mt-2 whitespace-nowrap text-[clamp(1.4rem,5.4vw,2.2rem)] font-semibold leading-none text-slate-900">
@@ -620,7 +620,7 @@ export default function RemindersView() {
                       </p>
                     </div>
                     <div className="min-w-0 rounded-2xl bg-rose-50 px-2 py-3 sm:p-4">
-                      <p className="break-words text-[7px] uppercase tracking-[0.01em] leading-tight text-rose-400 sm:text-[9px]">
+                      <p className="wrap-break-word text-[7px] uppercase tracking-[0.01em] leading-tight text-rose-400 sm:text-[9px]">
                         Просрочено
                       </p>
                       <p className="mt-2 whitespace-nowrap text-[clamp(1.4rem,5.4vw,2.2rem)] font-semibold leading-none text-rose-500">
@@ -631,8 +631,8 @@ export default function RemindersView() {
                 </div>
               </div>
 
-              <div className="mt-auto rounded-[24px] border border-[#e7ebff] bg-white p-4 shadow-[0_10px_35px_rgba(15,23,42,0.04)] sm:p-5">
-                <h3 className="break-words text-[clamp(1.05rem,1.55vw,1.25rem)] font-medium leading-tight tracking-[-0.02em] text-slate-900">Категории</h3>
+              <div className="mt-auto rounded-3xl border border-[#e7ebff] bg-white p-4 shadow-[0_10px_35px_rgba(15,23,42,0.04)] sm:p-5">
+                <h3 className="wrap-break-word text-[clamp(1.05rem,1.55vw,1.25rem)] font-medium leading-tight tracking-[-0.02em] text-slate-900">Категории</h3>
                 <div className="mt-3 space-y-2.5">
                   {Object.entries(TYPE_META).map(([key, meta]) => (
                     <div key={key} className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2.5">

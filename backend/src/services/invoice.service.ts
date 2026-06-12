@@ -36,6 +36,22 @@ function normalizeNonNegativeNumber(value: number, fieldName: string) {
   return normalized;
 }
 
+function calculateDiscountedUnitPrice(sellingPrice: number, discountPercent = 0) {
+  return ceilMoney(sellingPrice * (1 - discountPercent / 100));
+}
+
+function calculateLineTotal(quantity: number, sellingPrice: number, discountPercent = 0) {
+  return roundMoney(roundMoney(quantity) * calculateDiscountedUnitPrice(sellingPrice, discountPercent));
+}
+
+function calculateInvoiceDiscountAmount(totalAmount: number, discountPercent = 0) {
+  return roundMoney(totalAmount * (discountPercent / 100));
+}
+
+function calculateInvoiceNetAmount(totalAmount: number, discountPercent = 0, tax = 0, returnedAmount = 0) {
+  return roundMoney(Math.max(0, totalAmount - calculateInvoiceDiscountAmount(totalAmount, discountPercent) + tax - returnedAmount));
+}
+
 function buildRequestedQuantityByProduct(
   items: Array<{ productId: number; quantity: number; totalBaseUnits?: number }>,
 ) {
@@ -72,7 +88,7 @@ function buildCurrentInvoiceItemSnapshot(item: any) {
     packageQuantity,
     extraUnitQuantity,
     returnedQty: 0,
-    totalPrice: roundMoney(remainingBaseUnits * Number(item?.sellingPrice || 0) * (1 - (Number(item?.discount || 0) / 100))),
+    totalPrice: calculateLineTotal(remainingBaseUnits, Number(item?.sellingPrice || 0), Number(item?.discount || 0)),
   };
 }
 
@@ -172,13 +188,11 @@ export class InvoiceService {
           throw new Error('Item quantity must be greater than zero');
         }
 
-        const unitPriceAfterDiscount = sellingPrice * (1 - itemDiscount / 100);
-        const unitPriceRounded = ceilMoney(unitPriceAfterDiscount);
-        totalAmount += quantity * unitPriceRounded;
+        totalAmount = roundMoney(totalAmount + calculateLineTotal(quantity, sellingPrice, itemDiscount));
       }
 
       totalAmount = roundMoney(totalAmount);
-      const netAmount = roundMoney(totalAmount - (totalAmount * normalizedDiscount / 100) + normalizedTax);
+      const netAmount = calculateInvoiceNetAmount(totalAmount, normalizedDiscount, normalizedTax);
       const status = getInvoiceStatus(normalizedPaidAmount, Number(netAmount));
 
       // 2. Create Invoice
@@ -251,7 +265,7 @@ export class InvoiceService {
             brandSnapshot: item.brand || product.brand || null,
             sellingPrice,
             discount: normalizeNonNegativeNumber(item.discount || 0, 'Item discount'),
-            totalPrice: roundMoney(quantity * ceilMoney(sellingPrice * (1 - (normalizeNonNegativeNumber(item.discount || 0, 'Item discount') / 100)))),
+            totalPrice: calculateLineTotal(quantity, sellingPrice, normalizeNonNegativeNumber(item.discount || 0, 'Item discount')),
           },
         });
 
@@ -492,15 +506,13 @@ export class InvoiceService {
           throw new Error('Item quantity must be greater than zero');
         }
 
-        const unitPriceAfterDiscount = sellingPrice * (1 - itemDiscount / 100);
-        const unitPriceRounded = ceilMoney(unitPriceAfterDiscount);
-        totalAmount += quantity * unitPriceRounded;
+        totalAmount = roundMoney(totalAmount + calculateLineTotal(quantity, sellingPrice, itemDiscount));
       }
 
       totalAmount = roundMoney(totalAmount);
       const normalizedDiscount = normalizeMoney(normalizeNonNegativeNumber(Number(data.discount !== undefined ? data.discount : invoice.discount || 0), 'Discount'), 'Discount');
       const normalizedTax = normalizeMoney(normalizeNonNegativeNumber(Number(invoice.tax || 0), 'Tax'), 'Tax');
-      const netAmount = roundMoney(totalAmount - (totalAmount * normalizedDiscount / 100) + normalizedTax);
+      const netAmount = calculateInvoiceNetAmount(totalAmount, normalizedDiscount, normalizedTax);
       const affectedProductIds = new Set<number>();
 
       for (const existingItem of invoice.items) {
@@ -565,7 +577,7 @@ export class InvoiceService {
             brandSnapshot: item.brand || product.brand || null,
             sellingPrice,
             discount: normalizeNonNegativeNumber(item.discount || 0, 'Item discount'),
-            totalPrice: roundMoney(quantity * ceilMoney(sellingPrice * (1 - (normalizeNonNegativeNumber(item.discount || 0, 'Item discount') / 100)))),
+            totalPrice: calculateLineTotal(quantity, sellingPrice, normalizeNonNegativeNumber(item.discount || 0, 'Item discount')),
           },
         });
 

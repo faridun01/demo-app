@@ -313,6 +313,8 @@ export default function POSView() {
 
     if (!packaging) {
       packageQuantity = 0;
+    } else {
+      extraUnitQuantity = 0;
     }
 
     let totalBaseUnits = packageQuantity * unitsPerPackage + extraUnitQuantity;
@@ -320,7 +322,7 @@ export default function POSView() {
     if (totalBaseUnits > availableStock) {
       if (packaging && unitsPerPackage > 0) {
         packageQuantity = Math.floor(availableStock / unitsPerPackage);
-        extraUnitQuantity = Math.max(0, availableStock - packageQuantity * unitsPerPackage);
+        extraUnitQuantity = 0;
       } else {
         packageQuantity = 0;
         extraUnitQuantity = availableStock;
@@ -330,10 +332,16 @@ export default function POSView() {
     }
 
     if (totalBaseUnits <= 0) {
-      if (packaging && unitsPerPackage > 0 && availableStock >= unitsPerPackage) {
-        packageQuantity = 1;
-        extraUnitQuantity = 0;
-        totalBaseUnits = unitsPerPackage;
+      if (packaging && unitsPerPackage > 0) {
+        if (availableStock >= unitsPerPackage) {
+          packageQuantity = 1;
+          extraUnitQuantity = 0;
+          totalBaseUnits = unitsPerPackage;
+        } else {
+          packageQuantity = 0;
+          extraUnitQuantity = 0;
+          totalBaseUnits = 0;
+        }
       } else {
         packageQuantity = 0;
         extraUnitQuantity = Math.min(Math.max(1, extraUnitQuantity), Math.max(availableStock, 1));
@@ -351,7 +359,7 @@ export default function POSView() {
       extraUnitQuantity,
       quantity: totalBaseUnits,
       packageQuantityInput: overrides.packageQuantityInput !== undefined ? overrides.packageQuantityInput : String(packageQuantity),
-      extraUnitQuantityInput: overrides.extraUnitQuantityInput !== undefined ? overrides.extraUnitQuantityInput : String(extraUnitQuantity),
+      extraUnitQuantityInput: packaging ? '0' : (overrides.extraUnitQuantityInput !== undefined ? overrides.extraUnitQuantityInput : String(extraUnitQuantity)),
       lineDiscountPercent: normalizedLineDiscount,
       lineDiscountInput:
         overrides.lineDiscountInput !== undefined
@@ -791,6 +799,8 @@ export default function POSView() {
           selectedPackagingId,
           packageQuantity: selectedPackagingId ? Math.max(1, item.packageQuantity || 0) : 0,
           packageQuantityInput: selectedPackagingId ? String(Math.max(1, item.packageQuantity || 0)) : '0',
+          extraUnitQuantity: selectedPackagingId ? 0 : Math.max(1, Number(item.extraUnitQuantity || 0)),
+          extraUnitQuantityInput: selectedPackagingId ? '0' : String(Math.max(1, Number(item.extraUnitQuantity || 0))),
         });
       }),
     );
@@ -860,6 +870,13 @@ export default function POSView() {
           return item;
         }
 
+        if (item.selectedPackagingId) {
+          return normalizeCartItem(item, {
+            extraUnitQuantity: 0,
+            extraUnitQuantityInput: '0',
+          });
+        }
+
         if (value === '') {
           return { ...item, extraUnitQuantityInput: '' };
         }
@@ -893,6 +910,13 @@ export default function POSView() {
         .map((item) => {
           if (item.id !== id) {
             return item;
+          }
+
+          if (item.selectedPackagingId) {
+            return normalizeCartItem(item, {
+              extraUnitQuantity: 0,
+              extraUnitQuantityInput: '0',
+            });
           }
 
           const nextValue = Math.max(0, Math.floor(Number(item.extraUnitQuantityInput || item.extraUnitQuantity || 0) || 0));
@@ -1175,7 +1199,7 @@ export default function POSView() {
         />
 
       <div className="flex min-h-screen flex-col overflow-visible border border-[#b7c2ce] bg-[#f3f5f7] shadow-sm lg:h-full lg:min-h-0 lg:overflow-hidden lg:border-0">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 md:px-4 md:py-4">
+        <div className={clsx('flex min-h-0 flex-1 flex-col gap-3 px-3 py-3 md:px-4 md:py-4', activeTab === 'cart' && 'pb-28 lg:pb-4')}>
           <div className="-mx-3 -mt-3 border-b border-[#b7c2ce] bg-[linear-gradient(180deg,#ffffff_0%,#dde5ee_100%)] px-4 py-3 md:-mx-4 md:-mt-4">
             <h1 className="text-xl font-semibold tracking-normal text-[#1f2933] sm:text-2xl">POS Терминал</h1>
             <p className="mt-0.5 text-xs text-[#5f6f7f]">Оформление продаж, выбор клиента и создание накладной.</p>
@@ -1302,6 +1326,31 @@ export default function POSView() {
           </div>
         </div>
       </div>
+
+      {activeTab === 'cart' && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#b7c2ce] bg-white/95 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_30px_rgba(15,23,42,0.14)] backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Итого к оплате</p>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="text-xl font-black leading-none text-[#1f2933]">{formatMoney(total)}</span>
+                <span className="text-xs font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
+              </div>
+              <p className={clsx('mt-1 text-[11px] font-semibold', customerId ? 'text-slate-500' : 'text-amber-700')}>
+                {customerId ? 'Клиент выбран' : 'Выберите клиента'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={isSubmitting || cart.length === 0 || !customerId}
+              className="min-h-12 shrink-0 rounded-xl border border-[#8f6f18] bg-[#ffd966] px-4 text-sm font-black text-[#2f2f2f] shadow-sm transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting ? '...' : 'Оформить'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

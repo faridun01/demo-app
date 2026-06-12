@@ -1,4 +1,4 @@
-import { formatCount } from './format';
+import { formatCount, roundMoney } from './format';
 import { formatProductName } from './productName';
 import type { EditProductOption, ReturnInvoiceItem } from '../components/sales/salesTypes';
 
@@ -62,15 +62,17 @@ export const getProductStockParts = (product: EditProductOption) => {
 };
 
 export function getInvoiceSubtotal(invoice: any) {
-  return Array.isArray(invoice?.items)
-    ? invoice.items.reduce((sum: number, item: any) => sum + Number(item.totalPrice || 0), 0)
-    : Number(invoice?.totalAmount || 0);
+  return roundMoney(
+    Array.isArray(invoice?.items)
+      ? invoice.items.reduce((sum: number, item: any) => roundMoney(sum + Number(item.totalPrice || 0)), 0)
+      : Number(invoice?.totalAmount || 0),
+  );
 }
 
 export function getInvoiceDiscountAmount(invoice: any) {
   const subtotal = getInvoiceSubtotal(invoice);
   const discount = Number(invoice?.discount || 0);
-  return subtotal * (discount / 100);
+  return roundMoney(subtotal * (discount / 100));
 }
 
 export function getInvoiceNetAmount(invoice: any) {
@@ -83,9 +85,9 @@ export function getInvoiceNetAmount(invoice: any) {
   const discountAmount = getInvoiceDiscountAmount(invoice);
   const taxAmount = Number(invoice?.tax || 0);
   const returnedAmount = Number(invoice?.returnedAmount || 0);
-  const calculatedNet = subtotal - discountAmount + taxAmount - returnedAmount;
+  const calculatedNet = roundMoney(subtotal - discountAmount + taxAmount - returnedAmount);
 
-  return Math.max(0, calculatedNet);
+  return roundMoney(Math.max(0, calculatedNet));
 }
 
 export function getEffectiveStatus(invoice: any, epsilon = SALES_PAYMENT_EPSILON) {
@@ -108,11 +110,11 @@ export function getEffectiveStatus(invoice: any, epsilon = SALES_PAYMENT_EPSILON
 }
 
 export function getInvoiceBalance(invoice: any) {
-  return getInvoiceNetAmount(invoice) - Math.max(0, Number(invoice?.paidAmount || 0));
+  return roundMoney(getInvoiceNetAmount(invoice) - Math.max(0, Number(invoice?.paidAmount || 0)));
 }
 
 export const getInvoiceChangeAmount = (invoice: any, epsilon = SALES_PAYMENT_EPSILON) => {
-  const change = Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice);
+  const change = roundMoney(Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice));
   if (change <= epsilon) {
     return 0;
   }

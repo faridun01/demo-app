@@ -482,7 +482,7 @@ export default function ExpensesView() {
           </div>
 
           <div className="grid gap-6 p-3 sm:p-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <section className="rounded-[24px] border border-slate-100 bg-slate-50 p-4">
+            <section className="rounded-3xl border border-slate-100 bg-slate-50 p-4">
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
                   <Banknote size={18} />
@@ -625,7 +625,7 @@ export default function ExpensesView() {
               </form>
             </section>
 
-            <section className="flex flex-col overflow-hidden rounded-[24px] border border-slate-100 bg-white">
+            <section className="flex flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white">
               <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">История расходов</h2>
@@ -702,7 +702,7 @@ export default function ExpensesView() {
                   const refundLimit = getExpenseRefundLimit(expense);
 
                   return (
-                    <article key={`expense-mobile-${expense.id}`} className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+                    <article key={`expense-mobile-${expense.id}`} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-900">{expense.title}</p>
@@ -794,15 +794,15 @@ export default function ExpensesView() {
                 <table className="min-w-full table-fixed">
                   <thead className="bg-slate-50 text-left text-[12px] text-slate-500">
                     <tr>
-                      <th className="w-[100px] whitespace-nowrap px-2 py-2 font-medium">Дата</th>
-                      <th className="w-[150px] px-2 py-2 font-medium">Расход</th>
-                      <th className="w-[90px] whitespace-nowrap px-2 py-2 font-medium">Категория</th>
-                      <th className="w-[95px] px-2 py-2 font-medium">Склад</th>
-                      <th className="w-[100px] whitespace-nowrap px-2 py-2 font-medium">Сумма</th>
-                      <th className="w-[100px] whitespace-nowrap px-2 py-2 font-medium">Оплачено</th>
-                      <th className="w-[90px] whitespace-nowrap px-2 py-2 font-medium">Долг</th>
-                      <th className="w-[90px] px-2 py-2 font-medium">Кто добавил</th>
-                      <th className="w-[110px] whitespace-nowrap px-2 py-2 text-right font-medium">Действия</th>
+                      <th className="w-25 whitespace-nowrap px-2 py-2 font-medium">Дата</th>
+                      <th className="w-37.5 px-2 py-2 font-medium">Расход</th>
+                      <th className="w-22.5 whitespace-nowrap px-2 py-2 font-medium">Категория</th>
+                      <th className="w-23.75 px-2 py-2 font-medium">Склад</th>
+                      <th className="w-25 whitespace-nowrap px-2 py-2 font-medium">Сумма</th>
+                      <th className="w-25 whitespace-nowrap px-2 py-2 font-medium">Оплачено</th>
+                      <th className="w-22.5 whitespace-nowrap px-2 py-2 font-medium">Долг</th>
+                      <th className="w-22.5 px-2 py-2 font-medium">Кто добавил</th>
+                      <th className="w-27.5 whitespace-nowrap px-2 py-2 text-right font-medium">Действия</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -904,12 +904,12 @@ export default function ExpensesView() {
 
       {selectedExpenseForPayment && (
         <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-70 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={closePaymentModal}
         >
           <div
             onClick={(event) => event.stopPropagation()}
-              className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
+              className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-4xl bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 p-5 sm:p-7">
               <div className="flex items-center gap-4">
@@ -941,7 +941,7 @@ export default function ExpensesView() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.10),_transparent_60%)] p-4">
+              <div className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.10),transparent_60%)] p-4">
                 <label className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Сумма оплаты</label>
                 <input
                   type="number"
@@ -1008,12 +1008,12 @@ export default function ExpensesView() {
 
       {selectedExpenseForRefund && (
         <div
-          className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-70 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={closeRefundModal}
         >
           <div
             onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
+            className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-4xl bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 p-5 sm:p-7">
               <div className="flex items-center gap-4">
@@ -1049,7 +1049,7 @@ export default function ExpensesView() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.10),_transparent_60%)] p-4">
+              <div className="rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.10),transparent_60%)] p-4">
                 <label className="ml-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Сумма возврата</label>
                 <input
                   type="number"
@@ -1105,12 +1105,12 @@ export default function ExpensesView() {
 
       {selectedExpenseForEdit && (
         <div
-          className="fixed inset-0 z-[75] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
+          className="fixed inset-0 z-75 flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={closeEditModal}
         >
           <div
             onClick={(event) => event.stopPropagation()}
-            className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
+            className="flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-4xl bg-white shadow-2xl sm:max-h-[88vh] sm:rounded-[2.5rem]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 p-4 sm:p-6">
               <div className="flex items-center gap-4">

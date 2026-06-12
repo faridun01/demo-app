@@ -138,6 +138,7 @@ interface ReconciliationBatchPrintOptions {
   filterLabel: string;
   sortLabel: string;
   generatedAt?: Date;
+  includeCustomerDetails?: boolean;
 }
 
 const renderPaymentsBlock = (invoice: any) =>
@@ -742,6 +743,7 @@ export function printCustomerReconciliationBatch({
   filterLabel,
   sortLabel,
   generatedAt = new Date(),
+  includeCustomerDetails = true,
 }: ReconciliationBatchPrintOptions) {
   if (typeof window === 'undefined' || !Array.isArray(customers) || customers.length === 0) {
     return { ok: false as const, reason: 'invalid' as const };
@@ -775,7 +777,7 @@ export function printCustomerReconciliationBatch({
 
   const sectionsHtml = [
     renderReconciliationOverviewSection(customers, filterLabel, sortLabel, generatedAt),
-    ...customers.map((customer, index) => renderCustomerReconciliationSection(customer, index, generatedAt)),
+    ...(includeCustomerDetails ? customers.map((customer, index) => renderCustomerReconciliationSection(customer, index, generatedAt)) : []),
   ].join('');
 
   iframeDocument.open();

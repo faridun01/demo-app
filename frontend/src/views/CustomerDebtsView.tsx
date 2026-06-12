@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Badge, Card } from '../components/UI';
 import PaginationControls from '../components/common/PaginationControls';
 import { getCustomerHistory, getCustomers } from '../api/customers.api';
-import { formatCount, formatMoney } from '../utils/format';
+import { formatCount, formatMoney, roundMoney } from '../utils/format';
 import { getCurrentUser, isAdminUser } from '../utils/userAccess';
 import {
   customerMatchesPaymentFilter,
@@ -327,22 +327,22 @@ export default function CustomerDebtsView() {
       ? invoice.items.reduce((sum: number, item: any) => {
           const storedLineTotal = Number(item?.totalPrice || 0);
           if (storedLineTotal > PAYMENT_EPSILON) {
-            return sum + storedLineTotal;
+            return roundMoney(sum + storedLineTotal);
           }
 
           const quantity = Number(item?.quantity || 0);
           const price = Number(item?.sellingPrice || 0);
-          return sum + quantity * price;
+          return roundMoney(sum + roundMoney(quantity * price));
         }, 0)
       : 0;
 
-    return itemsSubtotal;
+    return roundMoney(itemsSubtotal);
   };
 
   const getInvoiceDiscountAmount = (invoice: StatementInvoice) => {
     const subtotal = getInvoiceSubtotal(invoice);
     const discount = Number(invoice?.discount || 0);
-    return subtotal * (discount / 100);
+    return roundMoney(subtotal * (discount / 100));
   };
 
   const getInvoiceNetAmount = (invoice: StatementInvoice) => {
@@ -355,15 +355,15 @@ export default function CustomerDebtsView() {
     const discountAmount = getInvoiceDiscountAmount(invoice);
     const taxAmount = Math.max(0, Number(invoice?.tax || 0));
     const returnedAmount = Number(invoice?.returnedAmount || 0);
-    const calculatedNet = subtotal - discountAmount + taxAmount - returnedAmount;
+    const calculatedNet = roundMoney(subtotal - discountAmount + taxAmount - returnedAmount);
 
-    return Math.max(0, calculatedNet);
+    return roundMoney(Math.max(0, calculatedNet));
   };
 
   const getInvoicePaidAmount = (invoice: StatementInvoice) => Math.max(0, Number(invoice?.paidAmount || 0));
 
   const getInvoiceChangeAmount = (invoice: StatementInvoice) => {
-    const change = getInvoicePaidAmount(invoice) - getInvoiceNetAmount(invoice);
+    const change = roundMoney(getInvoicePaidAmount(invoice) - getInvoiceNetAmount(invoice));
     return change > PAYMENT_EPSILON ? change : 0;
   };
 
@@ -534,7 +534,7 @@ export default function CustomerDebtsView() {
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2 rounded-[24px] bg-slate-100 p-2">
+            <div className="flex flex-wrap gap-2 rounded-3xl bg-slate-100 p-2">
               <NavLink to="/customers" end className={sectionTabClassName}>
                 База клиентов
               </NavLink>

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Card, Badge } from '../components/UI';
 import client from '../api/client';
 import { createCustomer, deleteCustomer, getCustomers, updateCustomer } from '../api/customers.api';
-import { formatCount, formatMoney } from '../utils/format';
+import { formatCount, formatMoney, roundMoney } from '../utils/format';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import PaginationControls from '../components/common/PaginationControls';
 import { useMemo } from 'react';
@@ -306,20 +306,20 @@ export default function CustomerView() {
       ? invoice.items.reduce((sum, item) => {
           const storedLineTotal = Number(item?.totalPrice || 0);
           if (storedLineTotal > PAYMENT_EPSILON) {
-            return sum + storedLineTotal;
+            return roundMoney(sum + storedLineTotal);
           }
 
-          return sum + Number(item.quantity || 0) * Number(item.sellingPrice || 0);
+          return roundMoney(sum + roundMoney(Number(item.quantity || 0) * Number(item.sellingPrice || 0)));
         }, 0)
       : 0;
 
-    return itemsSubtotal;
+    return roundMoney(itemsSubtotal);
   };
 
   const getInvoiceDiscountAmount = (invoice: StatementInvoice) => {
     const subtotal = getInvoiceSubtotal(invoice);
     const discount = Number(invoice?.discount || 0);
-    return subtotal * (discount / 100);
+    return roundMoney(subtotal * (discount / 100));
   };
 
   const getInvoiceNetAmount = (invoice: StatementInvoice) => {
@@ -332,13 +332,13 @@ export default function CustomerView() {
     const discountAmount = getInvoiceDiscountAmount(invoice);
     const taxAmount = Math.max(0, Number(invoice?.tax || 0));
     const returnedAmount = Number(invoice?.returnedAmount || 0);
-    const calculatedNet = subtotal - discountAmount + taxAmount - returnedAmount;
+    const calculatedNet = roundMoney(subtotal - discountAmount + taxAmount - returnedAmount);
 
-    return Math.max(0, calculatedNet);
+    return roundMoney(Math.max(0, calculatedNet));
   };
 
   const getInvoiceChangeAmount = (invoice: StatementInvoice) => {
-    const change = Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice);
+    const change = roundMoney(Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice));
     return change > PAYMENT_EPSILON ? change : 0;
   };
 
@@ -559,6 +559,7 @@ export default function CustomerView() {
         customers: printableCustomers,
         filterLabel: 'Все клиенты',
         sortLabel: 'Без фильтра страницы',
+        includeCustomerDetails: false,
       });
 
       if (!result.ok) {
@@ -1206,6 +1207,3 @@ export default function CustomerView() {
     </div>
   );
 }
-
-
-
