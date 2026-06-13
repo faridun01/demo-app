@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, BarChart3, FileSpreadsheet, Target, TrendingUp, Warehouse, X } from 'lucide-react';
+import { AlertTriangle, BarChart3, FileText, Target, TrendingUp, Warehouse, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 import { deleteWriteOffTransactionPermanently, returnWriteOffTransaction } from '../api/products.api';
@@ -61,22 +61,6 @@ type ProductProfitInsight = {
 
 const PIE_COLORS = ['#5b8def', '#7c6cf2', '#f3cb5d', '#5ec98f', '#ef6fae'];
 
-function csvCell(value: unknown) {
-  const normalized = value === null || value === undefined ? '' : String(value);
-  return `"${normalized.replace(/"/g, '""')}"`;
-}
-
-function buildCsv(rows: unknown[][]) {
-  return ['sep=;', ...rows.map((row) => row.map(csvCell).join(';'))].join('\r\n');
-}
-
-function normalizeSheetName(value: string) {
-  return String(value || 'Лист')
-    .replace(/[\\/*?:[\]]/g, ' ')
-    .trim()
-    .slice(0, 31) || 'Лист';
-}
-
 function normalizeDisplayBaseUnit(value: unknown) {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return 'шт';
@@ -84,37 +68,6 @@ function normalizeDisplayBaseUnit(value: unknown) {
     return 'шт';
   }
   return normalized;
-}
-
-function applyTotalRowStyle(
-  XLSX: typeof import('xlsx'),
-  worksheet: import('xlsx').WorkSheet,
-  rowIndex: number,
-  columnCount: number
-) {
-  for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
-    const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex });
-    const cell = worksheet[cellAddress];
-    if (!cell) {
-      continue;
-    }
-
-    cell.s = {
-      ...(cell.s || {}),
-      font: {
-        ...(cell.s?.font || {}),
-        bold: true,
-      },
-      fill: {
-        patternType: 'solid',
-        fgColor: { rgb: 'E5E7EB' },
-      },
-      border: {
-        top: { style: 'thin', color: { rgb: 'CBD5E1' } },
-        bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
-      },
-    };
-  }
 }
 
 function formatDateInputValue(date: Date) {
@@ -896,37 +849,26 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     toFixedNumber(rows.reduce((sum, row) => sum + Number(row.profit || 0), 0)),
   ];
 
-  const exportToExcel = async () => {
-    const XLSX = await import('xlsx');
+  const buildProductProfitRows = (
+    rows: Array<{ name: string; quantity: number; revenue: number; profit: number }>
+  ): Array<Array<string | number>> => [
+    ...rows.map((row) => [row.name, formatCount(row.quantity), toFixedNumber(row.revenue), toFixedNumber(row.profit)]),
+    buildProductProfitTotalRow(rows),
+  ];
+
+  const exportToPdf = async () => {
     const summaryRows = buildSummaryRows(reportData, selectedWarehouseName);
     const { detailHeaders, detailRows } = buildReportRows(reportData);
-    const workbook = XLSX.utils.book_new();
-
-    const overallRows: unknown[][] = [
-      ...summaryRows,
-      [],
+    const sections = [{
+      title: 'Общий отчёт',
+      summaryRows,
       detailHeaders,
-      ...detailRows,
-      buildDetailTotalRow(reportData),
-    ];
-    const overallDetailTotalRowIndex = overallRows.length - 1;
-
-    if (reportType === 'profit' && productProfitData.length) {
-      overallRows.push(
-        [],
-        ['Прибыль по товарам'],
-        ['Товар', 'Количество', 'Чистая выручка', 'Прибыль'],
-        ...productProfitData.map((row) => [row.name, formatCount(row.quantity), toFixedNumber(row.revenue), toFixedNumber(row.profit)]),
-        buildProductProfitTotalRow(productProfitData)
-      );
-    }
-
-    const overallSheet = XLSX.utils.aoa_to_sheet(overallRows);
-    applyTotalRowStyle(XLSX, overallSheet, overallDetailTotalRowIndex, detailHeaders.length);
-    if (reportType === 'profit' && productProfitData.length) {
-      applyTotalRowStyle(XLSX, overallSheet, overallRows.length - 1, 4);
-    }
-    XLSX.utils.book_append_sheet(workbook, overallSheet, normalizeSheetName('Общий отчёт'));
+      detailRows,
+      detailTotalRow: buildDetailTotalRow(reportData),
+      productProfitRows: reportType === 'profit' && productProfitData.length
+        ? buildProductProfitRows(productProfitData)
+        : undefined,
+    }];
 
     const groupedByWarehouse = reportData.reduce((acc, row) => {
       const key = row.warehouse_name || 'Без склада';
@@ -940,14 +882,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     groupedByWarehouse.forEach((rows, name) => {
       const warehouseSummaryRows = buildSummaryRows(rows, name);
       const { detailRows: warehouseDetailRows } = buildReportRows(rows);
-      const sheetRows: unknown[][] = [
-        ...warehouseSummaryRows,
-        [],
-        detailHeaders,
-        ...warehouseDetailRows,
-        buildDetailTotalRow(rows),
-      ];
-      const warehouseDetailTotalRowIndex = sheetRows.length - 1;
+      let warehouseProfitRows: Array<Array<string | number>> | undefined;
 
       if (reportType === 'profit' && productProfitData.length) {
         const warehouseProfitData = rows
@@ -970,37 +905,28 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           .sort((a, b) => b.profit - a.profit);
 
         if (warehouseProfitData.length) {
-          sheetRows.push(
-            [],
-            ['Прибыль по товарам'],
-            ['Товар', 'Количество', 'Чистая выручка', 'Прибыль'],
-            ...warehouseProfitData.map((row) => [
-              row.name,
-              formatCount(row.quantity),
-              toFixedNumber(row.revenue),
-              toFixedNumber(row.profit),
-            ]),
-            buildProductProfitTotalRow(warehouseProfitData)
-          );
+          warehouseProfitRows = buildProductProfitRows(warehouseProfitData);
         }
       }
 
-      const warehouseSheet = XLSX.utils.aoa_to_sheet(sheetRows);
-      applyTotalRowStyle(XLSX, warehouseSheet, warehouseDetailTotalRowIndex, detailHeaders.length);
-      if (reportType === 'profit') {
-        const hasWarehouseProfitBlock = sheetRows.some(
-          (row) => Array.isArray(row) && row[0] === 'ИТОГО' && row.length === 4
-        );
-        if (hasWarehouseProfitBlock) {
-          applyTotalRowStyle(XLSX, warehouseSheet, sheetRows.length - 1, 4);
-        }
-      }
-      XLSX.utils.book_append_sheet(workbook, warehouseSheet, normalizeSheetName(name));
+      sections.push({
+        title: name,
+        summaryRows: warehouseSummaryRows,
+        detailHeaders,
+        detailRows: warehouseDetailRows,
+        detailTotalRow: buildDetailTotalRow(rows),
+        productProfitRows: warehouseProfitRows,
+      });
     });
 
-    const downloadedAt = formatDateInputValue(new Date());
-    const reportMonth = getReportMonthKey(dateRange.start);
-    XLSX.writeFile(workbook, `otchet_${reportType}_${reportMonth}_skachano_${downloadedAt}.xlsx`);
+    const { downloadReportPdf } = await import('../utils/print/reportPdf');
+    await downloadReportPdf({
+      reportTitle: `Отчёт: ${currentMeta.title}`,
+      reportType: `${reportType}_${getReportMonthKey(dateRange.start)}`,
+      dateRangeLabel: `${dateRange.start} - ${dateRange.end}`,
+      generatedAt: new Date(),
+      sections,
+    });
   };
 
   const handleExportReport = async () => {
@@ -1010,7 +936,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     }
     try {
       setIsExporting(true);
-      await exportToExcel();
+      await exportToPdf();
     } catch (err) {
       console.error(err);
       toast.error('Не удалось скачать отчёт');
@@ -1035,8 +961,8 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
               disabled={isExporting}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <FileSpreadsheet size={16} />
-              <span>{isExporting ? 'Скачивание...' : 'Excel'}</span>
+              <FileText size={16} />
+              <span>{isExporting ? 'Скачивание...' : 'PDF'}</span>
             </button>
           </div>
         </div>
@@ -1173,7 +1099,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
               disabled={isExporting}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isExporting ? 'Скачивание...' : 'Excel'}
+              {isExporting ? 'Скачивание...' : 'PDF'}
             </button>
           </div>
         }

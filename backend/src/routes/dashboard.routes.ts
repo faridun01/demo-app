@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../db/prisma.js';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { getAccessContext, getScopedWarehouseId } from '../utils/access.js';
@@ -8,12 +9,39 @@ import {
   computeInventoryValue,
   countUniqueProductsByName,
   filterAndSortLowStock,
-  getInvoiceDebt,
-  getPeriodRevenue,
   safePercentChange,
 } from './dashboard.helpers.js';
 
 const router = Router();
+
+const getInvoiceNetAmount = async (where: any) => {
+  const result = await prisma.invoice.aggregate({
+    where,
+    _sum: { netAmount: true },
+  });
+
+  return Number(result._sum.netAmount || 0);
+};
+
+const getDashboardProfit = async (warehouseId: number | null) => {
+  const rows = await prisma.$queryRaw<Array<{ totalProfit: unknown }>>(
+    warehouseId
+      ? Prisma.sql`
+          SELECT COALESCE(SUM((ii.selling_price - ii.cost_price) * (ii.quantity - ii.returned_qty)), 0) AS "totalProfit"
+          FROM invoice_items ii
+          INNER JOIN invoices i ON i.id = ii.invoice_id
+          WHERE i.cancelled = false AND i.warehouse_id = ${warehouseId}
+        `
+      : Prisma.sql`
+          SELECT COALESCE(SUM((ii.selling_price - ii.cost_price) * (ii.quantity - ii.returned_qty)), 0) AS "totalProfit"
+          FROM invoice_items ii
+          INNER JOIN invoices i ON i.id = ii.invoice_id
+          WHERE i.cancelled = false
+        `
+  );
+
+  return Number(rows[0]?.totalProfit || 0);
+};
 
 router.get('/summary', async (req: AuthRequest, res, next) => {
   try {
@@ -44,10 +72,13 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       totalOrders,
       lowStockRaw,
       recentSales,
-      allInvoices,
+      invoiceTotals,
+      overviewSales,
+      topProductSalesRaw,
+      totalProfitAggregate,
       reminders,
-      currentMonthInvoices,
-      previousMonthInvoices,
+      currentMonthInvoiceStats,
+      previousMonthInvoiceStats,
       currentMonthCustomers,
       previousMonthCustomers,
       currentMonthProductsRaw,
@@ -118,42 +149,61 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
           },
         },
       }),
-      prisma.invoice.findMany({
+      prisma.invoice.aggregate({
         where: invoiceWhere,
+        _sum: {
+          netAmount: true,
+          paidAmount: true,
+        },
+      }),
+      prisma.invoice.findMany({
+        where: {
+          ...invoiceWhere,
+          createdAt: { gte: windows.yearStart, lt: windows.nextYearStart },
+        },
+        orderBy: { createdAt: 'asc' },
         select: {
           id: true,
           createdAt: true,
           netAmount: true,
-          paidAmount: true,
-          items: {
-            select: {
-              productId: true,
-              quantity: true,
-              returnedQty: true,
-              sellingPrice: true,
-              costPrice: true,
-            },
-          },
         },
       }),
+      prisma.invoiceItem.groupBy({
+        by: ['productId'],
+        where: {
+          invoice: invoiceWhere,
+        },
+        _sum: {
+          quantity: true,
+        },
+        orderBy: {
+          _sum: {
+            quantity: 'desc',
+          },
+        },
+        take: 5,
+      }),
+      getDashboardProfit(selectedWarehouseId),
       prisma.reminder.findMany({
         where: { userId: req.user!.id, isCompleted: false },
         orderBy: { dueDate: 'asc' },
         take: 5
       }),
-      prisma.invoice.findMany({
+      prisma.invoice.aggregate({
         where: {
           ...invoiceWhere,
           createdAt: { gte: windows.monthStart, lt: windows.nextMonthStart },
         },
-        select: { netAmount: true },
+        _sum: { netAmount: true },
+        _count: true,
       }),
-      prisma.invoice.findMany({
+      prisma.invoice.aggregate({
         where: {
           ...invoiceWhere,
           createdAt: { gte: windows.prevMonthStart, lt: windows.monthStart },
         },
-        select: { netAmount: true },
+        _sum: { netAmount: true },
+        _count: true,
       }),
       prisma.customer.count({
         where: {
@@ -199,35 +249,14 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       ? previousMonthProductsRaw.length
       : countUniqueProductsByName(previousMonthProductsRaw as Array<{ name: string }>);
 
-    // Calculate total profit and debts
-    let totalProfit = 0;
-    let totalDebts = 0;
-    let totalRevenue = 0;
-
-    for (const inv of allInvoices) {
-      totalRevenue += Number(inv.netAmount || 0);
-      totalDebts += getInvoiceDebt(Number(inv.netAmount || 0), Number(inv.paidAmount || 0));
-      
-      if (isAdmin) {
-        for (const item of inv.items) {
-          const quantitySold = Number(item.quantity) - Number(item.returnedQty);
-          totalProfit += (Number(item.sellingPrice) - Number(item.costPrice)) * quantitySold;
-        }
-      }
-    }
-
-    // Calculate top products
-    const productSales: any = {};
-    for (const inv of allInvoices) {
-      for (const item of inv.items) {
-        productSales[item.productId] = (productSales[item.productId] || 0) + item.quantity;
-      }
-    }
-
-    const topProductIds = Object.keys(productSales)
-      .sort((a, b) => productSales[b] - productSales[a])
-      .slice(0, 5)
-      .map(Number);
+    const totalRevenue = Number(invoiceTotals._sum.netAmount || 0);
+    const totalPaid = Number(invoiceTotals._sum.paidAmount || 0);
+    const totalDebts = Math.max(0, totalRevenue - totalPaid);
+    const totalProfit = Number(totalProfitAggregate || 0);
+    const productSales = new Map(
+      topProductSalesRaw.map((item: any) => [Number(item.productId), Number(item._sum.quantity || 0)])
+    );
+    const topProductIds = topProductSalesRaw.map((item: any) => Number(item.productId));
 
     const topProductsRaw = await prisma.product.findMany({
       where: { id: { in: topProductIds }, warehouseId: isAdmin ? undefined : (access.warehouseId ?? -1) },
@@ -246,37 +275,38 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
 
     const topProducts = topProductsRaw.map((p: any) => ({
       ...p,
-      totalSold: productSales[p.id]
+      totalSold: productSales.get(p.id) || 0
     })).sort((a: any, b: any) => b.totalSold - a.totalSold);
 
-    const currentRevenue = currentMonthInvoices.reduce((sum: number, invoice: any) => sum + Number(invoice.netAmount || 0), 0);
-    const previousRevenue = previousMonthInvoices.reduce((sum: number, invoice: any) => sum + Number(invoice.netAmount || 0), 0);
+    const currentRevenue = Number(currentMonthInvoiceStats._sum.netAmount || 0);
+    const previousRevenue = Number(previousMonthInvoiceStats._sum.netAmount || 0);
     const revenueChange = safePercentChange(currentRevenue, previousRevenue);
-    const ordersChange = safePercentChange(currentMonthInvoices.length, previousMonthInvoices.length);
+    const ordersChange = safePercentChange(currentMonthInvoiceStats._count, previousMonthInvoiceStats._count);
     const customersChange = safePercentChange(currentMonthCustomers, previousMonthCustomers);
     const productsChange = safePercentChange(currentMonthProducts, previousMonthProducts);
-    const periodRevenue = {
-      week: {
-        current: getPeriodRevenue(allInvoices, windows.weekStart, windows.tomorrowStart),
-        previous: getPeriodRevenue(allInvoices, windows.prevWeekStart, windows.weekStart),
-      },
-      month: {
-        current: getPeriodRevenue(allInvoices, windows.monthStart, windows.nextMonthStart),
-        previous: getPeriodRevenue(allInvoices, windows.prevMonthStart, windows.monthStart),
-      },
-      quarter: {
-        current: getPeriodRevenue(allInvoices, windows.quarterStart, windows.nextQuarterStart),
-        previous: getPeriodRevenue(allInvoices, windows.prevQuarterStart, windows.quarterStart),
-      },
-      year: {
-        current: getPeriodRevenue(allInvoices, windows.yearStart, windows.nextYearStart),
-        previous: getPeriodRevenue(allInvoices, windows.prevYearStart, windows.yearStart),
-      },
-      today: {
-        current: getPeriodRevenue(allInvoices, windows.todayStart, windows.tomorrowStart),
-        previous: getPeriodRevenue(allInvoices, windows.yesterdayStart, windows.todayStart),
-      },
-    };
+    const [
+      weekCurrentRevenue,
+      weekPreviousRevenue,
+      monthCurrentRevenue,
+      monthPreviousRevenue,
+      quarterCurrentRevenue,
+      quarterPreviousRevenue,
+      yearCurrentRevenue,
+      yearPreviousRevenue,
+      todayCurrentRevenue,
+      todayPreviousRevenue,
+    ] = await Promise.all([
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.weekStart, lt: windows.tomorrowStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.prevWeekStart, lt: windows.weekStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.monthStart, lt: windows.nextMonthStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.prevMonthStart, lt: windows.monthStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.quarterStart, lt: windows.nextQuarterStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.prevQuarterStart, lt: windows.quarterStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.yearStart, lt: windows.nextYearStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.prevYearStart, lt: windows.yearStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.todayStart, lt: windows.tomorrowStart } }),
+      getInvoiceNetAmount({ ...invoiceWhere, createdAt: { gte: windows.yesterdayStart, lt: windows.todayStart } }),
+    ]);
 
     res.json({
       todaySales: Number(salesToday._sum.netAmount || 0),
@@ -291,7 +321,7 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
       totalDebts,
       lowStock,
       recentSales,
-      overviewSales: allInvoices.map((invoice: any) => ({
+      overviewSales: overviewSales.map((invoice: any) => ({
         id: invoice.id,
         createdAt: invoice.createdAt,
         netAmount: invoice.netAmount,
@@ -305,11 +335,11 @@ router.get('/summary', async (req: AuthRequest, res, next) => {
         products: productsChange,
       },
       overviewChanges: {
-        week: safePercentChange(periodRevenue.week.current, periodRevenue.week.previous),
-        month: safePercentChange(periodRevenue.month.current, periodRevenue.month.previous),
-        quarter: safePercentChange(periodRevenue.quarter.current, periodRevenue.quarter.previous),
-        year: safePercentChange(periodRevenue.year.current, periodRevenue.year.previous),
-        today: safePercentChange(periodRevenue.today.current, periodRevenue.today.previous),
+        week: safePercentChange(weekCurrentRevenue, weekPreviousRevenue),
+        month: safePercentChange(monthCurrentRevenue, monthPreviousRevenue),
+        quarter: safePercentChange(quarterCurrentRevenue, quarterPreviousRevenue),
+        year: safePercentChange(yearCurrentRevenue, yearPreviousRevenue),
+        today: safePercentChange(todayCurrentRevenue, todayPreviousRevenue),
       },
     });
   } catch (error) {

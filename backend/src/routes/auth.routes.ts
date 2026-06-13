@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Response } from 'express';
 import { AuthService } from '../services/auth.service.js';
-import { authenticate, authorize } from '../middlewares/auth.middleware.js';
+import { authenticate, authorize, invalidateUserCache } from '../middlewares/auth.middleware.js';
 import { AuthRequest } from '../middlewares/auth.middleware.js';
 import { securityConfig } from '../config/security.js';
 import { createRateLimit, resetRateLimit } from '../middlewares/rate-limit.middleware.js';
@@ -160,6 +160,7 @@ router.put(
     }
 
     const user = await AuthService.updateUser(targetId, updateData);
+    invalidateUserCache(targetId);
     res.json(user);
   } catch (error) {
     next(error);
@@ -173,7 +174,9 @@ router.delete(
   validateRequest({ params: userIdParamSchema }),
   async (req, res, next) => {
   try {
-    await AuthService.deleteUser(Number(req.params.id));
+    const targetId = Number(req.params.id);
+    await AuthService.deleteUser(targetId);
+    invalidateUserCache(targetId);
     res.json({ success: true });
   } catch (error) {
     next(error);
@@ -193,6 +196,7 @@ router.post(
     }
 
     await AuthService.changePassword(req.user!.id, currentPassword, newPassword);
+    invalidateUserCache(req.user!.id);
     await resetRateLimit(passwordChangeRateLimitKey(req));
     res.json({ success: true });
   } catch (error) {

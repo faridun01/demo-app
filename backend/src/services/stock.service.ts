@@ -712,17 +712,16 @@ export class StockService {
   static async updateProductStockCache(productId: number, tx?: any) {
     const client = tx || prisma;
 
-    const batches = await client.productBatch.findMany({
+    const totals = await client.productBatch.aggregate({
       where: { productId },
-      select: { quantity: true, remainingQuantity: true },
+      _sum: {
+        quantity: true,
+        remainingQuantity: true,
+      },
     });
 
-    const totalStock = roundQty(
-      batches.reduce((sum: number, b: any) => sum + toNumber(b.remainingQuantity, 0), 0)
-    );
-    const totalIncoming = roundQty(
-      batches.reduce((sum: number, b: any) => sum + toNumber(b.quantity, 0), 0)
-    );
+    const totalStock = roundQty(toNumber(totals._sum.remainingQuantity, 0));
+    const totalIncoming = roundQty(toNumber(totals._sum.quantity, 0));
 
     await client.product.update({
       where: { id: productId },

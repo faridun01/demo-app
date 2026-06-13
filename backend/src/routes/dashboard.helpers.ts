@@ -136,7 +136,7 @@ export const buildDashboardWhere = (options: {
 
   const lowStockProductWhere = {
     active: true,
-    warehouseId: options.isAdmin ? undefined : (options.accessWarehouseId ?? -1),
+    warehouseId: options.selectedWarehouseId ?? (options.isAdmin ? undefined : (options.accessWarehouseId ?? -1)),
   };
 
   const customerWhere = {

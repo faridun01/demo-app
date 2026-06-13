@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../db/prisma.js';
 import type { AuthRequest } from '../middlewares/auth.middleware.js';
 import { getAccessContext } from '../utils/access.js';
@@ -89,6 +90,36 @@ const getCustomerSegment = (params: {
 };
 
 const mapCustomerWithTotals = (customer: any) => {
+  const stats = customer.invoiceStats;
+  if (stats) {
+    const totalInvoiced = Number(stats.totalInvoiced || 0);
+    const totalPaid = Number(stats.totalPaid || 0);
+    const balance = Number(stats.balance || 0);
+    const invoiceCount = Number(stats.invoiceCount || 0);
+    const averageInvoice = invoiceCount > 0 ? totalInvoiced / invoiceCount : 0;
+
+    const { invoiceStats, ...customerData } = customer;
+    return {
+      ...customerData,
+      total_invoiced: totalInvoiced,
+      total_paid: totalPaid,
+      balance,
+      invoice_count: invoiceCount,
+      paid_invoice_count: Number(stats.paidInvoiceCount || 0),
+      partial_invoice_count: Number(stats.partialInvoiceCount || 0),
+      unpaid_invoice_count: Number(stats.unpaidInvoiceCount || 0),
+      paid_invoiced_total: Number(stats.paidInvoicedTotal || 0),
+      paid_collected_total: Number(stats.paidCollectedTotal || 0),
+      partial_invoiced_total: Number(stats.partialInvoicedTotal || 0),
+      partial_collected_total: Number(stats.partialCollectedTotal || 0),
+      unpaid_invoiced_total: Number(stats.unpaidInvoicedTotal || 0),
+      average_invoice: averageInvoice,
+      customer_segment: getCustomerSegment({ totalInvoiced, invoiceCount, averageInvoice }),
+      last_purchase_at: stats.lastPurchaseAt ? new Date(stats.lastPurchaseAt).toISOString() : null,
+      warehouse_names: Array.isArray(stats.warehouseNames) ? stats.warehouseNames.filter(Boolean) : [],
+    };
+  }
+
   const invoices = Array.isArray(customer.invoices) ? customer.invoices : [];
   const totalInvoiced = invoices.reduce((sum: number, invoice: any) => sum + Number(invoice.netAmount || 0), 0);
   const totalPaid = invoices.reduce(
@@ -167,6 +198,69 @@ const mapCustomerWithTotals = (customer: any) => {
   };
 };
 
+const buildCustomerInvoiceStats = async (customerIds: number[]) => {
+  if (!customerIds.length) {
+    return new Map<number, any>();
+  }
+
+  const rows = await prisma.$queryRaw<Array<{
+    customerId: number;
+    totalInvoiced: unknown;
+    totalPaid: unknown;
+    balance: unknown;
+    invoiceCount: unknown;
+    paidInvoiceCount: unknown;
+    partialInvoiceCount: unknown;
+    unpaidInvoiceCount: unknown;
+    paidInvoicedTotal: unknown;
+    paidCollectedTotal: unknown;
+    partialInvoicedTotal: unknown;
+    partialCollectedTotal: unknown;
+    unpaidInvoicedTotal: unknown;
+    lastPurchaseAt: Date | null;
+    warehouseNames: string[] | null;
+  }>>`
+    SELECT
+      i.customer_id AS "customerId",
+      COALESCE(SUM(i.net_amount), 0) AS "totalInvoiced",
+      COALESCE(SUM(i.paid_amount), 0) AS "totalPaid",
+      COALESCE(SUM(GREATEST(i.net_amount - i.paid_amount, 0)), 0) AS "balance",
+      COUNT(*) AS "invoiceCount",
+      COUNT(*) FILTER (WHERE i.net_amount - i.paid_amount <= ${PAYMENT_EPSILON}) AS "paidInvoiceCount",
+      COUNT(*) FILTER (
+        WHERE i.paid_amount > ${PAYMENT_EPSILON}
+          AND i.net_amount - i.paid_amount > ${PAYMENT_EPSILON}
+      ) AS "partialInvoiceCount",
+      COUNT(*) FILTER (
+        WHERE i.paid_amount <= ${PAYMENT_EPSILON}
+          AND i.net_amount - i.paid_amount > ${PAYMENT_EPSILON}
+      ) AS "unpaidInvoiceCount",
+      COALESCE(SUM(i.net_amount) FILTER (WHERE i.net_amount - i.paid_amount <= ${PAYMENT_EPSILON}), 0) AS "paidInvoicedTotal",
+      COALESCE(SUM(i.paid_amount) FILTER (WHERE i.net_amount - i.paid_amount <= ${PAYMENT_EPSILON}), 0) AS "paidCollectedTotal",
+      COALESCE(SUM(i.net_amount) FILTER (
+        WHERE i.paid_amount > ${PAYMENT_EPSILON}
+          AND i.net_amount - i.paid_amount > ${PAYMENT_EPSILON}
+      ), 0) AS "partialInvoicedTotal",
+      COALESCE(SUM(i.paid_amount) FILTER (
+        WHERE i.paid_amount > ${PAYMENT_EPSILON}
+          AND i.net_amount - i.paid_amount > ${PAYMENT_EPSILON}
+      ), 0) AS "partialCollectedTotal",
+      COALESCE(SUM(i.net_amount) FILTER (
+        WHERE i.paid_amount <= ${PAYMENT_EPSILON}
+          AND i.net_amount - i.paid_amount > ${PAYMENT_EPSILON}
+      ), 0) AS "unpaidInvoicedTotal",
+      MAX(i.created_at) AS "lastPurchaseAt",
+      ARRAY_REMOVE(ARRAY_AGG(DISTINCT w.name), NULL) AS "warehouseNames"
+    FROM invoices i
+    LEFT JOIN warehouses w ON w.id = i.warehouse_id
+    WHERE i.cancelled = false
+      AND i.customer_id IN (${Prisma.join(customerIds)})
+    GROUP BY i.customer_id
+  `;
+
+  return new Map(rows.map((row) => [Number(row.customerId), row]));
+};
+
 const getCustomerAccess = async (
   access: Awaited<ReturnType<typeof getAccessContext>>,
   customerId: number,
@@ -198,7 +292,7 @@ const getCustomerAccess = async (
 router.get('/', async (req: AuthRequest, res, next) => {
   try {
     const access = await getAccessContext(req);
-    const defaultCustomer = await mergeDuplicateCustomers(prisma, req.user?.id || null);
+    const defaultCustomer = await getCanonicalDefaultCustomer(prisma, req.user?.id || null);
     const { page, limit, skip } = parsePaginationQuery(req.query, { defaultLimit: 500, maxLimit: 1000 });
 
     const baseWhere: any = {
@@ -213,21 +307,6 @@ router.get('/', async (req: AuthRequest, res, next) => {
     const [customers, total] = await Promise.all([
       prisma.customer.findMany({
         where: baseWhere,
-        include: {
-          invoices: {
-            where: { cancelled: false },
-            select: {
-              netAmount: true,
-              paidAmount: true,
-              createdAt: true,
-              warehouse: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-        },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -237,7 +316,13 @@ router.get('/', async (req: AuthRequest, res, next) => {
 
     setPaginationHeaders(res, { page, limit, total });
 
-    const mappedCustomers = customers.map(mapCustomerWithTotals);
+    const statsByCustomerId = await buildCustomerInvoiceStats(customers.map((customer) => customer.id));
+    const mappedCustomers = customers.map((customer) =>
+      mapCustomerWithTotals({
+        ...customer,
+        invoiceStats: statsByCustomerId.get(customer.id),
+      })
+    );
     mappedCustomers.sort((a: any, b: any) => {
       if (a.id === defaultCustomer?.id) return -1;
       if (b.id === defaultCustomer?.id) return 1;

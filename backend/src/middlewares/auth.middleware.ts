@@ -11,6 +11,22 @@ const JWT_SECRET: string = (() => {
   return secret;
 })();
 
+type AuthDbUser = {
+  id: number;
+  username: string;
+  role: string;
+  warehouseId: number | null;
+  customerId: number | null;
+  canCancelInvoices: boolean;
+  canDeleteData: boolean;
+};
+
+const USER_CACHE_TTL_MS = 60_000;
+const userCache = new Map<number, {
+  user: AuthDbUser;
+  expiresAt: number;
+}>();
+
 export interface AuthRequest extends Request {
   user?: {
     id: number;
@@ -23,15 +39,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-const buildAuthUser = (user: {
-  id: number;
-  username: string;
-  role: string;
-  warehouseId: number | null;
-  customerId: number | null;
-  canCancelInvoices: boolean;
-  canDeleteData: boolean;
-}) => ({
+const buildAuthUser = (user: AuthDbUser) => ({
   id: user.id,
   username: user.username,
   role: user.role,
@@ -40,6 +48,15 @@ const buildAuthUser = (user: {
   canCancelInvoices: user.canCancelInvoices,
   canDeleteData: user.canDeleteData,
 });
+
+export const invalidateUserCache = (userId?: number) => {
+  if (typeof userId === 'number' && Number.isFinite(userId)) {
+    userCache.delete(userId);
+    return;
+  }
+
+  userCache.clear();
+};
 
 const parseCookies = (cookieHeader?: string) => {
   const safeDecode = (value: string) => {
@@ -98,6 +115,11 @@ const resolveUserFromToken = async (token: string) => {
     throw new Error('Invalid token');
   }
 
+  const cached = userCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return buildAuthUser(cached.user);
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -113,8 +135,14 @@ const resolveUserFromToken = async (token: string) => {
   });
 
   if (!user || !user.active) {
+    userCache.delete(userId);
     throw new Error('Unauthorized');
   }
+
+  userCache.set(userId, {
+    user,
+    expiresAt: Date.now() + USER_CACHE_TTL_MS,
+  });
 
   return buildAuthUser(user);
 };

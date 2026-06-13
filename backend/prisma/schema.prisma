@@ -119,6 +119,7 @@ model Product {
   @@unique([warehouseId, nameKey])
   @@unique([name, warehouseId])
   @@unique([sku, warehouseId])
+  @@index([nameKey, warehouseId])
   @@index([warehouseId, active, createdAt])
   @@index([categoryId, warehouseId, active])
   @@map("products")
@@ -381,6 +382,7 @@ model Invoice {
   customerOrders CustomerOrder[]
 
   @@index([warehouseId, cancelled, createdAt])
+  @@index([warehouseId, cancelled, status, createdAt])
   @@index([cancelled, createdAt])
   @@index([customerId, createdAt])
   @@index([userId, createdAt])
@@ -445,6 +447,7 @@ model Payment {
   user     User     @relation(fields: [userId], references: [id])
 
   @@index([customerId, createdAt])
+  @@index([customerId, invoiceId])
   @@index([invoiceId, createdAt])
   @@index([userId, createdAt])
   @@map("payments")

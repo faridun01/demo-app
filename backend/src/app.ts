@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.routes.js';
@@ -22,9 +23,22 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  const originalWriteHead = res.writeHead.bind(res);
+
+  res.writeHead = ((...args: Parameters<typeof res.writeHead>) => {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    res.setHeader('X-Response-Time', `${durationMs.toFixed(1)}ms`);
+    return originalWriteHead(...args);
+  }) as typeof res.writeHead;
+
+  next();
+});
 app.use(corsMiddleware);
 app.use(securityHeaders);
-app.use(express.json());
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
