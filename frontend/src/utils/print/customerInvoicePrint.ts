@@ -436,12 +436,7 @@ const getInvoiceStatementEntries = (invoice: any) => {
   return entries;
 };
 
-const renderReconciliationOverviewSection = (
-  customers: CustomerReconciliationBatchCustomer[],
-  filterLabel: string,
-  sortLabel: string,
-  generatedAt: Date,
-) => {
+const renderReconciliationOverviewSection = (customers: CustomerReconciliationBatchCustomer[]) => {
   const totals = customers.reduce(
     (acc, customer) => {
       acc.debit += Number(customer.purchasedTotal || 0);
@@ -453,22 +448,23 @@ const renderReconciliationOverviewSection = (
   );
 
   return `
-    <section class="sheet">
-      <div class="header">
+    <section class="sheet reconciliation-sheet">
+      <div class="header reconciliation-header">
         <h1 class="title">Акт сверки взаиморасчетов</h1>
-        <div class="subtitle">Все клиенты | Фильтр: ${escapeHtml(filterLabel)} | Сортировка: ${escapeHtml(sortLabel)} | ${escapeHtml(generatedAt.toLocaleString('ru-RU'))}</div>
       </div>
       <div class="section section-no-gap">
         <h3>Сводная таблица</h3>
-        <table>
+        <table class="reconciliation-table reconciliation-overview-table">
           <thead>
             <tr>
-              <th style="width: 42px;">№</th>
+              <th style="width: 34px;">№</th>
               <th>Клиент</th>
-              <th style="width: 120px;">Телефон</th>
-              <th style="width: 120px;">Дебет</th>
-              <th style="width: 120px;">Кредит</th>
-              <th style="width: 120px;">Сальдо</th>
+              <th style="width: 92px;">Телефон</th>
+              <th style="width: 88px;">Продано</th>
+              <th style="width: 88px;">Оплачено</th>
+              <th style="width: 92px;">Долг клиента</th>
+              <th style="width: 72px;">Дата</th>
+              <th style="width: 104px;">Подпись</th>
             </tr>
           </thead>
           <tbody>
@@ -477,11 +473,13 @@ const renderReconciliationOverviewSection = (
                 (customer, index) => `
                   <tr>
                     <td>${index + 1}</td>
-                    <td>${escapeHtml(customer.name)}</td>
+                    <td class="customer-name-cell">${escapeHtml(customer.name)}</td>
                     <td>${escapeHtml(customer.phone || 'Нет телефона')}</td>
                     <td>${escapeHtml(formatMoney(customer.purchasedTotal))}</td>
                     <td>${escapeHtml(formatMoney(customer.paidTotal))}</td>
                     <td>${escapeHtml(formatMoney(customer.debtTotal))}</td>
+                    <td class="manual-cell"></td>
+                    <td class="manual-cell"></td>
                   </tr>
                 `,
               )
@@ -491,6 +489,8 @@ const renderReconciliationOverviewSection = (
               <td><strong>${escapeHtml(formatMoney(totals.debit))}</strong></td>
               <td><strong>${escapeHtml(formatMoney(totals.credit))}</strong></td>
               <td><strong>${escapeHtml(formatMoney(totals.balance))}</strong></td>
+              <td></td>
+              <td></td>
             </tr>
           </tbody>
         </table>
@@ -501,8 +501,6 @@ const renderReconciliationOverviewSection = (
 
 const renderCustomerReconciliationSection = (
   customer: CustomerReconciliationBatchCustomer,
-  index: number,
-  generatedAt: Date,
 ) => {
   const invoiceRows = [...customer.invoices]
     .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime())
@@ -555,35 +553,31 @@ const renderCustomerReconciliationSection = (
   );
 
   return `
-    <section class="sheet customer-group-sheet">
-      <div class="doc-meta">
-        <div>Клиент ${index + 1}</div>
-        <div>Сформировано: ${escapeHtml(generatedAt.toLocaleString('ru-RU'))}</div>
-      </div>
-      <div class="header">
+    <section class="sheet customer-group-sheet reconciliation-sheet">
+      <div class="header reconciliation-header">
         <h1 class="title">Акт сверки</h1>
-        <div class="subtitle">${escapeHtml(customer.name)}${customer.phone ? ` | ${escapeHtml(customer.phone)}` : ''}</div>
+        <div class="subtitle customer-title">${escapeHtml(customer.name)}${customer.phone ? ` | ${escapeHtml(customer.phone)}` : ''}</div>
       </div>
-      <div class="parties">
-        <div class="party-block">
+      <div class="parties reconciliation-parties">
+        <div class="party-block customer-party">
           <p class="label">Клиент</p>
-          <p class="value">${escapeHtml(customer.name)}</p>
+          <p class="value customer-name-value">${escapeHtml(customer.name)}</p>
           ${customer.phone ? `<p class="subvalue">Телефон: ${escapeHtml(customer.phone)}</p>` : ''}
         </div>
         <div class="party-block">
           <p class="label">Итоги</p>
-          <p class="value">Дебет: ${escapeHtml(formatMoney(customer.purchasedTotal))}</p>
-          <p class="subvalue">Кредит: ${escapeHtml(formatMoney(customer.paidTotal))}</p>
+          <p class="value">Купил всего: ${escapeHtml(formatMoney(customer.purchasedTotal))}</p>
+          <p class="subvalue">Оплатил: ${escapeHtml(formatMoney(customer.paidTotal))}</p>
         </div>
         <div class="party-block party-meta">
-          <p class="label">Сальдо</p>
+          <p class="label">Осталось оплатить</p>
           <p class="value">${escapeHtml(formatMoney(customer.debtTotal))}</p>
           <p class="subvalue">Накладные: ${escapeHtml(String(customer.invoices.length))}</p>
         </div>
       </div>
       <div class="section">
         <h3>Накладные и оплаты</h3>
-        <table>
+        <table class="reconciliation-table reconciliation-detail-table">
           <thead>
             <tr>
               <th style="width: 38px;">№</th>
@@ -609,14 +603,28 @@ const renderCustomerReconciliationSection = (
         </table>
       </div>
       <div class="signatures">
-        <div>От организации ____________________</div>
-        <div>От клиента ____________________</div>
+        <div class="signature-block">
+          <div class="signature-line"><span>Дата</span><strong></strong></div>
+          <div class="signature-line"><span>Агент</span><strong></strong></div>
+          <div class="signature-line"><span>Подпись агента</span><strong></strong></div>
+        </div>
+        <div class="signature-block">
+          <div class="signature-line"><span>Дата</span><strong></strong></div>
+          <div class="signature-line"><span>Клиент</span><strong>${escapeHtml(customer.name)}</strong></div>
+          <div class="signature-line"><span>Подпись клиента</span><strong></strong></div>
+        </div>
       </div>
     </section>
   `;
 };
 
-const buildDocumentHtml = (sectionsHtml: string, title: string, autoClose = false) => `<!doctype html>
+const buildDocumentHtml = (
+  sectionsHtml: string,
+  title: string,
+  autoClose = false,
+  pageMargin = '10mm',
+  bodyClass = '',
+) => `<!doctype html>
   <html lang="ru">
     <head>
       <meta charset="utf-8" />
@@ -624,6 +632,7 @@ const buildDocumentHtml = (sectionsHtml: string, title: string, autoClose = fals
       <style>
         * { box-sizing: border-box; }
         body { margin: 0; padding: 16px; font-family: Arial, sans-serif; color: #0f172a; background: #fff; }
+        body.print-without-browser-header { padding: 10mm; }
         .sheet { max-width: 900px; margin: 0 auto; }
         .sheet + .sheet { page-break-before: always; margin-top: 24px; }
         .doc-meta { display: flex; justify-content: space-between; gap: 12px; margin: 0 auto 8px; max-width: 900px; color: #64748b; font-size: 9px; }
@@ -641,6 +650,7 @@ const buildDocumentHtml = (sectionsHtml: string, title: string, autoClose = fals
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #0f172a; padding: 5px 6px; font-size: 10px; text-align: left; vertical-align: top; font-weight: 700; }
         th { background: #f8fafc; font-weight: 800; }
+        .manual-cell { height: 28px; }
         .summary { margin-left: auto; margin-top: 12px; width: 260px; }
         .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid #0f172a; font-size: 10px; font-weight: 700; }
         .summary-row.total { font-size: 16px; font-weight: 900; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; margin-top: 6px; padding: 8px 0; letter-spacing: 0.06em; }
@@ -651,10 +661,42 @@ const buildDocumentHtml = (sectionsHtml: string, title: string, autoClose = fals
         .customer-group-stat { border: 1px solid #0f172a; padding: 8px 10px; }
         .customer-group-stat-label { display: block; margin-bottom: 3px; color: #64748b; font-size: 8px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
         .signatures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 28px; font-size: 11px; font-weight: 800; }
-        @page { size: A4 portrait; margin: 10mm; }
+        .signature-block { display: grid; gap: 12px; }
+        .signature-line { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: end; gap: 10px; }
+        .signature-line span { color: #334155; }
+        .signature-line strong { min-height: 18px; border-bottom: 1px solid #0f172a; font-weight: 800; }
+        .reconciliation-sheet { max-width: 960px; color: #000; }
+        .reconciliation-header { text-align: left; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 8px; }
+        .reconciliation-header .title { font-size: 17px; font-weight: 700; }
+        .reconciliation-header .subtitle { color: #000; font-size: 10px; font-weight: 700; line-height: 1.2; }
+        .reconciliation-sheet .section h3 { font-size: 10px; font-weight: 700; margin-bottom: 4px; }
+        .reconciliation-table { table-layout: fixed; }
+        .reconciliation-table th,
+        .reconciliation-table td { border: 1px solid #555; padding: 3px 4px; color: #000; font-size: 9px; line-height: 1.15; font-weight: 400; }
+        .reconciliation-table th { background: #e6e6e6; text-align: center; font-weight: 700; }
+        .reconciliation-overview-table td:nth-child(4),
+        .reconciliation-overview-table td:nth-child(5),
+        .reconciliation-overview-table td:nth-child(6),
+        .reconciliation-detail-table td:nth-child(5),
+        .reconciliation-detail-table td:nth-child(6),
+        .reconciliation-detail-table td:nth-child(7),
+        .reconciliation-detail-table td:nth-child(8) { text-align: right; white-space: nowrap; }
+        .reconciliation-overview-table td:nth-child(7),
+        .reconciliation-overview-table td:nth-child(8) { text-align: left; white-space: normal; }
+        .customer-name-cell { font-size: 8.5px; line-height: 1.12; font-weight: 700; overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
+        .customer-title { overflow-wrap: anywhere; word-break: break-word; }
+        .reconciliation-parties { grid-template-columns: minmax(0, 2fr) minmax(130px, 1fr) minmax(130px, 1fr); gap: 10px; border: 1px solid #555; padding: 6px; margin-bottom: 8px; }
+        .reconciliation-parties .party-block + .party-block { border-left: 1px solid #bbb; padding-left: 8px; }
+        .reconciliation-parties .label { color: #333; font-size: 7.5px; letter-spacing: 0; }
+        .reconciliation-parties .value { color: #000; font-size: 10px; line-height: 1.15; font-weight: 700; }
+        .reconciliation-parties .subvalue { color: #000; font-size: 9px; font-weight: 400; }
+        .customer-name-value { font-size: 9px; overflow-wrap: anywhere; word-break: break-word; }
+        .reconciliation-sheet .manual-cell { height: 24px; }
+        .reconciliation-sheet .signatures { gap: 18px; margin-top: 20px; font-size: 10px; }
+        @page { size: A4 portrait; margin: ${escapeHtml(pageMargin)}; }
       </style>
     </head>
-    <body>
+    <body class="${escapeHtml(bodyClass)}">
       ${sectionsHtml}
       ${
         autoClose
@@ -740,9 +782,6 @@ export function printCustomerInvoicesBatch({
 
 export function printCustomerReconciliationBatch({
   customers,
-  filterLabel,
-  sortLabel,
-  generatedAt = new Date(),
   includeCustomerDetails = true,
 }: ReconciliationBatchPrintOptions) {
   if (typeof window === 'undefined' || !Array.isArray(customers) || customers.length === 0) {
@@ -776,12 +815,12 @@ export function printCustomerReconciliationBatch({
   }
 
   const sectionsHtml = [
-    renderReconciliationOverviewSection(customers, filterLabel, sortLabel, generatedAt),
-    ...(includeCustomerDetails ? customers.map((customer, index) => renderCustomerReconciliationSection(customer, index, generatedAt)) : []),
+    renderReconciliationOverviewSection(customers),
+    ...(includeCustomerDetails ? customers.map((customer) => renderCustomerReconciliationSection(customer)) : []),
   ].join('');
 
   iframeDocument.open();
-  iframeDocument.write(buildDocumentHtml(sectionsHtml, `Акт сверки - ${filterLabel}`));
+  iframeDocument.write(buildDocumentHtml(sectionsHtml, '', false, '0', 'print-without-browser-header'));
   iframeDocument.close();
 
   iframe.onload = () => {
