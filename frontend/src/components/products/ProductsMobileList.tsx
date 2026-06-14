@@ -37,7 +37,7 @@ const mobileMetricBaseClass =
   'min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.04)]';
 
 const MobileMetricLabel = ({ children }: { children: string }) => (
-  <p className="break-words text-[9px] font-black uppercase leading-3 tracking-[0.12em] text-slate-400">
+  <p className="wrap-break-word text-[9px] font-black uppercase leading-3 tracking-[0.12em] text-slate-400">
     {children}
   </p>
 );
@@ -85,7 +85,7 @@ export default function ProductsMobileList({
               </div>
               <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 break-words text-[16px] font-semibold leading-5 text-slate-900">
+                  <p className="min-w-0 wrap-break-word text-[16px] font-semibold leading-5 text-slate-900">
                     {formatProductName(product.name)}
                   </p>
                   <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">
@@ -141,7 +141,7 @@ export default function ProductsMobileList({
                   </div>
                   <p
                     className={clsx(
-                      'mt-1 whitespace-pre-line break-words text-[17px] font-semibold leading-5',
+                      'mt-1 whitespace-pre-line wrap-break-word text-[17px] font-semibold leading-5',
                       product.stock <= product.minStock ? 'text-rose-700' : 'text-slate-900'
                     )}
                   >
@@ -150,7 +150,7 @@ export default function ProductsMobileList({
                   {getStockBreakdown(product).secondary && (
                     <p
                       className={clsx(
-                        'mt-1 break-words text-[11px] font-medium',
+                        'mt-1 wrap-break-word text-[11px] font-medium',
                         product.stock <= product.minStock ? 'text-rose-500' : 'text-slate-500'
                       )}
                     >
@@ -172,13 +172,13 @@ export default function ProductsMobileList({
             <div className="grid grid-cols-2 gap-2">
               <div className={mobileMetricBaseClass}>
                 <MobileMetricLabel>Продажа</MobileMetricLabel>
-                <p className="mt-1.5 break-words text-[17px] font-bold leading-5 text-slate-900">
+                <p className="mt-1.5 wrap-break-word text-[17px] font-bold leading-5 text-slate-900">
                   {isAggregateMode ? '-' : formatMoney(product.sellingPrice)}
                 </p>
               </div>
               <div className={mobileMetricBaseClass}>
                 <MobileMetricLabel>Приход</MobileMetricLabel>
-                <p className="mt-1.5 break-words text-[17px] font-bold leading-5 text-slate-900">
+                <p className="mt-1.5 wrap-break-word text-[17px] font-bold leading-5 text-slate-900">
                   {product.totalIncoming}{' '}
                   <span className="text-[10px] uppercase text-slate-400">{normalizeDisplayBaseUnit(product.unit || 'шт')}</span>
                 </p>
@@ -207,9 +207,9 @@ export default function ProductsMobileList({
                 </div>
               )}
               {isAdmin && (
-                <div className={clsx(mobileMetricBaseClass, 'col-span-2 min-h-[76px]')}>
+                <div className={clsx(mobileMetricBaseClass, 'col-span-2 min-h-19')}>
                   <MobileMetricLabel>Рентабельность</MobileMetricLabel>
-                  <p className="mt-1.5 break-words text-[18px] font-black leading-5 text-slate-900">
+                  <p className="mt-1.5 wrap-break-word text-[18px] font-black leading-5 text-slate-900">
                     {isAggregateMode ? '-' : formatPercent(getProductEfficiencyMetrics(product).marginPercent, 1)}
                   </p>
                   {!isAggregateMode && (
@@ -234,7 +234,7 @@ export default function ProductsMobileList({
               </button>
 
               {expandedMobileActionsId === Number(product.id) && (
-                <div className="mt-2 max-h-[320px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80">
+                <div className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50/80">
                   {[
                     ['Изменить товар', onEditProduct, 'hover:bg-violet-50 hover:text-violet-700'],
                     ['Оформить приход', onRestockProduct, 'hover:bg-emerald-50 hover:text-emerald-700'],
