@@ -540,7 +540,7 @@ export default function POSView() {
       .then((data) => {
         const filteredWarehouses = filterWarehousesForUser(Array.isArray(data) ? data : [], user);
         setWarehouses(filteredWarehouses);
-        const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses);
+        const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses) || (filteredWarehouses.length === 1 ? Number(filteredWarehouses[0].id) : null);
         if (isAdmin && !warehouseId && defaultWarehouseId) {
           setWarehouseId(String(defaultWarehouseId));
         } else if (!isAdmin && filteredWarehouses[0]) {
@@ -645,12 +645,6 @@ export default function POSView() {
     resetSaleDraft(true);
   };
 
-  const showCartOnMobile = () => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      setActiveTab('cart');
-    }
-  };
-
   const addToCart = (product: any) => {
     if (productListRef.current) {
       lastProductScrollRef.current = productListRef.current.scrollTop;
@@ -691,12 +685,10 @@ export default function POSView() {
         toast.error(`Недостаточно товара. Доступно: ${getProductStockLabel(product, existing.baseUnitName || product.unit)}`);
         const cappedItem = normalizeCartItem(nextItem);
         setCart(cart.map((item) => (item.id === product.id ? cappedItem : item)));
-        showCartOnMobile();
         return;
       }
 
       setCart(cart.map((item) => (item.id === product.id ? nextItem : item)));
-      showCartOnMobile();
     } else {
       const nextItem = createCartItemFromProduct(product);
       if (nextItem.quantity > Number(product.stock || 0)) {
@@ -705,7 +697,6 @@ export default function POSView() {
       }
 
       setCart([...cart, nextItem]);
-      showCartOnMobile();
     }
   };
 
@@ -1266,11 +1257,11 @@ export default function POSView() {
 
           <div
             className={clsx(
-              'grid h-full min-h-0 flex-1 items-stretch gap-3 overflow-hidden',
+              'grid flex-1 items-stretch gap-3 overflow-visible lg:h-full lg:min-h-0 lg:overflow-hidden',
               isCartExpanded ? 'lg:grid-cols-[minmax(0,1fr)]' : 'lg:grid-cols-[1.55fr_0.95fr]',
             )}
           >
-            <section className={clsx(activeTab === 'products' ? 'block min-h-0 overflow-hidden lg:h-full' : 'hidden min-h-0 overflow-hidden lg:block lg:h-full', isCartExpanded && 'lg:hidden')}>
+            <section className={clsx(activeTab === 'products' ? 'block overflow-visible lg:h-full lg:min-h-0 lg:overflow-hidden' : 'hidden overflow-visible lg:block lg:h-full lg:min-h-0 lg:overflow-hidden', isCartExpanded && 'lg:hidden')}>
               <POSProductList
                 filteredProducts={filteredProducts}
                 warehouses={warehouses}

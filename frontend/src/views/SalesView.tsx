@@ -187,7 +187,7 @@ export default function SalesView() {
       const data = await getWarehouses();
       const filteredWarehouses = filterWarehousesForUser(Array.isArray(data) ? data : [], user);
       setWarehouses(filteredWarehouses);
-      const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses);
+      const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses) || (filteredWarehouses.length === 1 ? Number(filteredWarehouses[0].id) : null);
       if (isAdmin && !selectedWarehouseId && defaultWarehouseId) {
         setSelectedWarehouseId(String(defaultWarehouseId));
       } else if (!isAdmin && filteredWarehouses[0]) {
@@ -388,15 +388,17 @@ export default function SalesView() {
           </div>
           {isAdmin && (
           <>
-          <select 
-            value={selectedWarehouseId}
-            onChange={(e) => setSelectedWarehouseId(e.target.value)}
-            disabled={!isAdmin}
-            className="min-w-50 rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
-          >
-            <option value="">Все склады</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
+          {warehouses.length > 1 && (
+            <select
+              value={selectedWarehouseId}
+              onChange={(e) => setSelectedWarehouseId(e.target.value)}
+              disabled={!isAdmin}
+              className="min-w-50 rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
+            >
+              <option value="">Все склады</option>
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          )}
           <button 
             onClick={() => navigate('/pos')}
             className="flex items-center space-x-2 rounded border border-[#7f9db9] bg-[#eaf2fb] px-4 py-2 text-sm font-medium text-[#1f3f63] transition-colors hover:bg-[#dbeafd]"

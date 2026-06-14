@@ -204,7 +204,7 @@ export default function POSCartItem({
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-[minmax(0,1fr)_64px_64px] gap-2 md:grid-cols-[minmax(0,1.2fr)_88px_96px]">
+                <div className="grid grid-cols-[minmax(0,1fr)_72px] gap-2 md:grid-cols-[minmax(0,1.2fr)_88px_96px]">
                   <select
                     value={item.selectedPackagingId || ''}
                     onChange={(e) => updateSelectedPackaging(item.id, e.target.value)}
@@ -222,34 +222,31 @@ export default function POSCartItem({
                     })}
                   </select>
 
-                  <input
-                    type="number"
-                    min={0}
-                    value={item.packageQuantityInput ?? String(item.packageQuantity)}
-                    onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
-                    onBlur={() => commitPackageQuantityInput(item.id)}
-                    disabled={!item.selectedPackagingId}
-                    placeholder="Упак."
-                    className="min-w-0 rounded border border-[#9fb7d5] bg-white px-1.5 py-1.5 text-center text-xs text-[#1f2933] outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
-                    onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
-                    onBlur={() => commitExtraUnitQuantityInput(item.id)}
-                    disabled={isPackageSale}
-                    placeholder={`+ ${item.baseUnitName}`}
-                    className="min-w-0 rounded border border-[#9fb7d5] bg-white px-1.5 py-1.5 text-center text-xs text-[#1f2933] outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-70"
-                  />
+                  {isPackageSale ? (
+                    <input
+                      type="number"
+                      min={0}
+                      value={item.packageQuantityInput ?? String(item.packageQuantity)}
+                      onChange={(e) => updatePackageQuantityInput(item.id, e.target.value)}
+                      onBlur={() => commitPackageQuantityInput(item.id)}
+                      placeholder="Упак."
+                      className="min-w-0 rounded border border-[#9fb7d5] bg-white px-1.5 py-1.5 text-center text-xs text-[#1f2933] outline-none"
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={item.extraUnitQuantityInput ?? String(item.extraUnitQuantity)}
+                      onChange={(e) => updateExtraUnitQuantityInput(item.id, e.target.value)}
+                      onBlur={() => commitExtraUnitQuantityInput(item.id)}
+                      placeholder={item.baseUnitName}
+                      className="min-w-0 rounded border border-[#9fb7d5] bg-white px-1.5 py-1.5 text-center text-xs text-[#1f2933] outline-none"
+                    />
+                  )}
                 </div>
 
-                <div className="grid grid-cols-[minmax(0,1fr)_86px] gap-2 md:grid-cols-[minmax(0,1fr)_140px]">
-                  <div className="flex min-h-8 items-center rounded border border-[#d6c07a] bg-[#fff8dc] px-2 py-1.5 text-[10px] text-[#7a5a00]">
-                    Скидка на этот товар
-                  </div>
+                <div className="grid grid-cols-[86px] justify-end gap-2 md:grid-cols-[140px]">
                   <input
                     type="number"
                     min={0}

@@ -42,7 +42,7 @@ export default function POSProductList({
   onClose,
 }: POSProductListProps) {
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-[#b7c2ce] bg-white shadow-sm">
+    <div className="flex flex-col overflow-visible rounded-md border border-[#b7c2ce] bg-white shadow-sm lg:h-full lg:min-h-0 lg:overflow-hidden">
       <div className="border-b border-[#b7c2ce] bg-[#eef3f8] px-4 py-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -50,22 +50,24 @@ export default function POSProductList({
             <p className="mt-1 text-xs text-slate-500">{filteredProducts.length} доступных позиций</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2 shadow-sm">
-              <Warehouse size={16} className="text-sky-500" />
-              <select
-                value={warehouseId}
-                onChange={(e) => handleWarehouseChange(e.target.value)}
-                disabled={!isAdmin}
-                className="min-w-42.5 appearance-none bg-transparent text-sm text-[#1f2933] outline-none"
-              >
-                <option value="">Выберите склад</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {warehouses.length > 1 && (
+              <div className="flex items-center gap-2 rounded border border-[#9fb7d5] bg-white px-3 py-2 shadow-sm">
+                <Warehouse size={16} className="text-sky-500" />
+                <select
+                  value={warehouseId}
+                  onChange={(e) => handleWarehouseChange(e.target.value)}
+                  disabled={!isAdmin}
+                  className="min-w-42.5 appearance-none bg-transparent text-sm text-[#1f2933] outline-none"
+                >
+                  <option value="">Выберите склад</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <button
               onClick={onClose}
@@ -109,7 +111,7 @@ export default function POSProductList({
         <div className="text-center">Действие</div>
       </div>
 
-      <div ref={productListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
+      <div ref={productListRef} className="overflow-visible bg-white lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
         <div className="space-y-3 p-3 md:hidden">
           {filteredProducts.map((product, index) => {
             const stockParts = getProductStockParts(product, product.unit);
@@ -125,23 +127,29 @@ export default function POSProductList({
                 )}
               >
                 <div className="min-w-0">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-normal text-[#23527c]">#{index + 1}</p>
-                  <p className="wrap-break-word text-[12px] leading-4 text-slate-900">{formatProductName(product.name)}</p>
+                  <p className="wrap-break-word text-[13px] font-semibold leading-4 text-slate-900" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {formatProductName(product.name)}
+                  </p>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
-                    <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">Остаток</p>
-                    <div className="mt-1 inline-flex flex-col rounded border border-[#c8d2df] bg-white px-2 py-1.5 text-[#23527c]">
-                      <span className="whitespace-nowrap text-[13px] font-semibold leading-4">{stockParts.primary}</span>
-                      {stockParts.secondary ? (
-                        <span className="mt-1 whitespace-nowrap text-[11px] font-medium leading-4 text-sky-600/90">{stockParts.secondary}</span>
-                      ) : null}
-                    </div>
+                <div className="mt-2 rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
+                  <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">Остаток</p>
+                  <div className="mt-1 inline-flex flex-col rounded border border-[#c8d2df] bg-white px-2 py-1.5 text-[#23527c]">
+                    <span className="whitespace-nowrap text-[13px] font-semibold leading-4">{stockParts.primary}</span>
+                    {stockParts.secondary ? (
+                      <span className="mt-1 whitespace-nowrap text-[11px] font-medium leading-4 text-sky-600/90">{stockParts.secondary}</span>
+                    ) : null}
                   </div>
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
                     <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">Цена</p>
                     <p className="mt-1 wrap-break-word text-sm text-slate-900">{formatMoney(product.sellingPrice)}</p>
+                  </div>
+                  <div className="rounded border border-[#d5dde6] bg-[#f7f9fb] px-2 py-1.5">
+                    <p className="text-[10px] uppercase tracking-normal text-[#6b7b8d]">№</p>
+                    <p className="mt-1 text-sm font-semibold text-[#23527c]">#{index + 1}</p>
                   </div>
                 </div>
 

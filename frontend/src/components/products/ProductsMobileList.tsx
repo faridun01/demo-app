@@ -16,6 +16,7 @@ interface ProductsMobileListProps {
   isLoading: boolean;
   isAdmin: boolean;
   isAggregateMode: boolean;
+  canTransferProducts: boolean;
   selectedWarehouseId: string;
   currentPage: number;
   pageSize: number;
@@ -47,6 +48,7 @@ export default function ProductsMobileList({
   isLoading,
   isAdmin,
   isAggregateMode,
+  canTransferProducts,
   selectedWarehouseId,
   currentPage,
   pageSize,
@@ -239,7 +241,7 @@ export default function ProductsMobileList({
                     ['Открыть историю', onShowHistory, 'hover:bg-sky-50 hover:text-sky-700'],
                     ['Списать товар', onOpenWriteOffModal, 'hover:bg-amber-50 hover:text-amber-700'],
                     ['Посмотреть партии', onShowBatches, 'hover:bg-violet-50 hover:text-violet-700'],
-                    ['Перенести товар', onTransferProduct, 'hover:bg-amber-50 hover:text-amber-700'],
+                    ...(canTransferProducts ? [['Перенести товар', onTransferProduct, 'hover:bg-amber-50 hover:text-amber-700']] : []),
                     ['Удалить товар', onDeleteProduct, 'hover:bg-rose-50 hover:text-rose-700'],
                   ].map(([label, handler, hoverClass], actionIndex) => (
                     <button

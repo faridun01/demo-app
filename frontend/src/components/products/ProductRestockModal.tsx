@@ -62,20 +62,22 @@ export default function ProductRestockModal({
 
         <form onSubmit={onSubmit} className="flex min-h-0 flex-col overflow-y-auto p-4 sm:p-6">
           <div className="flex-1 space-y-5">
-            <div>
-              <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-700">Склад</label>
-              <select
-                required
-                value={restockData.warehouseId}
-                onChange={(event) => setRestockData({ ...restockData, warehouseId: event.target.value })}
-                className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 font-bold outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-              >
-                <option value="">Выберите склад</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
-                ))}
-              </select>
-            </div>
+            {warehouses.length > 1 && (
+              <div>
+                <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-700">Склад</label>
+                <select
+                  required
+                  value={restockData.warehouseId}
+                  onChange={(event) => setRestockData({ ...restockData, warehouseId: event.target.value })}
+                  className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 font-bold outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                >
+                  <option value="">Выберите склад</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {selectedRestockPackaging ? (

@@ -175,6 +175,9 @@ export default function DashboardView() {
         const items = Array.isArray(data) ? data : [];
         const filteredWarehouses = filterWarehousesForUser(items, user);
         setWarehouses(filteredWarehouses);
+        if (filteredWarehouses.length === 1) {
+          setSelectedWarehouseId(String(filteredWarehouses[0].id));
+        }
       })
       .catch((error) => {
         hasLoadedWarehousesRef.current = false;
@@ -609,23 +612,25 @@ export default function DashboardView() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <div className="flex w-full items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm md:w-auto">
-                <Store size={14} className="text-slate-400" />
-                <select
-                  value={selectedWarehouseId}
-                  onChange={(event) => setSelectedWarehouseId(event.target.value)}
-                  className="min-w-0 flex-1 bg-transparent pr-1 outline-none md:flex-none"
-                >
-                  {isAdmin && <option value="">Все склады</option>}
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </option>
-                  ))}
-                </select>
+            {warehouses.length > 1 && (
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <div className="flex w-full items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm md:w-auto">
+                  <Store size={14} className="text-slate-400" />
+                  <select
+                    value={selectedWarehouseId}
+                    onChange={(event) => setSelectedWarehouseId(event.target.value)}
+                    className="min-w-0 flex-1 bg-transparent pr-1 outline-none md:flex-none"
+                  >
+                    {isAdmin && <option value="">Все склады</option>}
+                    {warehouses.map((warehouse) => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {searchQuery && !hasSearchResults && (

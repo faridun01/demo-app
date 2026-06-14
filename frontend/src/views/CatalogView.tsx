@@ -106,7 +106,11 @@ export default function CatalogView() {
       .then(([warehousesData, settingsData]) => {
         const filtered = filterWarehousesForUser(Array.isArray(warehousesData) ? warehousesData : [], user);
         setWarehouses(filtered);
-        if (!isAdmin && filtered[0]) setSelectedWarehouseId(String(filtered[0].id));
+        if (filtered.length === 1) {
+          setSelectedWarehouseId(String(filtered[0].id));
+        } else if (!isAdmin && filtered[0]) {
+          setSelectedWarehouseId(String(filtered[0].id));
+        }
         setSettings(settingsData || {});
       })
       .catch((error) => {
@@ -187,7 +191,7 @@ export default function CatalogView() {
 
           <section className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
             <div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="text" placeholder="Поиск по названию товара..." value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-2xl border border-sky-100 bg-sky-50 py-3.5 pl-11 pr-4 text-sm text-slate-700 outline-none transition-colors focus:border-sky-300" /></div>
-            <div className="flex items-center gap-2 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3.5"><Warehouse size={18} className="shrink-0 text-violet-500" /><select value={selectedWarehouseId} onChange={(event) => setSelectedWarehouseId(event.target.value)} disabled={!isAdmin} className="w-full appearance-none bg-transparent text-sm text-slate-700 outline-none"><option value="">Все склады</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></div>
+            {warehouses.length > 1 && <div className="flex items-center gap-2 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3.5"><Warehouse size={18} className="shrink-0 text-violet-500" /><select value={selectedWarehouseId} onChange={(event) => setSelectedWarehouseId(event.target.value)} disabled={!isAdmin} className="w-full appearance-none bg-transparent text-sm text-slate-700 outline-none"><option value="">Все склады</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select></div>}
             <div className="flex items-center gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3.5"><Filter size={18} className="shrink-0 text-amber-500" /><select value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)} className="w-full appearance-none bg-transparent text-sm text-slate-700 outline-none"><option value="">Все категории</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></div>
             <div className="grid grid-cols-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-1 shadow-sm">{[{ id: 'all', label: 'Все' }, { id: 'in_stock', label: 'В наличии' }, { id: 'out_of_stock', label: 'Нет' }].map((option) => <button key={option.id} onClick={() => setStockFilter(option.id as typeof stockFilter)} className={shell('rounded-xl px-2 py-2.5 text-xs font-medium transition-all sm:text-sm', stockFilter === option.id ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-700')}>{option.label}</button>)}</div>
           </section>

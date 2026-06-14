@@ -13,6 +13,7 @@ interface ProductsCatalogSectionProps {
   filteredProductsCount: number;
   duplicateProductsCount: number;
   isMergingDuplicates: boolean;
+  canTransferProducts: boolean;
   products: any[];
   totalItems: number;
   currentPage: number;
@@ -57,6 +58,7 @@ export default function ProductsCatalogSection({
   filteredProductsCount,
   duplicateProductsCount,
   isMergingDuplicates,
+  canTransferProducts,
   products,
   totalItems,
   currentPage,
@@ -113,6 +115,7 @@ export default function ProductsCatalogSection({
         isLoading={isLoading}
         isAdmin={isAdmin}
         isAggregateMode={isAggregateMode}
+        canTransferProducts={canTransferProducts}
         selectedWarehouseId={selectedWarehouseId}
         currentPage={currentPage}
         pageSize={pageSize}
@@ -134,6 +137,7 @@ export default function ProductsCatalogSection({
         totalItems={totalItems}
         isLoading={isLoading}
         isAdmin={isAdmin}
+        canTransferProducts={canTransferProducts}
         selectedWarehouseId={selectedWarehouseId}
         currentPage={currentPage}
         pageSize={pageSize}

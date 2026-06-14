@@ -452,7 +452,7 @@ export default function ProductsView() {
       .then(([warehousesData, categoriesData]) => {
         const filteredWarehouses = filterWarehousesForUser(Array.isArray(warehousesData) ? warehousesData : [], user);
         setWarehouses(filteredWarehouses);
-        const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses);
+        const defaultWarehouseId = getDefaultWarehouseId(filteredWarehouses) || (filteredWarehouses.length === 1 ? Number(filteredWarehouses[0].id) : null);
         if (isAdmin && defaultWarehouseId) {
           setSelectedWarehouseId((currentValue) => currentValue || String(defaultWarehouseId));
         } else if (!isAdmin && filteredWarehouses[0]) {
@@ -986,6 +986,7 @@ export default function ProductsView() {
           filteredProductsCount={filteredProducts.length}
           duplicateProductsCount={duplicateProductsCount}
           isMergingDuplicates={isMergingDuplicates}
+          canTransferProducts={warehouses.length > 1}
           products={paginatedProducts}
           totalItems={displayProducts.length}
           currentPage={currentPage}

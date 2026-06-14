@@ -215,20 +215,22 @@ export default function ProductFormModal({
               </p>
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-[#32465a]">Склад по умолчанию</label>
-              <select
-                required
-                value={formData.warehouseId}
-                onChange={(event) => setFormData({ ...formData, warehouseId: event.target.value })}
-                className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
-              >
-                <option value="">Выберите склад</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
-                ))}
-              </select>
-            </div>
+            {warehouses.length > 1 && (
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-[#32465a]">Склад по умолчанию</label>
+                <select
+                  required
+                  value={formData.warehouseId}
+                  onChange={(event) => setFormData({ ...formData, warehouseId: event.target.value })}
+                  className="w-full rounded border border-[#9fb7d5] bg-white px-3 py-2 text-sm font-medium text-[#1f2933] outline-none transition-colors focus:border-[#4f81bd]"
+                >
+                  <option value="">Выберите склад</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {isAdmin && (
               <div>

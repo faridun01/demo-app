@@ -360,9 +360,10 @@ export default function SettingsView() {
     }
     try {
       const { confirmPassword, ...payload } = newUser;
+      const effectiveWarehouseId = payload.warehouseId || (warehouses.length === 1 ? String(warehouses[0].id) : '');
       await client.post('/auth/register', {
         ...payload,
-        warehouseId: payload.warehouseId ? Number(payload.warehouseId) : undefined,
+        warehouseId: effectiveWarehouseId ? Number(effectiveWarehouseId) : undefined,
         customerId: payload.customerId ? Number(payload.customerId) : undefined,
       });
       toast.success('Пользователь создан');
@@ -386,9 +387,10 @@ export default function SettingsView() {
     }
     try {
       const { confirmPassword, ...payload } = newUser;
+      const effectiveWarehouseId = payload.warehouseId || (warehouses.length === 1 ? String(warehouses[0].id) : '');
       await client.put(`/auth/users/${selectedUser.id}`, {
         ...payload,
-        warehouseId: payload.warehouseId ? Number(payload.warehouseId) : null,
+        warehouseId: effectiveWarehouseId ? Number(effectiveWarehouseId) : null,
         customerId: payload.customerId ? Number(payload.customerId) : null,
       });
       toast.success('Пользователь обновлен');
@@ -688,17 +690,19 @@ export default function SettingsView() {
                       <option value="CUSTOMER">Клиент</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2 uppercase tracking-widest">Склад</label>
-                    <select 
-                      value={newUser.warehouseId}
-                      onChange={e => setNewUser({...newUser, warehouseId: e.target.value})}
-                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-slate-300/40 focus:border-slate-300 transition-all font-medium appearance-none bg-white"
-                    >
-                      <option value="">Все склады</option>
-                      {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
-                  </div>
+                  {warehouses.length > 1 && (
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2 uppercase tracking-widest">Склад</label>
+                      <select
+                        value={newUser.warehouseId}
+                        onChange={e => setNewUser({...newUser, warehouseId: e.target.value})}
+                        className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-slate-300/40 focus:border-slate-300 transition-all font-medium appearance-none bg-white"
+                      >
+                        <option value="">Все склады</option>
+                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                   {String(newUser.role || '').toUpperCase() === 'CUSTOMER' && (
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-2 uppercase tracking-widest">Клиент</label>

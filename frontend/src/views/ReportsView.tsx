@@ -223,7 +223,11 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     const fetchWarehouses = async () => {
       try {
         const data = await getWarehouses();
-        setWarehouses(Array.isArray(data) ? data : []);
+        const items = Array.isArray(data) ? data : [];
+        setWarehouses(items);
+        if (items.length === 1 && !selectedWarehouseId) {
+          setSelectedWarehouseId(String(items[0].id));
+        }
       } catch (err) {
         console.error(err);
       }
@@ -1008,21 +1012,23 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           </div>
 
           <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap xl:justify-end">
-            <div className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-              <Warehouse size={15} className="text-slate-400" />
-              <select
-                value={selectedWarehouseId}
-                onChange={(event) => setSelectedWarehouseId(event.target.value)}
-                className="appearance-none bg-transparent text-[13px] text-slate-700 outline-none"
-              >
-                <option value="">Все склады</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {warehouses.length > 1 && (
+              <div className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+                <Warehouse size={15} className="text-slate-400" />
+                <select
+                  value={selectedWarehouseId}
+                  onChange={(event) => setSelectedWarehouseId(event.target.value)}
+                  className="appearance-none bg-transparent text-[13px] text-slate-700 outline-none"
+                >
+                  <option value="">Все склады</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
               <span className="text-[13px] text-slate-400">Месяц</span>

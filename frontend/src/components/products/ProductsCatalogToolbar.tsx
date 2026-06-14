@@ -49,22 +49,26 @@ export default function ProductsCatalogToolbar({
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-          <div className="relative w-full">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500" size={16} />
-            <select
-              value={selectedWarehouseId}
-              onChange={(event) => onWarehouseChange(event.target.value)}
-              disabled={!isAdmin}
-              className="w-full appearance-none rounded-lg border border-violet-100 bg-violet-50 py-2.5 pl-10 pr-3 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-violet-300 focus:bg-white"
-            >
-              <option value="">Все склады</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {warehouses.length > 1 ? (
+            <div className="relative w-full">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-500" size={16} />
+              <select
+                value={selectedWarehouseId}
+                onChange={(event) => onWarehouseChange(event.target.value)}
+                disabled={!isAdmin}
+                className="w-full appearance-none rounded-lg border border-violet-100 bg-violet-50 py-2.5 pl-10 pr-3 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-violet-300 focus:bg-white"
+              >
+                <option value="">Все склады</option>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
 
           <button
             type="button"

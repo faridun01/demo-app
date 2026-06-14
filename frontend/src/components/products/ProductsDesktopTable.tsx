@@ -26,6 +26,7 @@ interface ProductsDesktopTableProps {
   totalItems: number;
   isLoading: boolean;
   isAdmin: boolean;
+  canTransferProducts: boolean;
   selectedWarehouseId: string;
   currentPage: number;
   pageSize: number;
@@ -59,6 +60,7 @@ export default function ProductsDesktopTable({
   totalItems,
   isLoading,
   isAdmin,
+  canTransferProducts,
   selectedWarehouseId,
   currentPage,
   pageSize,
@@ -262,13 +264,15 @@ export default function ProductsDesktopTable({
                         >
                           <Scissors size={14} />
                         </button>
-                        <button
-                          onClick={() => onTransferProduct(product)}
-                          className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-amber-200 hover:bg-amber-50 hover:text-amber-600"
-                          title="Перенос"
-                        >
-                          <ArrowRightLeft size={14} />
-                        </button>
+                        {canTransferProducts && (
+                          <button
+                            onClick={() => onTransferProduct(product)}
+                            className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-amber-200 hover:bg-amber-50 hover:text-amber-600"
+                            title="Перенос"
+                          >
+                            <ArrowRightLeft size={14} />
+                          </button>
+                        )}
                         <button
                           onClick={() => onDeleteProduct(product)}
                           className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"

@@ -107,7 +107,7 @@ export default function ExpensesView() {
       .then((data) => {
         const filtered = filterWarehousesForUser(Array.isArray(data) ? data : [], user);
         setWarehouses(filtered);
-        const defaultWarehouseId = getDefaultWarehouseId(filtered);
+        const defaultWarehouseId = getDefaultWarehouseId(filtered) || (filtered.length === 1 ? Number(filtered[0].id) : null);
         const nextWarehouseId = userWarehouseId
           ? String(userWarehouseId)
           : selectedWarehouseId || (defaultWarehouseId ? String(defaultWarehouseId) : '');
@@ -494,25 +494,27 @@ export default function ExpensesView() {
               </div>
 
               <form onSubmit={handleCreateExpense} className="space-y-3">
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-600">Склад</label>
-                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-                    <Warehouse size={16} className="text-slate-400" />
-                    <select
-                      value={selectedWarehouseId}
-                      onChange={(event) => setSelectedWarehouseId(event.target.value)}
-                      disabled={!isAdmin}
-                      className="w-full bg-transparent text-sm text-slate-700 outline-none"
-                    >
-                      <option value="">Выберите склад</option>
-                      {warehouses.map((warehouse) => (
-                        <option key={warehouse.id} value={warehouse.id}>
-                          {warehouse.name}
-                        </option>
-                      ))}
-                    </select>
+                {warehouses.length > 1 && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-slate-600">Склад</label>
+                    <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                      <Warehouse size={16} className="text-slate-400" />
+                      <select
+                        value={selectedWarehouseId}
+                        onChange={(event) => setSelectedWarehouseId(event.target.value)}
+                        disabled={!isAdmin}
+                        className="w-full bg-transparent text-sm text-slate-700 outline-none"
+                      >
+                        <option value="">Выберите склад</option>
+                        {warehouses.map((warehouse) => (
+                          <option key={warehouse.id} value={warehouse.id}>
+                            {warehouse.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-sm text-slate-600">Категория</label>
@@ -1133,24 +1135,26 @@ export default function ExpensesView() {
 
             <form onSubmit={handleUpdateExpense} className="flex min-h-0 flex-1 flex-col">
               <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 sm:p-6 lg:grid-cols-2">
-                <div className="space-y-2 lg:col-span-2">
-                  <label className="text-sm text-slate-600">Склад</label>
-                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-                    <Warehouse size={16} className="text-slate-400" />
-                    <select
-                      value={editForm.warehouseId}
-                      onChange={(event) => setEditForm({ ...editForm, warehouseId: event.target.value })}
-                      className="w-full bg-transparent text-sm text-slate-700 outline-none"
-                    >
-                      <option value="">Выберите склад</option>
-                      {warehouses.map((warehouse) => (
-                        <option key={warehouse.id} value={warehouse.id}>
-                          {warehouse.name}
-                        </option>
-                      ))}
-                    </select>
+                {warehouses.length > 1 && (
+                  <div className="space-y-2 lg:col-span-2">
+                    <label className="text-sm text-slate-600">Склад</label>
+                    <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                      <Warehouse size={16} className="text-slate-400" />
+                      <select
+                        value={editForm.warehouseId}
+                        onChange={(event) => setEditForm({ ...editForm, warehouseId: event.target.value })}
+                        className="w-full bg-transparent text-sm text-slate-700 outline-none"
+                      >
+                        <option value="">Выберите склад</option>
+                        {warehouses.map((warehouse) => (
+                          <option key={warehouse.id} value={warehouse.id}>
+                            {warehouse.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-sm text-slate-600">Категория</label>
