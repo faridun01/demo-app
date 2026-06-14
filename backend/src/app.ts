@@ -39,7 +39,10 @@ app.use(corsMiddleware);
 app.use(securityHeaders);
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  immutable: true,
+  maxAge: '7d',
+}));
 
 // Routes
 app.use('/api/auth', authRoutes);

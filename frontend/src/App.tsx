@@ -2,12 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Loader2, Menu, X, Warehouse } from 'lucide-react';
-import LoginView from './views/LoginView';
 import Sidebar from './components/layout/Sidebar';
 import { getCurrentUser, isAdminUser, isCustomerUser } from './utils/userAccess';
 import { clearAuthSession, getStoredUser, hasStoredSession, setAuthSession } from './utils/authStorage';
 import { getSessionUser } from './api/auth.api';
 
+const LoginView = React.lazy(() => import('./views/LoginView'));
 const DashboardView = React.lazy(() => import('./views/DashboardView'));
 const ProductsView = React.lazy(() => import('./views/ProductsView'));
 const SalesView = React.lazy(() => import('./views/SalesView'));
@@ -175,7 +175,14 @@ export default function App() {
     <Router>
       <Toaster position="top-right" />
       <Routes>
-        <Route path="/login" element={<LoginView />} />
+        <Route
+          path="/login"
+          element={
+            <React.Suspense fallback={<RouteLoading />}>
+              <LoginView />
+            </React.Suspense>
+          }
+        />
         <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route
           element={
