@@ -50,9 +50,28 @@ import {
   type ProductFormData,
 } from '../utils/productsViewUtils';
 
+const PAGE_SIZE = 12;
+const WRITE_OFF_REASON_PRESETS = ['Брак', 'Потеря', 'Внутреннее использование', 'Корректировка'];
+const EMPTY_TRANSFER_DATA = {
+  fromWarehouseId: '',
+  toWarehouseId: '',
+  quantity: '',
+  selectedPackagingId: '',
+  packageQuantityInput: '',
+};
+const EMPTY_RESTOCK_DATA = {
+  warehouseId: '',
+  quantity: '',
+  selectedPackagingId: '',
+  packageQuantityInput: '',
+  costPrice: '',
+  sellingPrice: '',
+  expensePercent: '0',
+  reason: '',
+};
+
 export default function ProductsView() {
-  const pageSize = 12;
-  const writeOffReasonPresets = ['Брак', 'Потеря', 'Внутреннее использование', 'Корректировка'];
+  const pageSize = PAGE_SIZE;
   const hasLoadedReferenceDataRef = React.useRef(false);
   const latestProductsRequestRef = React.useRef(0);
   const initialSortAppliedRef = React.useRef(false);
@@ -149,23 +168,8 @@ export default function ProductsView() {
   const [expandedMobileActionsId, setExpandedMobileActionsId] = useState<number | null>(null);
   const [isReferenceDataReady, setIsReferenceDataReady] = useState(false);
   const [categoryInput, setCategoryInput] = useState('');
-  const emptyTransferData = {
-    fromWarehouseId: '',
-    toWarehouseId: '',
-    quantity: '',
-    selectedPackagingId: '',
-    packageQuantityInput: '',
-  };
-  const emptyRestockData = {
-    warehouseId: '',
-    quantity: '',
-    selectedPackagingId: '',
-    packageQuantityInput: '',
-    costPrice: '',
-    sellingPrice: '',
-    expensePercent: '0',
-    reason: '',
-  };
+  const emptyTransferData = EMPTY_TRANSFER_DATA;
+  const emptyRestockData = EMPTY_RESTOCK_DATA;
 
   const closeHistoryModal = () => {
     setShowHistoryModal(false);
@@ -722,7 +726,7 @@ export default function ProductsView() {
   const normalizedWriteOffReason = String(writeOffData.reason || '').trim().toLowerCase();
   const isCustomWriteOffReason = Boolean(
     normalizedWriteOffReason &&
-    !writeOffReasonPresets.some((reason) => reason.toLowerCase() === normalizedWriteOffReason)
+    !WRITE_OFF_REASON_PRESETS.some((reason) => reason.toLowerCase() === normalizedWriteOffReason)
   );
 
   useEffect(() => {
@@ -911,7 +915,7 @@ export default function ProductsView() {
           totalRestockUnits={totalRestockUnits}
           writeOffData={writeOffData}
           selectedWriteOffPackaging={selectedWriteOffPackaging}
-          writeOffReasonPresets={writeOffReasonPresets}
+          writeOffReasonPresets={WRITE_OFF_REASON_PRESETS}
           normalizedWriteOffReason={normalizedWriteOffReason}
           isCustomWriteOffReason={isCustomWriteOffReason}
           ocrResults={ocrResults}

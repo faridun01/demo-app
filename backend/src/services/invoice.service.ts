@@ -66,6 +66,31 @@ function buildRequestedQuantityByProduct(
   return requested;
 }
 
+function validatePackagedSaleAvailability(product: any, item: any, availableQty: number) {
+  const packageQuantity = normalizeNonNegativeNumber(item.packageQuantity || 0, 'Package quantity');
+  const packagingId = Number(item.packagingId || 0);
+
+  if (!packagingId || packageQuantity <= 0) {
+    return;
+  }
+
+  const packaging = Array.isArray(product?.packagings)
+    ? product.packagings.find((entry: any) => Number(entry.id) === packagingId)
+    : null;
+  const unitsPerPackage = Math.max(0, Number(item.unitsPerPackage || packaging?.unitsPerPackage || 0));
+
+  if (!packaging || unitsPerPackage <= 0) {
+    throw new Error(`Упаковка для "${product.name}" не найдена`);
+  }
+
+  if (availableQty < unitsPerPackage) {
+    const unit = normalizeBaseUnitName(item.baseUnitName || packaging.baseUnitName || product.baseUnitName || product.unit || 'шт');
+    throw new Error(
+      `Нельзя продать "${product.name}" коробкой. В коробке ${unitsPerPackage} ${unit}, доступно только ${availableQty} ${unit}`,
+    );
+  }
+}
+
 function buildCurrentInvoiceItemSnapshot(item: any) {
   const originalTotalBaseUnits = Math.max(0, Number(item?.totalBaseUnits ?? item?.quantity ?? 0));
   const returnedQty = Math.max(0, Number(item?.returnedQty || 0));
@@ -175,6 +200,13 @@ export class InvoiceService {
           throw new Error(
             `Нельзя продать больше остатка для "${product.name}". Доступно: ${availableQty} ${unit}, запрошено: ${requestedQty} ${unit}`,
           );
+        }
+      }
+
+      for (const item of items) {
+        const product = productsById.get(Number(item.productId));
+        if (product) {
+          validatePackagedSaleAvailability(product, item, Math.max(0, Number(product.stock || 0)));
         }
       }
 
@@ -494,6 +526,17 @@ export class InvoiceService {
             `Нельзя продать больше остатка для "${product.name}". Доступно: ${availableForEdit} ${unit}, запрошено: ${requestedQty} ${unit}`,
           );
         }
+      }
+
+      for (const item of items) {
+        const product = productsById.get(Number(item.productId));
+        if (!product) {
+          continue;
+        }
+
+        const availableNow = Math.max(0, Number(product.stock || 0));
+        const originalQty = Math.max(0, Number(originalByProduct.get(Number(item.productId)) || 0));
+        validatePackagedSaleAvailability(product, item, roundMoney(availableNow + originalQty));
       }
 
       let totalAmount = 0;

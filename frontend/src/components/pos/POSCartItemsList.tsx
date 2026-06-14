@@ -7,6 +7,7 @@ type POSCartItemsListProps = {
   isCartExpanded: boolean;
   getCartStockSummary: (item: CartItem) => { availableLabel: string; remainingLabel: string };
   getCartPackaging: (item: CartItem) => PackagingOption | null;
+  isPackagingAvailableForCartItem: (item: CartItem, packaging: PackagingOption | null) => boolean;
   getLineSubtotal: (item: CartItem) => number;
   getLineDiscountAmount: (item: CartItem) => number;
   getLineTotal: (item: CartItem) => number;
@@ -27,6 +28,7 @@ export default function POSCartItemsList({
   isCartExpanded,
   getCartStockSummary,
   getCartPackaging,
+  isPackagingAvailableForCartItem,
   getLineSubtotal,
   getLineDiscountAmount,
   getLineTotal,
@@ -63,6 +65,7 @@ export default function POSCartItemsList({
           isCartExpanded={isCartExpanded}
           getCartStockSummary={getCartStockSummary}
           getCartPackaging={getCartPackaging}
+          isPackagingAvailableForCartItem={isPackagingAvailableForCartItem}
           getLineSubtotal={getLineSubtotal}
           getLineDiscountAmount={getLineDiscountAmount}
           getLineTotal={getLineTotal}

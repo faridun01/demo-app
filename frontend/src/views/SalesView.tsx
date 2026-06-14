@@ -88,14 +88,6 @@ export default function SalesView() {
     setShowDetailsModal(false);
   };
 
-  const escapeHtml = (value: unknown) =>
-    String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-
   useEffect(() => {
     fetchInvoices();
   }, [selectedWarehouseId, isAdmin, userWarehouseId]);

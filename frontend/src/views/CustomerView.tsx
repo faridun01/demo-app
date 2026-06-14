@@ -5,86 +5,23 @@ import toast from 'react-hot-toast';
 import { Card, Badge } from '../components/UI';
 import client from '../api/client';
 import { createCustomer, deleteCustomer, getCustomers, updateCustomer } from '../api/customers.api';
-import { formatCount, formatMoney, roundMoney } from '../utils/format';
+import { formatCount, formatMoney } from '../utils/format';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import PaginationControls from '../components/common/PaginationControls';
 import { useMemo } from 'react';
 import { getCurrentUser, isAdminUser } from '../utils/userAccess';
 import { NavLink, useLocation } from 'react-router-dom';
-
-interface Customer {
-  id: number;
-  customerType?: 'individual' | 'company';
-  name: string;
-  customerCategory?: string;
-  companyName?: string;
-  contactName?: string;
-  phone: string;
-  country?: string;
-  region?: string;
-  city?: string;
-  address: string;
-  notes: string;
-  total_invoiced: number;
-  total_paid: number;
-  balance: number;
-  invoice_count?: number;
-  average_invoice?: number;
-  customer_segment?: 'VIP' | 'Постоянный' | 'Обычный' | 'Новый' | string;
-  last_purchase_at?: string | null;
-  payment_efficiency?: number;
-}
-
-interface StatementPayment {
-  id: number;
-  amount: number;
-  method: string;
-  createdAt: string;
-  staff_name: string;
-}
-
-interface StatementReturn {
-  id: number;
-  totalValue: number;
-  reason?: string;
-  createdAt: string;
-  staff_name: string;
-}
-
-interface StatementItem {
-  id: number;
-  product?: { name?: string };
-  quantity: number;
-  totalPrice?: number;
-  totalBaseUnits?: number;
-  packageQuantity?: number;
-  extraUnitQuantity?: number;
-  unitsPerPackageSnapshot?: number;
-  unitsPerPackage?: number;
-  packageNameSnapshot?: string;
-  baseUnitNameSnapshot?: string;
-  packageName?: string;
-  baseUnitName?: string;
-  returnedQty?: number;
-  sellingPrice: number;
-}
-
-interface StatementInvoice {
-  id: number;
-  createdAt: string;
-  totalAmount: number;
-  discount: number;
-  tax?: number;
-  netAmount: number;
-  paidAmount: number;
-  returnedAmount: number;
-  status: string;
-  warehouse?: { name?: string };
-  items?: StatementItem[];
-  invoiceBalance: number;
-  paymentEvents: StatementPayment[];
-  returnEvents: StatementReturn[];
-}
+import {
+  CUSTOMER_PAYMENT_EPSILON,
+  getInvoiceAppliedPaidAmount,
+  getInvoiceChangeAmount,
+  getInvoiceDiscountAmount,
+  getInvoiceItemQuantityParts,
+  getInvoiceNetAmount,
+  getInvoiceSubtotal,
+} from '../components/customers/customerInvoiceCalculations';
+import { segmentTone, useCustomerList } from '../components/customers/useCustomerList';
+import type { Customer, StatementInvoice } from '../types/customer';
 
 const emptyForm = {
   customerType: 'individual',
@@ -125,18 +62,15 @@ export default function CustomerView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isPrintingReconciliation, setIsPrintingReconciliation] = useState(false);
-  const PAYMENT_EPSILON = 0.01;
-  const customerCategories = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          customers
-            .map((customer) => String(customer.customerCategory || '').trim())
-            .filter(Boolean),
-        ),
-      ).sort((a, b) => a.localeCompare(b, 'ru')),
-    [customers],
-  );
+  const PAYMENT_EPSILON = CUSTOMER_PAYMENT_EPSILON;
+  const { customerCategories, paginatedCustomers, sortedCustomers, totalPages } = useCustomerList({
+    currentPage,
+    customers,
+    pageSize,
+    searchTerm,
+    segmentFilter,
+    sortBy,
+  });
   const formatMoneyByRole = (value: unknown, trimCurrency = false) => {
     if (!isAdmin) {
       return 'Скрыто';
@@ -253,18 +187,6 @@ export default function CustomerView() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Вы уверены?')) return;
-
-    try {
-      await deleteCustomer(id);
-      toast.success('Клиент удален');
-      fetchCustomers();
-    } catch {
-      toast.error('Ошибка при удалении');
-    }
-  };
-
   const handleDeleteConfirmed = async () => {
     if (!selectedCustomer) return;
 
@@ -294,95 +216,6 @@ export default function CustomerView() {
   const openInvoiceDetails = (invoice: StatementInvoice) => {
     setSelectedInvoice(invoice);
     setIsInvoiceDetailsOpen(true);
-  };
-
-  const getInvoiceSubtotal = (invoice: StatementInvoice) => {
-    const storedTotal = Math.max(0, Number(invoice?.totalAmount || 0));
-    if (storedTotal > PAYMENT_EPSILON) {
-      return storedTotal;
-    }
-
-    const itemsSubtotal = Array.isArray(invoice?.items)
-      ? invoice.items.reduce((sum, item) => {
-          const storedLineTotal = Number(item?.totalPrice || 0);
-          if (storedLineTotal > PAYMENT_EPSILON) {
-            return roundMoney(sum + storedLineTotal);
-          }
-
-          return roundMoney(sum + roundMoney(Number(item.quantity || 0) * Number(item.sellingPrice || 0)));
-        }, 0)
-      : 0;
-
-    return roundMoney(itemsSubtotal);
-  };
-
-  const getInvoiceDiscountAmount = (invoice: StatementInvoice) => {
-    const subtotal = getInvoiceSubtotal(invoice);
-    const discount = Number(invoice?.discount || 0);
-    return roundMoney(subtotal * (discount / 100));
-  };
-
-  const getInvoiceNetAmount = (invoice: StatementInvoice) => {
-    const storedNet = Math.max(0, Number(invoice?.netAmount || 0));
-    if (storedNet > PAYMENT_EPSILON) {
-      return storedNet;
-    }
-
-    const subtotal = getInvoiceSubtotal(invoice);
-    const discountAmount = getInvoiceDiscountAmount(invoice);
-    const taxAmount = Math.max(0, Number(invoice?.tax || 0));
-    const returnedAmount = Number(invoice?.returnedAmount || 0);
-    const calculatedNet = roundMoney(subtotal - discountAmount + taxAmount - returnedAmount);
-
-    return roundMoney(Math.max(0, calculatedNet));
-  };
-
-  const getInvoiceChangeAmount = (invoice: StatementInvoice) => {
-    const change = roundMoney(Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceNetAmount(invoice));
-    return change > PAYMENT_EPSILON ? change : 0;
-  };
-
-  const getInvoiceAppliedPaidAmount = (invoice: StatementInvoice) =>
-    Math.max(0, Math.max(0, Number(invoice?.paidAmount || 0)) - getInvoiceChangeAmount(invoice));
-
-  const normalizeDisplayBaseUnit = (value: unknown) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    if (!normalized) return 'шт';
-    if (['штук', 'штука', 'штуки', 'шт', 'pcs', 'piece', 'pieces'].includes(normalized)) {
-      return 'шт';
-    }
-    return normalized;
-  };
-
-  const normalizeDisplayPackageName = (value: unknown) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return normalized || 'уп';
-  };
-
-  const getInvoiceItemQuantityParts = (item: StatementItem) => {
-    const packageQuantity = Math.max(0, Number(item?.packageQuantity || 0));
-    const extraUnitQuantity = Math.max(0, Number(item?.extraUnitQuantity || 0));
-    const unitsPerPackage = Math.max(0, Number(item?.unitsPerPackageSnapshot ?? item?.unitsPerPackage ?? 0));
-    const packageName = normalizeDisplayPackageName(item?.packageNameSnapshot || item?.packageName);
-    const baseUnitName = normalizeDisplayBaseUnit(item?.baseUnitNameSnapshot || item?.baseUnitName || 'шт');
-
-    if (packageQuantity > 0 && unitsPerPackage > 0) {
-      const packagedUnits = packageQuantity * unitsPerPackage;
-      let secondary = `${formatCount(packageQuantity)}*${formatCount(unitsPerPackage)}=${formatCount(packagedUnits)} ${baseUnitName}`;
-      if (extraUnitQuantity > 0) {
-        secondary += ` +${formatCount(extraUnitQuantity)} ${baseUnitName}`;
-      }
-      return {
-        primary: `${formatCount(packageQuantity)} ${packageName}`,
-        secondary,
-      };
-    }
-
-    const totalBaseUnits = Math.max(0, Number(item?.totalBaseUnits ?? item?.quantity ?? 0));
-    return {
-      primary: `${formatCount(totalBaseUnits)} ${baseUnitName}`,
-      secondary: '',
-    };
   };
 
   const handlePrintInvoiceDirect = async (invoice: StatementInvoice) => {
@@ -482,49 +315,6 @@ export default function CustomerView() {
     }
   };
 
-  const filteredCustomers = customers.filter((customer) =>
-    (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone?.includes(searchTerm)) &&
-    (segmentFilter === 'all' || customer.customer_segment === segmentFilter),
-  );
-
-  const segmentRank: Record<string, number> = {
-    VIP: 4,
-    Постоянный: 3,
-    Обычный: 2,
-    Новый: 1,
-  };
-
-  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
-    if (sortBy === 'amount') {
-      return Number(b.total_invoiced || 0) - Number(a.total_invoiced || 0);
-    }
-
-    if (sortBy === 'invoices') {
-      return Number(b.invoice_count || 0) - Number(a.invoice_count || 0);
-    }
-
-    if (sortBy === 'balance') {
-      return Number(b.balance || 0) - Number(a.balance || 0);
-    }
-
-    if (sortBy === 'lastPurchase') {
-      return new Date(b.last_purchase_at || 0).getTime() - new Date(a.last_purchase_at || 0).getTime();
-    }
-
-    const rankDiff = (segmentRank[b.customer_segment || ''] || 0) - (segmentRank[a.customer_segment || ''] || 0);
-    if (rankDiff !== 0) {
-      return rankDiff;
-    }
-
-    const amountDiff = Number(b.total_invoiced || 0) - Number(a.total_invoiced || 0);
-    if (amountDiff !== 0) {
-      return amountDiff;
-    }
-
-    return Number(b.invoice_count || 0) - Number(a.invoice_count || 0);
-  });
-
   const handlePrintAllReconciliation = async () => {
     if (customers.length === 0) {
       toast.error('Список клиентов пуст');
@@ -572,18 +362,6 @@ export default function CustomerView() {
     }
   };
 
-  const segmentTone: Record<string, string> = {
-    VIP: 'bg-violet-100 text-violet-700',
-    Постоянный: 'bg-sky-100 text-sky-700',
-    Обычный: 'bg-emerald-100 text-emerald-700',
-    Новый: 'bg-amber-100 text-amber-700',
-  };
-
-  const totalPages = Math.max(1, Math.ceil(sortedCustomers.length / pageSize));
-  const paginatedCustomers = useMemo(
-    () => sortedCustomers.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [currentPage, sortedCustomers],
-  );
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, segmentFilter, sortBy]);

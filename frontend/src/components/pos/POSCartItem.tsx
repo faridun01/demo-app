@@ -36,6 +36,7 @@ type POSCartItemProps = {
   isCartExpanded: boolean;
   getCartStockSummary: (item: CartItem) => { availableLabel: string; remainingLabel: string };
   getCartPackaging: (item: CartItem) => PackagingOption | null;
+  isPackagingAvailableForCartItem: (item: CartItem, packaging: PackagingOption | null) => boolean;
   getLineSubtotal: (item: CartItem) => number;
   getLineDiscountAmount: (item: CartItem) => number;
   getLineTotal: (item: CartItem) => number;
@@ -57,6 +58,7 @@ export default function POSCartItem({
   isCartExpanded,
   getCartStockSummary,
   getCartPackaging,
+  isPackagingAvailableForCartItem,
   getLineSubtotal,
   getLineDiscountAmount,
   getLineTotal,
@@ -142,11 +144,15 @@ export default function POSCartItem({
                     className="h-9 w-full rounded border border-[#9fb7d5] bg-white px-2 text-xs text-[#1f2933] outline-none transition-colors focus:border-[#4f7fb8]"
                   >
                     <option value="">Только {item.baseUnitName}</option>
-                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
-                      <option key={packaging.id} value={packaging.id}>
-                        {packaging.packageName} = {packaging.unitsPerPackage} {item.baseUnitName}
-                      </option>
-                    ))}
+                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => {
+                      const isDisabled = !isPackagingAvailableForCartItem(item, packaging);
+                      return (
+                        <option key={packaging.id} value={packaging.id} disabled={isDisabled}>
+                          {packaging.packageName} = {packaging.unitsPerPackage} {item.baseUnitName}
+                          {isDisabled ? ' (мало остатка)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
 
@@ -205,11 +211,15 @@ export default function POSCartItem({
                     className="min-w-0 rounded border border-[#9fb7d5] bg-white px-2 py-1.5 text-xs text-[#1f2933] outline-none"
                   >
                     <option value="">Только {item.baseUnitName}</option>
-                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => (
-                      <option key={packaging.id} value={packaging.id}>
-                        {packaging.packageName} = {packaging.unitsPerPackage} {item.baseUnitName}
-                      </option>
-                    ))}
+                    {(Array.isArray(item.packagings) ? item.packagings : []).map((packaging) => {
+                      const isDisabled = !isPackagingAvailableForCartItem(item, packaging);
+                      return (
+                        <option key={packaging.id} value={packaging.id} disabled={isDisabled}>
+                          {packaging.packageName} = {packaging.unitsPerPackage} {item.baseUnitName}
+                          {isDisabled ? ' (мало остатка)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
 
                   <input

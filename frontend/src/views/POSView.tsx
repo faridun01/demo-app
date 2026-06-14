@@ -277,6 +277,18 @@ export default function POSView() {
     return Math.max(0, Number(currentProduct?.stock ?? item.stock ?? 0) || 0);
   };
 
+  const isPackagingAvailableForCartItem = (item: CartItem, packaging: PackagingOption | null) => {
+    const unitsPerPackage = Number(packaging?.unitsPerPackage || 0);
+    return Boolean(packaging && unitsPerPackage > 0 && getAvailableStockForCartItem(item) >= unitsPerPackage);
+  };
+
+  const getPackageBlockedMessage = (item: CartItem, packaging: PackagingOption | null) => {
+    const unitsPerPackage = Number(packaging?.unitsPerPackage || 0);
+    const packageName = packaging?.packageName || 'коробка';
+    const availableStock = getAvailableStockForCartItem(item);
+    return `Нельзя продать ${packageName}: в коробке ${unitsPerPackage} ${item.baseUnitName}, доступно только ${availableStock} ${item.baseUnitName}.`;
+  };
+
   const warnStockOverflow = (item: CartItem, availableStock: number) => {
     const currentProduct = products.find((product) => product.id === item.id);
     toast.error(
@@ -305,11 +317,18 @@ export default function POSView() {
 
   const normalizeCartItem = (item: CartItem, overrides: Partial<CartItem> = {}) => {
     const merged = { ...item, ...overrides };
-    const packaging = merged.packagings.find((entry) => entry.id === merged.selectedPackagingId) || null;
-    const unitsPerPackage = packaging?.unitsPerPackage || 0;
     const availableStock = getAvailableStockForCartItem(merged as CartItem);
+    let packaging = merged.packagings.find((entry) => entry.id === merged.selectedPackagingId) || null;
+    let unitsPerPackage = packaging?.unitsPerPackage || 0;
     let packageQuantity = Math.max(0, Math.floor(Number(merged.packageQuantity || 0)));
     let extraUnitQuantity = Math.max(0, Number(merged.extraUnitQuantity || 0));
+
+    if (packaging && unitsPerPackage > availableStock) {
+      packaging = null;
+      unitsPerPackage = 0;
+      packageQuantity = 0;
+      extraUnitQuantity = Math.min(Math.max(1, extraUnitQuantity || Number(merged.quantity || 1)), Math.max(availableStock, 1));
+    }
 
     if (!packaging) {
       packageQuantity = 0;
@@ -795,6 +814,15 @@ export default function POSView() {
         }
 
         const selectedPackagingId = value ? Number(value) : null;
+        const selectedPackaging = selectedPackagingId
+          ? (Array.isArray(item.packagings) ? item.packagings : []).find((entry) => entry.id === selectedPackagingId) || null
+          : null;
+
+        if (selectedPackaging && !isPackagingAvailableForCartItem(item, selectedPackaging)) {
+          toast.error(getPackageBlockedMessage(item, selectedPackaging), { id: `package-blocked-${item.id}` });
+          return normalizeCartItem(item);
+        }
+
         return normalizeCartItem(item, {
           selectedPackagingId,
           packageQuantity: selectedPackagingId ? Math.max(1, item.packageQuantity || 0) : 0,
@@ -1076,6 +1104,16 @@ export default function POSView() {
       return;
     }
 
+    const blockedPackageCartItem = cart.find((item) => {
+      const packaging = getCartPackaging(item);
+      return Boolean(item.selectedPackagingId && packaging && !isPackagingAvailableForCartItem(item, packaging));
+    });
+
+    if (blockedPackageCartItem) {
+      toast.error(getPackageBlockedMessage(blockedPackageCartItem, getCartPackaging(blockedPackageCartItem)));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
 
@@ -1288,6 +1326,7 @@ export default function POSView() {
                   isCartExpanded={isCartExpanded}
                   getCartStockSummary={getCartStockSummary}
                   getCartPackaging={getCartPackaging}
+                  isPackagingAvailableForCartItem={isPackagingAvailableForCartItem}
                   getLineSubtotal={getLineSubtotal}
                   getLineDiscountAmount={getLineDiscountAmount}
                   getLineTotal={getLineTotal}

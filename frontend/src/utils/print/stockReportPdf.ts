@@ -23,6 +23,7 @@ const PDF_TEXT = {
   positions: 'Позиций',
   shortTitle: 'Остатки товаров',
   page: 'Стр.',
+  total: 'Итого позиций',
 } as const;
 
 const PDF_FONT_FILE = 'arial.ttf';
@@ -104,76 +105,76 @@ export async function downloadStockReportPdf({
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 8;
+  const margin = 10;
   const fileDate = formatDateForFile(generatedAt);
   const safeWarehouse = buildSafeFilePart(warehouseName);
   const generatedAtLabel = formatDateTime(generatedAt);
 
-  doc.setFillColor(15, 23, 42);
-  doc.roundedRect(margin, margin, pageWidth - margin * 2, 16, 3, 3, 'F');
-
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(0, 0, 0);
   doc.setFont(PDF_FONT_NAME, 'bold');
-  doc.setFontSize(12.5);
-  doc.text(PDF_TEXT.title, margin + 3, 14.2);
+  doc.setFontSize(13);
+  doc.text(PDF_TEXT.title, pageWidth / 2, 14, { align: 'center' });
 
   doc.setFont(PDF_FONT_NAME, 'normal');
-  doc.setFontSize(7);
-  doc.text(`${PDF_TEXT.warehouse}: ${warehouseName}`, margin + 3, 19.3);
-  doc.text(`${PDF_TEXT.generatedAt}: ${generatedAtLabel}`, pageWidth - margin - 3, 19.3, { align: 'right' });
+  doc.setFontSize(7.4);
+  doc.text(`${PDF_TEXT.warehouse}: ${warehouseName}`, margin, 21);
+  doc.text(`${PDF_TEXT.generatedAt}: ${generatedAtLabel}`, margin, 25.2);
+  doc.text(`${PDF_TEXT.positions}: ${rows.length}`, pageWidth - margin, 25.2, { align: 'right' });
 
-  doc.setTextColor(15, 23, 42);
-  doc.setFillColor(241, 245, 249);
-  doc.roundedRect(margin, 28, pageWidth - margin * 2, 8, 2.5, 2.5, 'F');
-  doc.setFont(PDF_FONT_NAME, 'bold');
-  doc.setFontSize(7.1);
-  doc.text(`${PDF_TEXT.positions}: ${rows.length}`, margin + 3, 33.2);
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.18);
+  doc.line(margin, 29, pageWidth - margin, 29);
 
   autoTable(doc, {
-    startY: 40,
+    startY: 33,
     margin: { left: margin, right: margin, bottom: 10 },
     head: [[PDF_TEXT.number, PDF_TEXT.item, PDF_TEXT.stock]],
     body: rows.map((row) => [String(row.index), row.name, row.stock]),
     theme: 'grid',
     styles: {
       font: PDF_FONT_NAME,
-      fontSize: 7,
-      lineColor: [203, 213, 225],
-      lineWidth: 0.12,
-      cellPadding: { top: 1.2, right: 1.5, bottom: 1.2, left: 1.5 },
-      textColor: [15, 23, 42],
+      fontSize: 6.8,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.08,
+      cellPadding: { top: 1, right: 1.2, bottom: 1, left: 1.2 },
+      textColor: [0, 0, 0],
       valign: 'middle',
       overflow: 'linebreak',
     },
     headStyles: {
       font: PDF_FONT_NAME,
-      fillColor: [30, 41, 59],
-      textColor: [255, 255, 255],
+      fillColor: [230, 230, 230],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7.2,
+      fontSize: 6.9,
       halign: 'center',
-      cellPadding: { top: 1.5, right: 1.5, bottom: 1.5, left: 1.5 },
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
+      cellPadding: { top: 1.1, right: 1.2, bottom: 1.1, left: 1.2 },
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
-      1: { cellWidth: 142, fontStyle: 'bold' },
-      2: { cellWidth: 32, halign: 'center' },
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 138 },
+      2: { cellWidth: 42, halign: 'center' },
     },
     didDrawPage: () => {
       const pageNumber = doc.getNumberOfPages();
 
-      doc.setDrawColor(226, 232, 240);
-      doc.line(margin, pageHeight - 7.5, pageWidth - margin, pageHeight - 7.5);
-      doc.setTextColor(100, 116, 139);
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.08);
+      doc.line(margin, pageHeight - 8, pageWidth - margin, pageHeight - 8);
+      doc.setTextColor(0, 0, 0);
       doc.setFont(PDF_FONT_NAME, 'normal');
-      doc.setFontSize(6.2);
+      doc.setFontSize(6);
       doc.text(`${PDF_TEXT.shortTitle} - ${warehouseName}`, margin, pageHeight - 4);
       doc.text(`${PDF_TEXT.page} ${pageNumber}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
     },
   });
+
+  const finalY = (doc as any).lastAutoTable?.finalY;
+  if (typeof finalY === 'number' && finalY < pageHeight - 22) {
+    doc.setFont(PDF_FONT_NAME, 'bold');
+    doc.setFontSize(7);
+    doc.text(`${PDF_TEXT.total}: ${rows.length}`, margin, finalY + 6);
+  }
 
   doc.save(`ostatki_${safeWarehouse}_${fileDate}.pdf`);
 }
