@@ -47,7 +47,7 @@ export default function POSCartCustomerBlock({
 }: POSCartCustomerBlockProps) {
   return (
     <div className={clsx('order-2 space-y-2 border-b border-[#b7c2ce] bg-[#f7f9fb] px-3 py-2.5 md:px-4 lg:order-0', isCartExpanded && 'lg:col-start-1 lg:row-start-2')}>
-      <div className="rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00] md:hidden">
+      <div className="hidden rounded border border-[#c8a64a] bg-[#fff7d6] px-3 py-2 text-xs text-[#7a5a00] md:hidden">
         <div className="flex items-center justify-between gap-3">
           <span className="font-medium">Сумма корзины</span>
           <span className="text-sm font-semibold text-slate-900">{formatMoney(total)}</span>

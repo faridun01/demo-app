@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertTriangle, BarChart3, FileText, Target, TrendingUp, Warehouse, X } from 'lucide-react';
+import { AlertTriangle, BarChart3, FileSpreadsheet, FileText, Target, TrendingUp, Warehouse, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import client from '../api/client';
 import { deleteWriteOffTransactionPermanently, returnWriteOffTransaction } from '../api/products.api';
@@ -57,6 +57,15 @@ type ProductProfitInsight = {
   profitShare: number;
   efficiencyScore: number;
   inefficiencyReason: string | null;
+};
+
+type ProductSalesSummaryRow = {
+  name: string;
+  quantity: number;
+  salesCount: number;
+  costTotal: number;
+  revenue: number;
+  profit: number;
 };
 
 const PIE_COLORS = ['#5b8def', '#7c6cf2', '#f3cb5d', '#5ec98f', '#ef6fae'];
@@ -191,6 +200,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
   const [reportData, setReportData] = useState<ReportRow[]>([]);
   const [detailPage, setDetailPage] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [returnWriteoffRow, setReturnWriteoffRow] = useState<ReportRow | null>(null);
   const [returnWriteoffQuantity, setReturnWriteoffQuantity] = useState('1');
   const [returnWriteoffReason, setReturnWriteoffReason] = useState('ошибка ввода');
@@ -846,32 +856,274 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     ];
   };
 
-  const buildProductProfitTotalRow = (rows: Array<{ name: string; quantity: number; revenue: number; profit: number }>) => [
-    'ИТОГО',
-    formatCount(rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)),
-    toFixedNumber(rows.reduce((sum, row) => sum + Number(row.revenue || 0), 0)),
-    toFixedNumber(rows.reduce((sum, row) => sum + Number(row.profit || 0), 0)),
-  ];
+  const buildProductSalesSummaryData = (rows: ReportRow[]) =>
+    rows
+      .reduce((acc: ProductSalesSummaryRow[], row) => {
+        const name = formatProductName(row.product_name);
+        const existing = acc.find((item) => item.name === name);
+        const quantity = Number(row.quantity || 0);
+        const costTotal = Number(row.cost_price || 0) * quantity;
+        const revenue = reportType === 'profit' ? Number(row.net_sales || 0) : Number(row.total_sales || row.net_sales || 0);
+        const profit = Number(row.profit || 0);
 
-  const buildProductProfitRows = (
-    rows: Array<{ name: string; quantity: number; revenue: number; profit: number }>
-  ): Array<Array<string | number>> => [
-    ...rows.map((row) => [row.name, formatCount(row.quantity), toFixedNumber(row.revenue), toFixedNumber(row.profit)]),
-    buildProductProfitTotalRow(rows),
-  ];
+        if (existing) {
+          existing.quantity += quantity;
+          existing.salesCount += 1;
+          existing.costTotal += costTotal;
+          existing.revenue += revenue;
+          existing.profit += profit;
+        } else {
+          acc.push({
+            name,
+            quantity,
+            salesCount: 1,
+            costTotal,
+            revenue,
+            profit,
+          });
+        }
+
+        return acc;
+      }, [])
+      .sort((a, b) => b.revenue - a.revenue);
+
+  const buildProductSalesSummaryRows = (rows: ProductSalesSummaryRow[]): Array<Array<string | number>> => {
+    const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+    const totalSalesCount = rows.reduce((sum, row) => sum + Number(row.salesCount || 0), 0);
+    const totalCost = rows.reduce((sum, row) => sum + Number(row.costTotal || 0), 0);
+    const totalRevenue = rows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
+    const totalProfit = rows.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+    const averageCost = totalQuantity > 0 ? totalCost / totalQuantity : 0;
+    const averagePrice = totalQuantity > 0 ? totalRevenue / totalQuantity : 0;
+    const averageProfit = totalQuantity > 0 ? totalProfit / totalQuantity : 0;
+
+    return [
+      ...rows.map((row) => {
+        const quantity = Number(row.quantity || 0);
+        return [
+          row.name,
+          formatCount(quantity),
+          formatCount(row.salesCount),
+          toFixedNumber(quantity > 0 ? row.costTotal / quantity : 0),
+          toFixedNumber(quantity > 0 ? row.revenue / quantity : 0),
+          toFixedNumber(quantity > 0 ? row.profit / quantity : 0),
+          toFixedNumber(row.revenue),
+          toFixedNumber(row.profit),
+        ];
+      }),
+      [
+        'ИТОГО',
+        formatCount(totalQuantity),
+        formatCount(totalSalesCount),
+        toFixedNumber(averageCost),
+        toFixedNumber(averagePrice),
+        toFixedNumber(averageProfit),
+        toFixedNumber(totalRevenue),
+        toFixedNumber(totalProfit),
+      ],
+    ];
+  };
+
+  const escapeExcelXml = (value: unknown) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  const buildExcelCell = (
+    value: unknown,
+    options: { style?: string; type?: 'String' | 'Number'; mergeAcross?: number } = {},
+  ) => {
+    const isNumber = options.type === 'Number' || (typeof value === 'number' && Number.isFinite(value));
+    const attributes = [
+      options.style ? `ss:StyleID="${options.style}"` : '',
+      options.mergeAcross ? `ss:MergeAcross="${options.mergeAcross}"` : '',
+    ].filter(Boolean).join(' ');
+
+    return `<Cell${attributes ? ` ${attributes}` : ''}><Data ss:Type="${isNumber ? 'Number' : 'String'}">${escapeExcelXml(isNumber ? Number(value || 0) : value)}</Data></Cell>`;
+  };
+
+  const buildExcelRow = (
+    cells: unknown[],
+    options: { style?: string; numericColumns?: number[]; firstCellStyle?: string } = {},
+  ) =>
+    `<Row>${cells.map((cell, index) => buildExcelCell(cell, {
+      style: index === 0 && options.firstCellStyle ? options.firstCellStyle : options.style,
+      type: options.numericColumns?.includes(index) ? 'Number' : undefined,
+    })).join('')}</Row>`;
+
+  const sanitizeWorksheetName = (name: string) =>
+    String(name || 'Лист')
+      .replace(/[\\/?*[\]:]/g, ' ')
+      .trim()
+      .slice(0, 31) || 'Лист';
+
+  const buildExcelWorksheet = (
+    name: string,
+    rows: string[],
+    widths: number[],
+    freezeHeader = false,
+  ) => `
+    <Worksheet ss:Name="${escapeExcelXml(sanitizeWorksheetName(name))}">
+      <Table>
+        ${widths.map((width) => `<Column ss:Width="${width}"/>`).join('')}
+        ${rows.join('')}
+      </Table>
+      ${freezeHeader ? `
+      <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+        <FreezePanes/>
+        <FrozenNoSplit/>
+        <SplitHorizontal>5</SplitHorizontal>
+        <TopRowBottomPane>5</TopRowBottomPane>
+        <ActivePane>2</ActivePane>
+      </WorksheetOptions>` : ''}
+    </Worksheet>`;
+
+  const getExcelMoneyFormatStyle = (value: number) => value < 0 ? 'MoneyNegative' : 'Money';
+
+  const buildProductSummaryExcelRows = (rows: ProductSalesSummaryRow[]) => {
+    const totalQuantity = rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+    const totalSalesCount = rows.reduce((sum, row) => sum + Number(row.salesCount || 0), 0);
+    const totalCost = rows.reduce((sum, row) => sum + Number(row.costTotal || 0), 0);
+    const totalRevenue = rows.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
+    const totalProfit = rows.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+
+    return [
+      buildExcelRow(['№', 'Товар', 'Кол-во продано', 'Кол-во продаж', 'Себестоимость за 1 шт', 'Цена продажи за 1 шт', 'Прибыль за 1 шт', 'Сумма себестоимости', 'Сумма продаж', 'Общая прибыль', 'Рентабельность %'], { style: 'Header' }),
+      ...rows.map((row, index) => {
+        const quantity = Number(row.quantity || 0);
+        const costPerUnit = quantity > 0 ? row.costTotal / quantity : 0;
+        const salePerUnit = quantity > 0 ? row.revenue / quantity : 0;
+        const profitPerUnit = quantity > 0 ? row.profit / quantity : 0;
+        const margin = row.revenue > 0 ? (row.profit / row.revenue) * 100 : 0;
+
+        return `<Row>
+          ${buildExcelCell(index + 1, { type: 'Number', style: 'Center' })}
+          ${buildExcelCell(row.name, { style: 'Text' })}
+          ${buildExcelCell(quantity, { type: 'Number', style: 'Qty' })}
+          ${buildExcelCell(row.salesCount, { type: 'Number', style: 'Qty' })}
+          ${buildExcelCell(costPerUnit, { type: 'Number', style: 'Money' })}
+          ${buildExcelCell(salePerUnit, { type: 'Number', style: 'Money' })}
+          ${buildExcelCell(profitPerUnit, { type: 'Number', style: getExcelMoneyFormatStyle(profitPerUnit) })}
+          ${buildExcelCell(row.costTotal, { type: 'Number', style: 'Money' })}
+          ${buildExcelCell(row.revenue, { type: 'Number', style: 'Money' })}
+          ${buildExcelCell(row.profit, { type: 'Number', style: getExcelMoneyFormatStyle(row.profit) })}
+          ${buildExcelCell(margin / 100, { type: 'Number', style: 'Percent' })}
+        </Row>`;
+      }),
+      `<Row>
+        ${buildExcelCell('ИТОГО', { style: 'Total', mergeAcross: 1 })}
+        ${buildExcelCell(totalQuantity, { type: 'Number', style: 'TotalQty' })}
+        ${buildExcelCell(totalSalesCount, { type: 'Number', style: 'TotalQty' })}
+        ${buildExcelCell(totalQuantity > 0 ? totalCost / totalQuantity : 0, { type: 'Number', style: 'TotalMoney' })}
+        ${buildExcelCell(totalQuantity > 0 ? totalRevenue / totalQuantity : 0, { type: 'Number', style: 'TotalMoney' })}
+        ${buildExcelCell(totalQuantity > 0 ? totalProfit / totalQuantity : 0, { type: 'Number', style: 'TotalMoney' })}
+        ${buildExcelCell(totalCost, { type: 'Number', style: 'TotalMoney' })}
+        ${buildExcelCell(totalRevenue, { type: 'Number', style: 'TotalMoney' })}
+        ${buildExcelCell(totalProfit, { type: 'Number', style: 'TotalMoney' })}
+        ${buildExcelCell(totalRevenue > 0 ? totalProfit / totalRevenue : 0, { type: 'Number', style: 'TotalPercent' })}
+      </Row>`,
+    ];
+  };
+
+  const buildExcelWorkbookXml = () => {
+    const generatedAt = new Date();
+    const productSummaryData =
+      reportType === 'sales' || reportType === 'profit'
+        ? buildProductSalesSummaryData(reportData)
+        : [];
+    const { detailHeaders, detailRows } = buildReportRows(reportData);
+    const totalQuantity = reportData.reduce((sum, row) => sum + Number(row.quantity || 0), 0);
+    const totalRevenue = reportData.reduce((sum, row) => {
+      if (reportType === 'profit') return sum + Number(row.net_sales || 0);
+      if (reportType === 'sales') return sum + Number(row.total_sales || 0);
+      return sum + Number(row.total_value || 0);
+    }, 0);
+    const totalProfit = reportData.reduce((sum, row) => sum + Number(row.profit || 0), 0);
+
+    const summaryRows = [
+      buildExcelRow([`Отчет: ${currentMeta.title}`, '', '', '', '', '', '', '', '', '', ''], { style: 'Title' }),
+      buildExcelRow([`Период: ${dateRange.start} - ${dateRange.end}`], { style: 'Subtitle' }),
+      buildExcelRow([`Склад: ${selectedWarehouseName}`], { style: 'Subtitle' }),
+      buildExcelRow([`Сформировано: ${generatedAt.toLocaleString('ru-RU')}`], { style: 'Subtitle' }),
+      buildExcelRow(['']),
+      ...(productSummaryData.length
+        ? buildProductSummaryExcelRows(productSummaryData)
+        : [
+            buildExcelRow(['№', ...detailHeaders], { style: 'Header' }),
+            ...detailRows.map((row, index) => buildExcelRow([index + 1, ...row], { numericColumns: [0] })),
+            buildExcelRow(['ИТОГО', ...buildDetailTotalRow(reportData)], { style: 'Total' }),
+          ]),
+    ];
+
+    const detailSheetRows = [
+      buildExcelRow([`Детализация: ${currentMeta.title}`], { style: 'Title' }),
+      buildExcelRow([`Период: ${dateRange.start} - ${dateRange.end}`], { style: 'Subtitle' }),
+      buildExcelRow([`Склад: ${selectedWarehouseName}`], { style: 'Subtitle' }),
+      buildExcelRow(['']),
+      buildExcelRow(['№', ...detailHeaders], { style: 'Header' }),
+      ...detailRows.map((row, index) => buildExcelRow([index + 1, ...row], { numericColumns: [0] })),
+      buildExcelRow(['ИТОГО', ...buildDetailTotalRow(reportData)], { style: 'Total' }),
+    ];
+
+    const totalsRows = [
+      buildExcelRow(['Итоги отчета'], { style: 'Title' }),
+      buildExcelRow(['Показатель', 'Значение'], { style: 'Header' }),
+      buildExcelRow(['Тип отчета', currentMeta.title]),
+      buildExcelRow(['Период', `${dateRange.start} - ${dateRange.end}`]),
+      buildExcelRow(['Склад', selectedWarehouseName]),
+      buildExcelRow(['Строк в отчете', reportData.length], { numericColumns: [1] }),
+      buildExcelRow(['Общее количество', totalQuantity], { numericColumns: [1] }),
+      buildExcelRow(['Сумма продаж / сумма периода', totalRevenue], { numericColumns: [1] }),
+      buildExcelRow(['Общая прибыль', totalProfit], { numericColumns: [1] }),
+      buildExcelRow(['Рентабельность', totalRevenue > 0 ? totalProfit / totalRevenue : 0], { numericColumns: [1] }),
+    ];
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+  <Styles>
+    <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="10"/></Style>
+    <Style ss:ID="Title"><Font ss:FontName="Arial" ss:Size="16" ss:Bold="1" ss:Color="#0F172A"/><Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="Subtitle"><Font ss:FontName="Arial" ss:Size="10" ss:Color="#475569"/></Style>
+    <Style ss:ID="Header"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="Text"><Alignment ss:WrapText="1" ss:Vertical="Center"/></Style>
+    <Style ss:ID="Center"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>
+    <Style ss:ID="Qty"><NumberFormat ss:Format="#,##0.###"/></Style>
+    <Style ss:ID="Money"><NumberFormat ss:Format="#,##0.00"/></Style>
+    <Style ss:ID="MoneyNegative"><Font ss:Color="#DC2626"/><NumberFormat ss:Format="#,##0.00;[Red](#,##0.00)"/></Style>
+    <Style ss:ID="Percent"><NumberFormat ss:Format="0.0%"/></Style>
+    <Style ss:ID="Total"><Font ss:Bold="1"/><Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/></Style>
+    <Style ss:ID="TotalQty"><Font ss:Bold="1"/><Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0.###"/></Style>
+    <Style ss:ID="TotalMoney"><Font ss:Bold="1"/><Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0.00"/></Style>
+    <Style ss:ID="TotalPercent"><Font ss:Bold="1"/><Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/><NumberFormat ss:Format="0.0%"/></Style>
+  </Styles>
+  ${buildExcelWorksheet('Сводка по товарам', summaryRows, [36, 260, 82, 82, 92, 92, 92, 108, 108, 108, 92], true)}
+  ${buildExcelWorksheet('Детализация', detailSheetRows, [42, 82, 82, 115, 140, 240, 60, 78, 92, 92, 92, 110, 110], true)}
+  ${buildExcelWorksheet('Итоги', totalsRows, [210, 140], false)}
+</Workbook>`;
+  };
 
   const exportToPdf = async () => {
     const summaryRows = buildSummaryRows(reportData, selectedWarehouseName);
     const { detailHeaders, detailRows } = buildReportRows(reportData);
+    const productSalesSummaryData =
+      reportType === 'sales' || reportType === 'profit'
+        ? buildProductSalesSummaryData(reportData)
+        : [];
     const sections = [{
       title: 'Общий отчёт',
       summaryRows,
+      productSummaryHeaders: ['Товар', 'Продано', 'Продаж', 'Себест./шт', 'Цена/шт', 'Прибыль/шт', 'Общая сумма', 'Общая прибыль'],
+      productSummaryRows: productSalesSummaryData.length ? buildProductSalesSummaryRows(productSalesSummaryData) : undefined,
       detailHeaders,
       detailRows,
       detailTotalRow: buildDetailTotalRow(reportData),
-      productProfitRows: reportType === 'profit' && productProfitData.length
-        ? buildProductProfitRows(productProfitData)
-        : undefined,
     }];
 
     const groupedByWarehouse = reportData.reduce((acc, row) => {
@@ -886,40 +1138,19 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     groupedByWarehouse.forEach((rows, name) => {
       const warehouseSummaryRows = buildSummaryRows(rows, name);
       const { detailRows: warehouseDetailRows } = buildReportRows(rows);
-      let warehouseProfitRows: Array<Array<string | number>> | undefined;
-
-      if (reportType === 'profit' && productProfitData.length) {
-        const warehouseProfitData = rows
-          .reduce((acc: Array<{ name: string; quantity: number; revenue: number; profit: number }>, row) => {
-            const existing = acc.find((item) => item.name === row.product_name);
-            const quantity = Number(row.quantity || 0);
-            const revenue = Number(row.net_sales || 0);
-            const profit = Number(row.profit || 0);
-
-            if (existing) {
-              existing.quantity += quantity;
-              existing.revenue += revenue;
-              existing.profit += profit;
-            } else {
-              acc.push({ name: formatProductName(row.product_name), quantity, revenue, profit });
-            }
-
-            return acc;
-          }, [])
-          .sort((a, b) => b.profit - a.profit);
-
-        if (warehouseProfitData.length) {
-          warehouseProfitRows = buildProductProfitRows(warehouseProfitData);
-        }
-      }
+      const warehouseProductSummaryData =
+        reportType === 'sales' || reportType === 'profit'
+          ? buildProductSalesSummaryData(rows)
+          : [];
 
       sections.push({
         title: name,
         summaryRows: warehouseSummaryRows,
+        productSummaryHeaders: ['Товар', 'Продано', 'Продаж', 'Себест./шт', 'Цена/шт', 'Прибыль/шт', 'Общая сумма', 'Общая прибыль'],
+        productSummaryRows: warehouseProductSummaryData.length ? buildProductSalesSummaryRows(warehouseProductSummaryData) : undefined,
         detailHeaders,
         detailRows: warehouseDetailRows,
         detailTotalRow: buildDetailTotalRow(rows),
-        productProfitRows: warehouseProfitRows,
       });
     });
 
@@ -949,6 +1180,47 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
     }
   };
 
+  const handleExportExcel = async () => {
+    if (!reportData.length) {
+      toast.error('Сначала загрузите данные отчёта');
+      return;
+    }
+
+    try {
+      setIsExcelExporting(true);
+      const xml = buildExcelWorkbookXml();
+      const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `otchet_${reportType}_${getReportMonthKey(dateRange.start)}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      toast.error('Не удалось скачать Excel-отчёт');
+    } finally {
+      setIsExcelExporting(false);
+    }
+  };
+
+  const productSalesSummaryForView =
+    reportType === 'sales' || reportType === 'profit'
+      ? buildProductSalesSummaryData(reportData)
+      : [];
+  const productSalesSummaryTotals = productSalesSummaryForView.reduce(
+    (totals, row) => ({
+      quantity: totals.quantity + Number(row.quantity || 0),
+      salesCount: totals.salesCount + Number(row.salesCount || 0),
+      costTotal: totals.costTotal + Number(row.costTotal || 0),
+      revenue: totals.revenue + Number(row.revenue || 0),
+      profit: totals.profit + Number(row.profit || 0),
+    }),
+    { quantity: 0, salesCount: 0, costTotal: 0, revenue: 0, profit: 0 },
+  );
+
   return (
     <div className="app-page-shell">
       <div className="w-full space-y-6">
@@ -960,6 +1232,14 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={handleExportExcel}
+              disabled={isExcelExporting}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileSpreadsheet size={16} />
+              <span>{isExcelExporting ? 'Скачивание...' : 'Excel'}</span>
+            </button>
             <button
               onClick={handleExportReport}
               disabled={isExporting}
@@ -1075,6 +1355,86 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           ))}
         </div>
       </section>
+
+      {(reportType === 'sales' || reportType === 'profit') && (
+        <Panel
+          title="Сводка по товарам"
+          headerActions={
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={isExcelExporting || !reportData.length}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileSpreadsheet size={14} />
+              <span>Скачать Excel</span>
+            </button>
+          }
+        >
+          <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="min-w-[1180px] w-full border-collapse text-sm">
+              <thead className="bg-slate-800 text-white">
+                <tr>
+                  {['№', 'Товар', 'Продано', 'Продаж', 'Себест./шт', 'Цена/шт', 'Прибыль/шт', 'Сумма себест.', 'Сумма продаж', 'Общая прибыль', 'Рентаб.'].map((header) => (
+                    <th key={header} className="border border-slate-700 px-3 py-2 text-right font-semibold first:text-center nth-[2]:text-left">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {productSalesSummaryForView.map((row, index) => {
+                  const quantity = Number(row.quantity || 0);
+                  const costPerUnit = quantity > 0 ? row.costTotal / quantity : 0;
+                  const salePerUnit = quantity > 0 ? row.revenue / quantity : 0;
+                  const profitPerUnit = quantity > 0 ? row.profit / quantity : 0;
+                  const margin = row.revenue > 0 ? (row.profit / row.revenue) * 100 : 0;
+
+                  return (
+                    <tr key={`${row.name}-${index}`} className="odd:bg-white even:bg-slate-50">
+                      <td className="border border-slate-200 px-3 py-2 text-center text-slate-500">{index + 1}</td>
+                      <td className="border border-slate-200 px-3 py-2 font-medium text-slate-900">{row.name}</td>
+                      <td className="border border-slate-200 px-3 py-2 text-right">{formatCount(quantity)}</td>
+                      <td className="border border-slate-200 px-3 py-2 text-right">{formatCount(row.salesCount)}</td>
+                      <td className="border border-slate-200 px-3 py-2 text-right">{formatMoney(costPerUnit)}</td>
+                      <td className="border border-slate-200 px-3 py-2 text-right">{formatMoney(salePerUnit)}</td>
+                      <td className={`border border-slate-200 px-3 py-2 text-right font-semibold ${profitPerUnit < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                        {formatMoney(profitPerUnit)}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-2 text-right">{formatMoney(row.costTotal)}</td>
+                      <td className="border border-slate-200 px-3 py-2 text-right">{formatMoney(row.revenue)}</td>
+                      <td className={`border border-slate-200 px-3 py-2 text-right font-semibold ${row.profit < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
+                        {formatMoney(row.profit)}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-2 text-right">{formatPercent(margin, 1)}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-amber-50 font-bold text-slate-900">
+                  <td className="border border-amber-200 px-3 py-2 text-center" colSpan={2}>ИТОГО</td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">{formatCount(productSalesSummaryTotals.quantity)}</td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">{formatCount(productSalesSummaryTotals.salesCount)}</td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">
+                    {formatMoney(productSalesSummaryTotals.quantity > 0 ? productSalesSummaryTotals.costTotal / productSalesSummaryTotals.quantity : 0)}
+                  </td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">
+                    {formatMoney(productSalesSummaryTotals.quantity > 0 ? productSalesSummaryTotals.revenue / productSalesSummaryTotals.quantity : 0)}
+                  </td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">
+                    {formatMoney(productSalesSummaryTotals.quantity > 0 ? productSalesSummaryTotals.profit / productSalesSummaryTotals.quantity : 0)}
+                  </td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">{formatMoney(productSalesSummaryTotals.costTotal)}</td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">{formatMoney(productSalesSummaryTotals.revenue)}</td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">{formatMoney(productSalesSummaryTotals.profit)}</td>
+                  <td className="border border-amber-200 px-3 py-2 text-right">
+                    {formatPercent(productSalesSummaryTotals.revenue > 0 ? (productSalesSummaryTotals.profit / productSalesSummaryTotals.revenue) * 100 : 0, 1)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
 
       {reportType !== 'writeoffs' && reportType !== 'returns' && (
         <React.Suspense

@@ -101,7 +101,7 @@ export default function POSCartSummary({
         />
       </div>
 
-      <div className="space-y-1.5 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2 text-xs">
+      <div className="hidden space-y-1.5 rounded border border-[#d6c07a] bg-[#fff8dc] px-3 py-2 text-xs lg:block">
         <div className="flex items-center justify-between text-slate-500">
           <span>Подытог</span>
           <span className="text-slate-900">{formatMoney(subtotal)}</span>
@@ -140,7 +140,7 @@ export default function POSCartSummary({
       <button
         onClick={handleCheckout}
         disabled={isSubmitting || cartLength === 0 || !customerId}
-        className="flex w-full items-center justify-center rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2.5 text-sm font-semibold text-[#2f2f2f] shadow-sm transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50"
+        className="hidden w-full items-center justify-center rounded border border-[#8f6f18] bg-[#ffd966] px-4 py-2.5 text-sm font-semibold text-[#2f2f2f] shadow-sm transition-colors hover:bg-[#ffc83d] disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
       >
         {isSubmitting ? 'Обработка...' : 'Оформить'}
         {!isSubmitting && <ChevronRight className="ml-2" size={18} />}

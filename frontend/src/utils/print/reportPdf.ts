@@ -4,10 +4,11 @@ import autoTable from 'jspdf-autotable';
 type ReportPdfSection = {
   title: string;
   summaryRows: unknown[][];
+  productSummaryHeaders?: string[];
+  productSummaryRows?: unknown[][];
   detailHeaders: string[];
   detailRows: unknown[][];
   detailTotalRow: unknown[];
-  productProfitRows?: Array<Array<string | number>>;
 };
 
 type ReportPdfOptions = {
@@ -138,7 +139,48 @@ const addSection = (doc: jsPDF, section: ReportPdfSection, isFirstSection: boole
     },
   });
 
-  const detailsStartY = getLastTableY(doc, sectionStartY + 24) + 6;
+  let detailsStartY = getLastTableY(doc, sectionStartY + 24) + 6;
+
+  if (section.productSummaryRows?.length && section.productSummaryHeaders?.length) {
+    autoTable(doc, {
+      startY: detailsStartY,
+      margin: { left: margin, right: margin, bottom: 12 },
+      head: [section.productSummaryHeaders],
+      body: section.productSummaryRows!.map((row) => row.map(stringifyCell)),
+      theme: 'grid',
+      styles: {
+        font: PDF_FONT_NAME,
+        fontSize: 6.1,
+        lineColor: [203, 213, 225],
+        lineWidth: 0.1,
+        cellPadding: { top: 1.1, right: 1.1, bottom: 1.1, left: 1.1 },
+        textColor: [15, 23, 42],
+        valign: 'middle',
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        font: PDF_FONT_NAME,
+        fillColor: [15, 118, 110],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        halign: 'center',
+      },
+      alternateRowStyles: {
+        fillColor: [240, 253, 250],
+      },
+      columnStyles: {
+        0: { cellWidth: 78 },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.row.index === section.productSummaryRows!.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [204, 251, 241];
+        }
+      },
+    });
+
+    detailsStartY = getLastTableY(doc, detailsStartY) + 8;
+  }
   autoTable(doc, {
     startY: detailsStartY,
     margin: { left: margin, right: margin, bottom: 12 },
@@ -177,12 +219,13 @@ const addSection = (doc: jsPDF, section: ReportPdfSection, isFirstSection: boole
     },
   });
 
-  if (section.productProfitRows?.length) {
+  const unusedLegacyProductRows = section.productSummaryRows;
+  if (unusedLegacyProductRows && false) {
     autoTable(doc, {
       startY: getLastTableY(doc, detailsStartY) + 8,
       margin: { left: margin, right: margin, bottom: 12 },
       head: [['Товар', 'Количество', 'Чистая выручка', 'Прибыль']],
-      body: section.productProfitRows.map((row) => row.map(stringifyCell)),
+      body: unusedLegacyProductRows!.map((row) => row.map(stringifyCell)),
       theme: 'grid',
       styles: {
         font: PDF_FONT_NAME,
@@ -199,7 +242,7 @@ const addSection = (doc: jsPDF, section: ReportPdfSection, isFirstSection: boole
         fontStyle: 'bold',
       },
       didParseCell: (data: any) => {
-        if (data.section === 'body' && data.row.index === section.productProfitRows!.length - 1) {
+        if (data.section === 'body' && data.row.index === section.productSummaryRows!.length - 1) {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.fillColor = [204, 251, 241];
         }

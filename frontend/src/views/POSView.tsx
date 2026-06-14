@@ -1033,6 +1033,7 @@ export default function POSView() {
   const invoiceDiscountAmount = normalizeMoneyValue(
     Math.max(0, roundMoney(subtotalAfterLineDiscount * (normalizedDiscount / 100))),
   );
+  const totalDiscountAmount = normalizeMoneyValue(roundMoney(lineDiscountAmount + invoiceDiscountAmount));
   const total = normalizeMoneyValue(Math.max(0, roundMoney(subtotalAfterLineDiscount - invoiceDiscountAmount)));
   const paid = parseFloat(paidAmount) || 0;
   const balance = paid - total;
@@ -1366,6 +1367,11 @@ export default function POSView() {
                 <span className="text-xl font-black leading-none text-[#1f2933]">{formatMoney(total)}</span>
                 <span className="text-xs font-semibold text-emerald-700">{formatWeightKg(cartWeightSummary.totalWeightKg)}</span>
               </div>
+              {totalDiscountAmount > 0 && (
+                <p className="mt-1 inline-flex rounded-md bg-rose-50 px-2 py-0.5 text-[11px] font-bold text-rose-700">
+                  Скидка: -{formatMoney(totalDiscountAmount)}
+                </p>
+              )}
               <p className={clsx('mt-1 text-[11px] font-semibold', customerId ? 'text-slate-500' : 'text-amber-700')}>
                 {customerId ? 'Клиент выбран' : 'Выберите клиента'}
               </p>

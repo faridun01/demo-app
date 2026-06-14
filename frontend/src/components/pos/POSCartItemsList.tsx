@@ -53,7 +53,7 @@ export default function POSCartItemsList({
       )}
       style={!isCartExpanded ? { maxHeight: undefined } : undefined}
     >
-      <div className="sticky top-0 z-10 -mx-3 border-b border-[#d5dde6] bg-white px-3 py-2 text-xs font-semibold text-[#32465a] md:-mx-4 md:px-4 lg:hidden">
+      <div className="hidden">
         Товары в корзине: {cart.length}
       </div>
 
