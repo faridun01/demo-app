@@ -1,27 +1,24 @@
-# Node modules
-node_modules/
 
+!.env.example
 # Build folders
-build/
-dist/
-
-# Test coverage
-coverage/
-
-# Logs
-*.log
-
 # Environment variables
+# Logs
+# Node modules
+# OS files
+# Snapshots / backups
+# Test coverage
+# Uploads (local files)
+*.log
+.DS_Store
 .env
 .env.*
-!.env.example
 backend/.env
-
-# Uploads (local files)
 backend/uploads/
-
-# Snapshots / backups
+build/
+coverage/
+dist/
+node_modules/
 snapshots/
-
-# OS files
-.DS_Store
+# Secrets and temporary files
+cookies.txt
+*.env
