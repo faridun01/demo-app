@@ -1372,7 +1372,7 @@ export default function ReportsView({ warehouseId: initialWarehouseId = null }: 
           }
         >
           <div className="overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="min-w-[1180px] w-full border-collapse text-sm">
+            <table className="min-w-295 w-full border-collapse text-sm">
               <thead className="bg-slate-800 text-white">
                 <tr>
                   {['№', 'Товар', 'Продано', 'Продаж', 'Себест./шт', 'Цена/шт', 'Прибыль/шт', 'Сумма себест.', 'Сумма продаж', 'Общая прибыль', 'Рентаб.'].map((header) => (
