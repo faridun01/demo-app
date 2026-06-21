@@ -9,7 +9,7 @@ This folder contains:
 Run against your Postgres DB:
 
 ```powershell
-docker compose exec postgres psql -U postgres -d my_wholesale_shop -f /path/to/backend/scripts/perf/explain_reports.sql
+docker compose exec postgres psql -U postgres -d three_click -f /path/to/backend/scripts/perf/explain_reports.sql
 ```
 
 If you are not using docker:
@@ -48,4 +48,3 @@ Recommended process:
   - `/api/reports/writeoffs`
   - `/api/dashboard/summary`
 - No correctness regressions in report totals.
-

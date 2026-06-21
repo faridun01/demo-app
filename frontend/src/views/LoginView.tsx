@@ -79,7 +79,7 @@ export default function LoginView() {
               <Warehouse size={26} />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold">Wholesale CRM</h1>
+              <h1 className="text-2xl font-semibold">3Click</h1>
               <p className="text-sm text-slate-300">Безопасная рабочая зона склада</p>
             </div>
           </div>

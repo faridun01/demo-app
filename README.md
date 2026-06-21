@@ -1,6 +1,6 @@
-# My Wholesale Shop
+# 3Click
 
-Wholesale CRM and inventory system:
+3Click CRM and inventory system:
 - warehouse management
 - products and stock tracking
 - POS terminal
@@ -35,7 +35,7 @@ Wholesale CRM and inventory system:
 6. Start frontend:
    - `npm run dev:frontend`
 7. Open app:
-   - `http://localhost:3000`
+   - `http://localhost:5173`
 
 Run both services together:
 - `npm run dev:all`

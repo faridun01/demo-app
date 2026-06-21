@@ -1,8 +1,8 @@
 const DEFAULT_ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
 ];
 
 const normalizeOrigin = (origin: string) => origin.trim().replace(/\/+$/, '');
@@ -39,11 +39,11 @@ export const securityConfig = {
     origins: allowedOrigins,
   },
   auth: {
-    tokenIssuer: process.env.JWT_ISSUER || 'my-wholesale-shop',
-    tokenAudience: process.env.JWT_AUDIENCE || 'my-wholesale-shop-users',
+    tokenIssuer: process.env.JWT_ISSUER || 'three-click',
+    tokenAudience: process.env.JWT_AUDIENCE || 'three-click-users',
     tokenExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
     minimumPasswordLength: 8,
-    twoFactorIssuer: process.env.TWO_FACTOR_ISSUER || 'Wholesale CRM',
+    twoFactorIssuer: process.env.TWO_FACTOR_ISSUER || '3Click',
     twoFactorSetupExpiresIn: process.env.TWO_FACTOR_SETUP_EXPIRES_IN || '10m',
     twoFactorChallengeExpiresIn: process.env.TWO_FACTOR_CHALLENGE_EXPIRES_IN || '5m',
     backupCodeCount: 8,
